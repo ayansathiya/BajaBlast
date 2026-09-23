@@ -2909,3 +2909,46 @@
   margin: 16px 0 0;
   max-width: 62ch;
 }
+
+/* ---------- what's new ---------- */
+
+.changelog-entry {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.changelog-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.changelog-current {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #000;
+  background: var(--accent);
+  border-radius: 3px;
+  padding: 2px 7px;
+}
+
+.changelog-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--text);
+  margin-top: 6px;
+}
+
+.changelog-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+.changelog-list li {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin-bottom: 7px;
+}

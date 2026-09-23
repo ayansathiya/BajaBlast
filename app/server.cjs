@@ -21,6 +21,7 @@ const { expandEvents } = require('./recurrence.cjs');
 const display = require('./display.cjs');
 const recipes = require('./recipes.cjs');
 const bake = require('./bake.cjs');
+const changelog = require('./changelog.cjs');
 
 const PORT = 8787;
 
@@ -1534,6 +1535,12 @@ function startServer(options = {}) {
       } catch (err) {
         return send(res, 404, { error: String(err.message || err) });
       }
+    }
+
+    // What changed, and when. Read from CHANGELOG.md at the root of the
+    // payload, so an update ships its own release notes.
+    if (url.pathname === '/api/changelog' && req.method === 'GET') {
+      return send(res, 200, { build: BUILD, entries: changelog.entries() });
     }
 
     /* ---------------- bake night ---------------- */

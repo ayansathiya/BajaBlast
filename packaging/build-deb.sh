@@ -58,6 +58,9 @@ mkdir -p "$STAGE/opt/baja-blast" "$STAGE/lib/systemd/system" "$STAGE/DEBIAN" "$S
 cp -r app "$STAGE/opt/baja-blast/"
 cp -r dist "$STAGE/opt/baja-blast/"
 cp build.json "$STAGE/opt/baja-blast/"
+# The update log travels with the app: Settings reads it from disk, so a
+# package without it shows an empty "What's new" on the wall.
+cp CHANGELOG.md "$STAGE/opt/baja-blast/"
 
 # Nothing in the payload needs third-party modules — everything the server
 # does is Node built-ins, and the front end is already bundled into dist/.

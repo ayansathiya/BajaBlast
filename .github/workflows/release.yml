@@ -99,7 +99,7 @@ jobs:
 
       - name: Pack the payload
         run: |
-          tar -czf baja-blast-payload.tar.gz build.json dist app
+          tar -czf baja-blast-payload.tar.gz build.json CHANGELOG.md dist app
           shasum -a 256 baja-blast-payload.tar.gz | awk '{print $1}' > baja-blast-payload.sha256
           echo "Payload $(du -h baja-blast-payload.tar.gz | cut -f1), sha256 $(cat baja-blast-payload.sha256)"
 

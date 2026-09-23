@@ -65,6 +65,16 @@ The polling timers are still there as a fallback, at minutes rather than
 seconds, so if the stream can't be held the display goes stale rather than
 frozen.
 
+## Update log
+
+Every change is written down in **[CHANGELOG.md](CHANGELOG.md)**, newest
+first, and the app reads that same file — Settings → What's new shows the list
+on the wall, with the build currently running marked.
+
+One file, three places it appears, no chance of them disagreeing. It ships
+inside the `.deb` and inside every over-the-air payload, so a box that updated
+itself at 3am can explain what changed.
+
 ## Recipes and Bake Night
 
 The chef button in the bottom corner opens a photo grid: Baking, Mocktails,

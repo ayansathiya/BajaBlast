@@ -30,7 +30,7 @@ interface Props {
 
 // Deliberately identical to the tab list on the phone (app/mobile.html).
 // If one grows a section, so does the other — they're the same panel.
-const SECTIONS = ['Calendar', 'People', 'Grocery', 'Chores', 'Recipes', 'Photos', 'Music', 'Display', 'Ambient', 'Intelligence', 'Baja', 'System'] as const;
+const SECTIONS = ['Calendar', 'People', 'Grocery', 'Chores', 'Recipes', 'Photos', 'Music', 'Display', 'Ambient', 'Intelligence', 'Baja', "What's new", 'System'] as const;
 type Section = (typeof SECTIONS)[number];
 
 const PERSON_COLORS = ['#00F5D4', '#FF5C72', '#8FA3AD', '#A88F7D', '#B58FA0', '#8FA88F', '#E8C468'];
@@ -1505,6 +1505,77 @@ function RecipesManager({
   );
 }
 
+
+interface ChangelogEntry {
+  date: string | null;
+  title: string;
+  changes: string[];
+}
+
+/**
+ * What's new — the update log, read from CHANGELOG.md on the server.
+ *
+ * Worth having on the wall rather than only on GitHub: this app updates
+ * itself overnight, so the screen in the kitchen can change without anyone
+ * having asked it to. Somebody should be able to walk up the next morning and
+ * find out what happened.
+ *
+ * The build currently running is marked, so "is this the new one yet?" has an
+ * answer that doesn't involve a terminal.
+ */
+function WhatsNew() {
+  const [entries, setEntries] = useState<ChangelogEntry[]>([]);
+  const [build, setBuild] = useState('');
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/changelog')
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        setEntries(data.entries || []);
+        setBuild(data.build || '');
+        setState('ready');
+      })
+      .catch(() => !cancelled && setState('error'));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // The build stamp starts with the date it was built, which is how an entry
+  // is matched to the version actually on screen.
+  const runningDate = build.slice(0, 10);
+
+  return (
+    <>
+      <h2>What&rsquo;s new</h2>
+      <p className="settings-note" style={{ marginTop: 0 }}>
+        This display updates itself. Build <strong>{build || '—'}</strong> is running now.
+      </p>
+
+      {state === 'loading' && <div className="settings-note">Loading…</div>}
+      {state === 'error' && <div className="settings-note">Could not read the update log.</div>}
+
+      {entries.map((entry, i) => (
+        <div className="changelog-entry" key={`${entry.date ?? entry.title}-${i}`}>
+          <div className="changelog-head">
+            <span className="uppercase-label">{entry.date ?? 'Earlier'}</span>
+            {entry.date === runningDate && <span className="changelog-current">Running now</span>}
+          </div>
+          <div className="changelog-title">{entry.title}</div>
+          <ul className="changelog-list">
+            {entry.changes.map((line, j) => (
+              <li key={j}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function SettingsPanel({
   settings,
   onChange,
@@ -1549,6 +1620,8 @@ export function SettingsPanel({
 
           {section === 'Recipes' && <RecipesManager settings={settings} onChange={onChange} />}
 
+          {section === "What's new" && <WhatsNew />}
+
           {section === 'Photos' && <PhotosManager />}
 
           {section === 'Music' && <MusicManager settings={settings} onChange={onChange} />}
@@ -1574,7 +1647,31 @@ export function SettingsPanel({
                   onClick={() => patch('display', { ...settings.display, clockStyle: settings.display.clockStyle === 'digital-seconds' ? 'digital' : 'digital-seconds' })}
                 />
               </Row>
-              <Row label="Reduced motion" desc="Minimize animation across the interface">
+              {/*
+        One switch for a machine that can't afford the pretty version.
+
+        On a 1GB box with a software-rendered browser, the crossfades, the idle
+        reel and the rotating photo frame are most of the work the CPU does —
+        and a calendar that stutters is worse than one that doesn't animate.
+        Three settings in three different panels is too much to ask of someone
+        standing in front of a slow screen, so this flips all of them.
+      */}
+      <Row label="Low power mode" desc="For a small box: no animation, no idle reel, no photo frame">
+        <Toggle
+          on={settings.display.reducedMotion && !settings.ambient.enabled && settings.feeds.showPhotoFrame === false}
+          onClick={() => {
+            const goingOn = !(settings.display.reducedMotion && !settings.ambient.enabled && settings.feeds.showPhotoFrame === false);
+            onChange({
+              ...settings,
+              display: { ...settings.display, reducedMotion: goingOn },
+              ambient: { ...settings.ambient, enabled: !goingOn },
+              feeds: { ...settings.feeds, showPhotoFrame: !goingOn },
+            });
+          }}
+        />
+      </Row>
+
+      <Row label="Reduced motion" desc="Minimize animation across the interface">
                 <Toggle on={settings.display.reducedMotion} onClick={() => patch('display', { ...settings.display, reducedMotion: !settings.display.reducedMotion })} />
               </Row>
               <Row label="Large text" desc="Increase text size for readability">
