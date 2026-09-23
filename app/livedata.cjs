@@ -1,0 +1,309 @@
+// ---------------------------------------------------------------------------
+// Live data: weather, news, stocks.
+//
+// This all runs in the server process (Node), not the browser, on
+// purpose. Browsers block cross-origin requests to these providers; Node
+// doesn't. So the kiosk and the phone both just hit our own local server,
+// and this file is the only thing that talks to the outside world.
+//
+// Every source here is free and needs no signup, no API key, no account:
+//   - Weather  : Open-Meteo          (open-meteo.com)
+//   - News     : public RSS feeds    (BBC, NPR, CNBC, Ars Technica)
+//   - Stocks   : Yahoo Finance chart endpoint, with Stooq CSV as a fallback
+//
+// Everything is cached and served stale-on-error, so a flaky kitchen WiFi
+// degrades to "slightly old numbers" instead of a blank rail. If a source
+// has NEVER succeeded, we return null/[] rather than inventing numbers —
+// the UI shows an honest "unavailable" line instead of fake data.
+// ---------------------------------------------------------------------------
+
+const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
+
+async function fetchWithTimeout(url, ms = 9000, extraHeaders = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': UA, Accept: '*/*', ...extraHeaders },
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Simple time-based cache with stale-on-error semantics. */
+function makeCache(ttlMs, loader) {
+  let value = null;
+  let fetchedAt = 0;
+  let inFlight = null;
+
+  return async function get(...args) {
+    const fresh = value !== null && Date.now() - fetchedAt < ttlMs;
+    if (fresh) return { value, fetchedAt, stale: false };
+    if (inFlight) {
+      await inFlight.catch(() => {});
+      return { value, fetchedAt, stale: value !== null && Date.now() - fetchedAt >= ttlMs };
+    }
+    inFlight = (async () => {
+      const next = await loader(...args);
+      value = next;
+      fetchedAt = Date.now();
+    })();
+    try {
+      await inFlight;
+    } catch {
+      // Keep whatever we had. Never throw upward — a dead feed must not
+      // take the rest of the rail down with it.
+    } finally {
+      inFlight = null;
+    }
+    return { value, fetchedAt, stale: false };
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Weather — Open-Meteo
+// ---------------------------------------------------------------------------
+
+// WMO weather interpretation codes -> our icon set + a human label.
+const WMO = {
+  0: ['sun', 'Clear'],
+  1: ['sun', 'Mostly Clear'],
+  2: ['partly', 'Partly Cloudy'],
+  3: ['cloud', 'Overcast'],
+  45: ['cloud', 'Fog'],
+  48: ['cloud', 'Freezing Fog'],
+  51: ['rain', 'Light Drizzle'],
+  53: ['rain', 'Drizzle'],
+  55: ['rain', 'Heavy Drizzle'],
+  56: ['rain', 'Freezing Drizzle'],
+  57: ['rain', 'Freezing Drizzle'],
+  61: ['rain', 'Light Rain'],
+  63: ['rain', 'Rain'],
+  65: ['rain', 'Heavy Rain'],
+  66: ['rain', 'Freezing Rain'],
+  67: ['rain', 'Freezing Rain'],
+  71: ['snow', 'Light Snow'],
+  73: ['snow', 'Snow'],
+  75: ['snow', 'Heavy Snow'],
+  77: ['snow', 'Snow Grains'],
+  80: ['rain', 'Rain Showers'],
+  81: ['rain', 'Rain Showers'],
+  82: ['rain', 'Heavy Showers'],
+  85: ['snow', 'Snow Showers'],
+  86: ['snow', 'Snow Showers'],
+  95: ['storm', 'Thunderstorms'],
+  96: ['storm', 'Thunderstorms'],
+  99: ['storm', 'Severe Storms'],
+};
+
+function decodeWmo(code) {
+  return WMO[code] || ['partly', 'Unsettled'];
+}
+
+async function loadWeather(lat, lon) {
+  const url =
+    'https://api.open-meteo.com/v1/forecast' +
+    `?latitude=${lat}&longitude=${lon}` +
+    '&current=temperature_2m,weather_code' +
+    '&hourly=temperature_2m,precipitation_probability,weather_code' +
+    '&daily=sunrise,sunset' +
+    '&temperature_unit=fahrenheit&timezone=auto&forecast_days=2';
+
+  const res = await fetchWithTimeout(url);
+  if (!res.ok) throw new Error(`open-meteo ${res.status}`);
+  const d = await res.json();
+
+  const [icon, condition] = decodeWmo(d.current?.weather_code);
+  const nowMs = Date.now();
+
+  // Open-Meteo returns local-time strings without a zone suffix ("2026-09-08T14:00").
+  // new Date() parses those as local time, which is exactly what we want on a
+  // kiosk that only ever displays its own timezone.
+  const hourly = [];
+  const times = d.hourly?.time || [];
+  for (let i = 0; i < times.length && hourly.length < 12; i++) {
+    const t = new Date(times[i]);
+    if (t.getTime() < nowMs - 30 * 60 * 1000) continue;
+    hourly.push({
+      time: t.toISOString(),
+      tempF: d.hourly.temperature_2m[i],
+      precipChance: (d.hourly.precipitation_probability?.[i] ?? 0) / 100,
+      icon: decodeWmo(d.hourly.weather_code?.[i])[0],
+    });
+  }
+
+  return {
+    now: {
+      tempF: d.current?.temperature_2m ?? 0,
+      condition,
+      icon,
+      sunrise: new Date(d.daily?.sunrise?.[0] || nowMs).toISOString(),
+      sunset: new Date(d.daily?.sunset?.[0] || nowMs).toISOString(),
+    },
+    hourly,
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
+// Keyed by "lat,lon" so changing the home location doesn't serve the old city.
+const weatherCaches = new Map();
+function getWeather(lat, lon) {
+  const key = `${lat},${lon}`;
+  if (!weatherCaches.has(key)) {
+    weatherCaches.set(key, makeCache(10 * 60 * 1000, () => loadWeather(lat, lon)));
+  }
+  return weatherCaches.get(key)();
+}
+
+// ---------------------------------------------------------------------------
+// News — plain RSS, parsed without a dependency
+// ---------------------------------------------------------------------------
+
+const FEEDS = [
+  { source: 'BBC', category: 'world', url: 'https://feeds.bbci.co.uk/news/world/rss.xml' },
+  { source: 'NPR', category: 'world', url: 'https://feeds.npr.org/1001/rss.xml' },
+  { source: 'CNBC', category: 'business', url: 'https://www.cnbc.com/id/10001147/device/rss/rss.html' },
+  { source: 'Ars Technica', category: 'tech', url: 'https://feeds.arstechnica.com/arstechnica/index' },
+];
+
+function decodeEntities(s) {
+  return s
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function parseRss(xml, feed, limit = 6) {
+  const items = [];
+  const blocks = xml.match(/<(?:item|entry)\b[\s\S]*?<\/(?:item|entry)>/gi) || [];
+  for (const block of blocks.slice(0, limit)) {
+    const titleMatch = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(block);
+    if (!titleMatch) continue;
+    const headline = decodeEntities(titleMatch[1]);
+    if (!headline) continue;
+    const dateMatch = /<(?:pubDate|published|updated)[^>]*>([\s\S]*?)<\/(?:pubDate|published|updated)>/i.exec(block);
+    const published = dateMatch ? new Date(decodeEntities(dateMatch[1])) : new Date();
+    items.push({
+      id: `${feed.source}-${headline.slice(0, 60)}`,
+      source: feed.source,
+      headline,
+      category: feed.category,
+      publishedAt: (isNaN(published.getTime()) ? new Date() : published).toISOString(),
+    });
+  }
+  return items;
+}
+
+async function loadNews() {
+  const results = await Promise.allSettled(
+    FEEDS.map(async (feed) => {
+      const res = await fetchWithTimeout(feed.url, 8000);
+      if (!res.ok) throw new Error(`${feed.source} ${res.status}`);
+      return parseRss(await res.text(), feed);
+    })
+  );
+
+  const perFeed = results.map((r) => (r.status === 'fulfilled' ? r.value : []));
+  if (perFeed.every((f) => f.length === 0)) throw new Error('all news feeds failed');
+
+  // Interleave so the rail never shows four BBC headlines in a row — one
+  // from each source, then the next from each, and so on.
+  const merged = [];
+  for (let round = 0; round < 6; round++) {
+    for (const feedItems of perFeed) {
+      if (feedItems[round]) merged.push(feedItems[round]);
+    }
+  }
+  return merged.slice(0, 12);
+}
+
+const newsCache = makeCache(12 * 60 * 1000, loadNews);
+
+// ---------------------------------------------------------------------------
+// Stocks — Yahoo Finance chart endpoint, Stooq CSV as fallback
+// ---------------------------------------------------------------------------
+
+const NAME_HINTS = {
+  AAPL: 'Apple',
+  NVDA: 'NVIDIA',
+  MSFT: 'Microsoft',
+  TSLA: 'Tesla',
+  AMZN: 'Amazon',
+  GOOGL: 'Alphabet',
+  META: 'Meta',
+  SPY: 'S&P 500',
+  QQQ: 'Nasdaq 100',
+  'BTC-USD': 'Bitcoin',
+};
+
+async function yahooQuote(symbol) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`;
+  const res = await fetchWithTimeout(url, 8000);
+  if (!res.ok) throw new Error(`yahoo ${res.status}`);
+  const meta = (await res.json())?.chart?.result?.[0]?.meta;
+  if (!meta) throw new Error('yahoo shape');
+  const price = meta.regularMarketPrice;
+  const prev = meta.chartPreviousClose ?? meta.previousClose;
+  if (typeof price !== 'number' || typeof prev !== 'number' || prev === 0) throw new Error('yahoo values');
+  return {
+    symbol: symbol.toUpperCase(),
+    name: meta.shortName || NAME_HINTS[symbol.toUpperCase()] || symbol.toUpperCase(),
+    price,
+    changePct: ((price - prev) / prev) * 100,
+  };
+}
+
+// Stooq: one CSV request for every symbol at once. US tickers get a ".us"
+// suffix there. Columns: Symbol,Date,Time,Open,High,Low,Close,Volume.
+async function stooqQuotes(symbols) {
+  const list = symbols.map((s) => `${s.toLowerCase().replace('-usd', '')}.us`).join(',');
+  const res = await fetchWithTimeout(`https://stooq.com/q/l/?s=${list}&f=sd2t2ohlcv&h&e=csv`, 8000);
+  if (!res.ok) throw new Error(`stooq ${res.status}`);
+  const lines = (await res.text()).trim().split('\n').slice(1);
+  const out = [];
+  for (const line of lines) {
+    const [sym, , , open, , , close] = line.split(',');
+    const o = Number(open);
+    const c = Number(close);
+    if (!isFinite(o) || !isFinite(c) || o === 0) continue;
+    const symbol = sym.replace(/\.us$/i, '').toUpperCase();
+    out.push({
+      symbol,
+      name: NAME_HINTS[symbol] || symbol,
+      price: c,
+      changePct: ((c - o) / o) * 100,
+    });
+  }
+  if (out.length === 0) throw new Error('stooq empty');
+  return out;
+}
+
+async function loadStocks(symbols) {
+  const settled = await Promise.allSettled(symbols.map(yahooQuote));
+  const ok = settled.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+  if (ok.length > 0) return ok;
+  // Yahoo blocked or offline — try the CSV fallback before giving up.
+  return stooqQuotes(symbols);
+}
+
+const stockCaches = new Map();
+function getStocks(symbols) {
+  const key = symbols.join(',');
+  if (!stockCaches.has(key)) {
+    stockCaches.set(key, makeCache(5 * 60 * 1000, () => loadStocks(symbols)));
+  }
+  return stockCaches.get(key)();
+}
+
+module.exports = { getWeather, getNews: () => newsCache(), getStocks };

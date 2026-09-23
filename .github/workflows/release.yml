@@ -1,0 +1,128 @@
+name: Release payload
+
+# Every push to main becomes an update that every stick in the house picks up
+# within half an hour. That's the whole point of this file.
+#
+# What gets published is the *payload* — the compiled front-end and the Node
+# code, about 400KB — not the 300MB Electron app. The app bundle on the stick
+# never changes, so there's no re-download and no Gatekeeper prompt.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # Editing the README shouldn't restart the kitchen display.
+      - 'src/**'
+      - 'app/**'
+      - 'test/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # The revision is the run number, which only ever goes up. Deriving it
+      # from anything cleverer (dates, commit counts, tags) eventually produces
+      # a number lower than one already released, and then every stick in the
+      # house quietly stops updating.
+      - name: Stamp the build
+        id: stamp
+        run: |
+          REV="${{ github.run_number }}"
+          STAMP="$(date -u +%Y-%m-%d)-${REV}"
+          node - <<EOF
+          const fs = require('fs');
+          const b = JSON.parse(fs.readFileSync('build.json', 'utf8'));
+          b.build = '${STAMP}';
+          b.rev = ${REV};
+          fs.writeFileSync('build.json', JSON.stringify(b, null, 2) + '\n');
+          console.log('build', b.build, 'rev', b.rev, 'updates', JSON.stringify(b.updates));
+          EOF
+          echo "rev=$REV" >> "$GITHUB_OUTPUT"
+          echo "stamp=$STAMP" >> "$GITHUB_OUTPUT"
+
+      - name: Typecheck and build
+        run: npm run build
+
+      # The updater tests run before anything is published, on purpose. An
+      # auto-updating app that ships a broken updater has no second chance:
+      # every stick in the house takes the bad build and then can't be told
+      # about the fix. These drive real tarballs through download, checksum
+      # rejection, atomic swap, and the two-strikes rollback.
+      - name: Test the update path
+        run: npm test
+
+      # Fail loudly here rather than shipping a payload the bootstrap will
+      # refuse to load. isUsablePayload() is the same check the kiosk runs.
+      - name: Verify the payload is complete
+        run: |
+          node -e "
+            const p = require('./app/paths.cjs');
+            if (!p.isUsablePayload(process.cwd())) {
+              console.error('Payload is incomplete — missing dist/index.html, app/server.cjs');
+              process.exit(1);
+            }
+            const b = p.readBuild(process.cwd());
+            if (b.rev !== ${{ steps.stamp.outputs.rev }}) {
+              console.error('build.json rev', b.rev, 'does not match release rev ${{ steps.stamp.outputs.rev }}');
+              process.exit(1);
+            }
+            console.log('Payload OK:', b.build, 'rev', b.rev);
+          "
+
+      - name: Pack the payload
+        run: |
+          tar -czf baja-blast-payload.tar.gz build.json dist app
+          shasum -a 256 baja-blast-payload.tar.gz | awk '{print $1}' > baja-blast-payload.sha256
+          echo "Payload $(du -h baja-blast-payload.tar.gz | cut -f1), sha256 $(cat baja-blast-payload.sha256)"
+
+      # Round-trip the archive before publishing it. An update that unpacks
+      # into the wrong shape is the one failure the sticks can't recover from
+      # gracefully, and it costs four seconds to rule out here.
+      - name: Unpack it again and check
+        run: |
+          mkdir -p /tmp/roundtrip
+          tar -xzf baja-blast-payload.tar.gz -C /tmp/roundtrip
+          node -e "
+            const p = require('./app/paths.cjs');
+            const found = p.isUsablePayload('/tmp/roundtrip');
+            if (!found) { console.error('Unpacked archive is not a usable payload'); process.exit(1); }
+            console.log('Round-trip OK:', JSON.stringify(p.readBuild('/tmp/roundtrip')));
+          "
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.stamp.outputs.rev }}" \
+            baja-blast-payload.tar.gz \
+            baja-blast-payload.sha256 \
+            --title "${{ steps.stamp.outputs.stamp }}" \
+            --notes "$(git log -1 --pretty=%s)"

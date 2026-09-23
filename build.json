@@ -1,0 +1,9 @@
+{
+  "build": "2026-09-23a",
+  "rev": 0,
+  "updates": {
+    "owner": "ayansathiya",
+    "repo": "BajaBlast"
+  },
+  "note": "`build` is the human-readable stamp; `rev` is the machine-comparable one, and it is what the updater and the GitHub release tag (vN) agree on. rev 0 means \"built from source, no release applied\" \u2014 the release workflow stamps a real number, so don't hand-edit it. `updates` is filled in by setup/github-setup.sh. app/server.cjs reads this at startup and vite.config.ts bakes it into the front-end bundle, so Settings \u2192 System can show both. If those two ever disagree, the compiled dist/ is stale \u2014 run npm run build."
+}

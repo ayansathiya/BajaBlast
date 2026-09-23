@@ -1,0 +1,74 @@
+:root {
+  --bg: #000000;
+  --bg-elevated: #0a0a0a;
+  --text: #ffffff;
+  --text-muted: #7a7a7a;
+  --accent: #00f5d4; /* Baja Blast electric teal */
+  --accent-2: #ff5c72; /* coral reddish-pink */
+  --hairline: rgba(255, 255, 255, 0.12);
+  --font: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Zodiak', 'Satoshi', serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden; /* no scrollbars on a kiosk */
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  user-select: none; /* kiosk: no accidental text selection */
+  cursor: default;
+}
+
+/* Reduced-motion accessibility setting, toggled via a class on body */
+body.reduced-motion * {
+  animation-duration: 0.001ms !important;
+  transition-duration: 0.001ms !important;
+}
+
+body.large-text {
+  font-size: 112%;
+}
+
+body.high-contrast {
+  --text-muted: #d8d3c8;
+  --hairline: rgba(255, 255, 255, 0.3);
+}
+
+::selection {
+  background: transparent;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input,
+select {
+  font-family: inherit;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.uppercase-label {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  font-size: 12px;
+}

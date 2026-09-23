@@ -1,0 +1,2013 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
+<title>Baja Blast</title>
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
+<!-- iOS ignores the manifest's icons and wants these by name. 180 is what
+     current hardware uses; the others are for older iPads. -->
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180.png" />
+<link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-touch-icon-167.png" />
+<link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-touch-icon-152.png" />
+<link rel="apple-touch-icon" sizes="120x120" href="/icons/apple-touch-icon-120.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Baja Blast" />
+<!-- black-translucent lets the page paint under the status bar, which is what
+     stops the notch area looking like a grey bar stuck on top. The layout
+     already accounts for it via viewport-fit=cover and env(safe-area-inset). -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&f[]=zodiak@700,900&display=swap" />
+<style>
+  :root { --bg:#000; --bg2:#0b0b0b; --text:#fff; --muted:#7a7a7a; --accent:#00f5d4; --coral:#ff5c72; --line:rgba(255,255,255,0.14); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  /* Installed on an iPhone the page runs full-bleed under the clock and the
+     home indicator, so the insets aren't decoration — without them the title
+     sits behind the status bar. They resolve to 0 everywhere else. */
+  body { margin:0; background:var(--bg); color:var(--text); font-family:'Satoshi',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+         padding: env(safe-area-inset-top) env(safe-area-inset-right) calc(64px + env(safe-area-inset-bottom)) env(safe-area-inset-left); }
+  h1 { font-family:'Zodiak',serif; font-size:26px; font-weight:900; letter-spacing:-0.02em; margin:0; padding:18px 18px 2px; }
+  h2 { font-family:'Zodiak',serif; font-size:20px; font-weight:700; margin:0 0 18px; letter-spacing:-0.01em; }
+  h3 { font-size:11px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin:28px 0 12px; }
+  .build { font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); padding:0 18px 12px; font-weight:700; }
+  .head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding-right:18px; }
+  .clock { text-align:right; padding-top:20px; flex-shrink:0; }
+  .clock-time { font-family:'Zodiak',serif; font-size:26px; font-weight:900; letter-spacing:-0.02em; line-height:1; }
+  .clock-date { font-size:11px; font-weight:700; color:var(--muted); margin-top:5px; letter-spacing:0.02em; }
+
+  .tabs { position:sticky; top:0; z-index:5; display:flex; gap:6px; padding:10px 18px 12px; overflow-x:auto; background:linear-gradient(to bottom,#000 72%,transparent); scrollbar-width:none; }
+  .tabs::-webkit-scrollbar { display:none; }
+  .tab { flex-shrink:0; padding:9px 14px; border:1px solid var(--line); border-radius:8px; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); background:none; white-space:nowrap; font-family:inherit; }
+  .tab.active { color:#000; background:var(--accent); border-color:var(--accent); }
+
+  .main { padding:6px 18px 0; max-width:720px; margin:0 auto; }
+  .panel { display:none; }
+  .panel.active { display:block; }
+
+  .field { margin-bottom:14px; }
+  .field-label, label.fl { display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); margin-bottom:7px; }
+  input, select, textarea { width:100%; background:var(--bg2); color:#fff; border:1px solid var(--line); border-radius:6px; padding:13px 12px; font-size:16px; font-family:inherit; font-weight:500; }
+  input[type=range] { padding:0; background:none; border:none; accent-color:var(--accent); }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  button.submit { width:100%; background:var(--accent); color:#000; border:none; border-radius:8px; padding:15px; font-size:14px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; margin-top:4px; font-family:inherit; }
+  button.ghost { background:none; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:12px 16px; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; font-family:inherit; }
+
+  .setting-row { display:flex; align-items:center; justify-content:space-between; padding:15px 0; border-top:1px solid var(--line); gap:14px; }
+  .setting-row:first-child { border-top:none; }
+  .setting-label { font-size:15px; font-weight:600; }
+  .setting-desc { font-size:12px; color:var(--muted); margin-top:3px; font-weight:500; line-height:1.5; }
+  .setting-stat { font-size:12px; color:var(--muted); font-weight:600; text-align:right; flex-shrink:0; }
+  .stack { display:block; }
+  .stack .setting-label { margin-bottom:3px; }
+
+  .toggle { width:44px; height:26px; border-radius:13px; background:var(--line); border:none; position:relative; flex-shrink:0; }
+  .toggle.on { background:var(--accent); }
+  .toggle-knob { position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#000; transition:transform .15s ease; }
+  .toggle.on .toggle-knob { transform:translateX(18px); }
+
+  .item { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-top:1px solid var(--line); gap:12px; }
+  .item:first-child { border-top:none; }
+  .item.done .label { text-decoration:line-through; opacity:0.4; }
+  .del { color:var(--coral); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; background:none; border:none; padding:6px; flex-shrink:0; font-family:inherit; }
+  .check { width:19px; height:19px; border:1.5px solid var(--muted); border-radius:5px; flex-shrink:0; }
+  .item.done .check { background:var(--accent); border-color:var(--accent); }
+  .empty { font-size:13px; color:var(--muted); padding:12px 0; }
+
+  .note { font-size:12.5px; color:var(--muted); line-height:1.65; margin-top:14px; }
+  .note strong { color:var(--text); }
+  .note a { color:var(--accent); }
+  .note code { background:var(--bg2); padding:2px 6px; border-radius:3px; font-size:12px; }
+  .note ul { margin:10px 0 10px 18px; padding:0; line-height:1.8; }
+
+  .add-row { display:flex; gap:8px; margin-top:16px; }
+  .add-row input { flex:1; }
+  .add-row button { flex-shrink:0; background:var(--accent); color:#000; border:none; border-radius:6px; padding:0 18px; font-weight:800; font-size:13px; text-transform:uppercase; font-family:inherit; }
+  .swatch { position:relative; display:inline-block; width:46px; height:46px; border-radius:8px; flex-shrink:0; border:1px solid var(--line); overflow:hidden; }
+  .swatch input { position:absolute; inset:0; opacity:0; width:100%; height:100%; }
+
+  .photo-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:18px; }
+  .photo-thumb { position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden; background:var(--bg2); }
+  /* contain, so the grid shows each whole photo — easier to tell them apart
+     when you're picking one to delete, and consistent with the kiosk. */
+  .photo-thumb img { width:100%; height:100%; object-fit:contain; display:block; }
+  .photo-thumb .del { position:absolute; top:4px; right:4px; background:rgba(0,0,0,0.75); padding:5px 8px; border-radius:6px; font-size:10px; }
+
+  .np { display:flex; gap:14px; align-items:center; padding:16px 0 18px; border-bottom:1px solid var(--line); }
+  .np-art { width:66px; height:66px; border-radius:4px; background:var(--bg2); object-fit:cover; flex-shrink:0; }
+  .np-title { font-family:'Zodiak',serif; font-size:18px; font-weight:700; line-height:1.2; }
+  .np-artist { font-size:13px; color:var(--muted); font-weight:600; margin-top:3px; }
+  .np-where { font-size:10px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent); margin-top:6px; }
+  .transport { display:flex; gap:10px; margin:18px 0 6px; }
+  .transport button { flex:1; background:var(--bg2); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:15px 0; font-size:15px; font-weight:800; font-family:inherit; }
+  .transport button.primary { background:var(--accent); color:#000; border-color:var(--accent); }
+  .speaker { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-top:1px solid var(--line); gap:12px; }
+  .speaker.sel .speaker-name { color:var(--accent); }
+  .speaker-name { font-size:15px; font-weight:700; }
+  .speaker-sub { font-size:11px; color:var(--muted); font-weight:600; margin-top:2px; }
+  .embed { margin-top:14px; border-radius:12px; overflow:hidden; border:1px solid var(--line); }
+  .embed iframe { display:block; width:100%; height:352px; border:0; }
+  .warn { border-left:2px solid var(--coral); padding-left:14px; }
+
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--accent); color:#000; padding:11px 20px; border-radius:20px; font-weight:800; font-size:13px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:20; }
+  .toast.show { opacity:1; }
+  /* Sits at the very top rather than floating: this isn't a transient
+     notification, it's a standing statement about whether what you're
+     reading is current. It stays until the app reaches home again. */
+  .connbar { position:sticky; top:0; z-index:30; background:var(--coral); color:#000; font-size:12px; font-weight:800;
+             letter-spacing:0.02em; text-align:center; padding:9px 14px; }
+  .connbar[hidden] { display:none; }
+  .hint { text-align:center; font-size:11px; color:var(--muted); padding:34px 18px 0; font-weight:600; letter-spacing:0.04em; }
+  .lock { position:fixed; inset:0; background:var(--bg); z-index:50; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .lock[hidden] { display:none; }
+  .lock-card { width:100%; max-width:360px; }
+  .lock-sub { font-size:11px; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin:14px 0 12px; }
+  .lock-error { color:var(--coral); font-size:12px; font-weight:700; min-height:18px; margin:8px 0 4px; }
+  .chore-who { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:22px; }
+  .who { text-align:left; background:none; border:1px solid var(--line); border-left-width:3px; border-radius:8px; padding:14px 13px; color:var(--text); font-family:inherit; }
+  .who.sel { background:rgba(255,255,255,0.06); }
+  .who-dot { display:block; width:9px; height:9px; border-radius:50%; margin-bottom:10px; }
+  .who-name { display:block; font-family:'Zodiak',serif; font-weight:700; font-size:19px; line-height:1.1; }
+  .who-meta { display:block; font-size:11px; color:var(--muted); font-weight:600; margin-top:5px; }
+  .who-goal { display:block; margin-top:10px; }
+  .who-goal-track { display:block; height:4px; background:var(--line); border-radius:2px; overflow:hidden; }
+  .who-goal-fill { display:block; height:100%; transition:width .6s ease; }
+  .who-goal-label { display:block; font-size:10px; font-weight:700; color:var(--muted); margin-top:5px; }
+  .who.done { border-color:var(--accent); }
+  .goal { margin:22px 0 6px; padding-top:18px; border-top:1px solid var(--line); }
+  .goal-head { display:flex; align-items:baseline; gap:12px; margin-bottom:10px; }
+  .goal-label { font-family:'Zodiak',serif; font-weight:700; font-size:17px; }
+  .goal-track { height:8px; background:var(--line); border-radius:4px; overflow:hidden; }
+  .goal-fill { display:block; height:100%; background:var(--accent); transition:width .6s ease; }
+  .confetti { position:fixed; inset:0; pointer-events:none; z-index:60; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .chip { display:inline-flex; align-items:center; background:none; border:1px solid var(--line); color:var(--muted); border-radius:20px; padding:9px 14px; font-size:13px; font-weight:700; font-family:inherit; }
+  .chip.on { background:var(--accent); border-color:var(--accent); color:#000; }
+  .chip.round { width:40px; height:40px; padding:0; justify-content:center; border-radius:50%; }
+  .rep-toggle { display:inline-flex; align-items:center; gap:10px; font-size:14px; font-weight:700; text-transform:none; letter-spacing:0; color:var(--text); }
+  .rep-toggle input { width:18px; height:18px; accent-color:var(--accent); }
+  [hidden] { display:none !important; }
+  .remote { margin:0 0 18px; padding-bottom:16px; border-bottom:1px solid var(--line); }
+  .remote-top { display:flex; gap:8px; align-items:center; }
+  .remote-nav { display:flex; gap:8px; align-items:center; margin-top:8px; }
+  .remote-nav > button:first-child, .remote-nav > button:nth-child(3) { width:46px; background:none; border:1px solid var(--line); color:var(--text); border-radius:8px; padding:12px 0; font-size:17px; line-height:1; font-family:inherit; flex-shrink:0; }
+  .remote-range { flex:1; text-align:center; font-size:11px; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .remote-today { flex-shrink:0; background:none; border:1px solid var(--accent); color:var(--accent); border-radius:8px; padding:12px 14px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; font-family:inherit; }
+  .remote-views button.live { color:#000; background:var(--accent); border-color:var(--accent); }
+  .remote-wake { flex:1; background:var(--accent); color:#000; border:none; border-radius:8px; padding:13px 10px; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; font-family:inherit; }
+  .remote-views { display:flex; flex-shrink:0; }
+  .remote-views button { background:none; border:1px solid var(--line); color:var(--muted); padding:13px 11px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; font-family:inherit; margin-left:-1px; }
+  .remote-views button:first-child { border-radius:8px 0 0 8px; margin-left:0; }
+  .remote-views button:last-child { border-radius:0 8px 8px 0; }
+  .remote-views button:active { color:#000; background:var(--accent); border-color:var(--accent); }
+</style>
+</head>
+<body>
+  <div id="connbar" class="connbar" hidden></div>
+  <div class="head">
+    <div>
+      <h1>Baja Blast</h1>
+      <div class="build">Settings · Build __BUILD__</div>
+    </div>
+    <div class="clock">
+      <div class="clock-time" id="clockTime">—</div>
+      <div class="clock-date" id="clockDate"></div>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-panel="calendar">Calendar</button>
+    <button class="tab" data-panel="people">People</button>
+    <button class="tab" data-panel="grocery">Grocery</button>
+    <button class="tab" data-panel="chores">Chores</button>
+    <button class="tab" data-panel="bake">Bake</button>
+    <button class="tab" data-panel="photos">Photos</button>
+    <button class="tab" data-panel="music">Music</button>
+    <button class="tab" data-panel="display">Display</button>
+    <button class="tab" data-panel="ambient">Ambient</button>
+    <button class="tab" data-panel="intelligence">Intelligence</button>
+    <button class="tab" data-panel="baja">Baja</button>
+    <button class="tab" data-panel="system">System</button>
+  </div>
+
+  <div class="main">
+    <!-- Remote: the kitchen screen has no touch and the keyboard's in a drawer. -->
+    <div class="remote">
+      <div class="remote-top">
+        <button class="remote-wake" onclick="kioskCommand({ wake: true })">Wake the screen</button>
+        <div class="remote-views" id="remoteViews">
+          <button data-view="day" onclick="kioskCommand({ wake: true, view: 'day' })">Day</button>
+          <button data-view="week" onclick="kioskCommand({ wake: true, view: 'week' })">Week</button>
+          <button data-view="month" onclick="kioskCommand({ wake: true, view: 'month' })">Month</button>
+        </div>
+      </div>
+      <div class="remote-nav">
+        <button onclick="kioskCommand({ wake: true, nav: 'prev' })" aria-label="Previous">‹</button>
+        <div class="remote-range" id="remoteRange">—</div>
+        <button onclick="kioskCommand({ wake: true, nav: 'next' })" aria-label="Next">›</button>
+        <button class="remote-today" onclick="kioskCommand({ wake: true, nav: 'today' })">Today</button>
+      </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div id="calendar" class="panel active">
+      <div style="display:flex;align-items:baseline;justify-content:space-between">
+        <h2 id="calHeading">Events</h2>
+        <button class="ghost" onclick="openEditor(null)">Add event</button>
+      </div>
+
+      <div id="eventEditor" hidden>
+        <div class="field"><label class="fl">Title</label><input id="evTitle" placeholder="Piano lesson" /></div>
+        <div class="row2">
+          <div class="field"><label class="fl">Date</label><input id="evDate" type="date" /></div>
+          <div class="field"><label class="fl">Category</label><select id="evCategory"></select></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label class="fl">Start</label><input id="evStart" type="time" value="18:00" /></div>
+          <div class="field"><label class="fl">End</label><input id="evEnd" type="time" value="19:00" /></div>
+        </div>
+        <div class="field"><label class="fl">Location</label><input id="evLocation" placeholder="Optional" /></div>
+
+        <div class="field">
+          <label class="fl">Who it's for</label>
+          <div id="evPeople" class="chips"></div>
+          <div class="setting-desc" style="margin-top:6px">Pick as many as apply. None means it's everyone's.</div>
+        </div>
+
+        <div class="field">
+          <label class="rep-toggle"><input id="evRepeats" type="checkbox" onchange="renderRepeatFields()" /> <span>Repeats</span></label>
+          <div id="repeatFields" hidden style="margin-top:12px;padding-left:12px;border-left:2px solid var(--line)">
+            <div class="row2">
+              <div class="field"><label class="fl">How often</label>
+                <select id="evFreq" onchange="renderRepeatFields()">
+                  <option value="daily">Daily</option>
+                  <option value="weekly" selected>Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+              <div class="field"><label class="fl">Every</label><input id="evInterval" type="number" min="1" max="52" value="1" /></div>
+            </div>
+            <div class="field" id="weekdayField">
+              <label class="fl">On these days</label>
+              <div id="evWeekdays" class="chips"></div>
+            </div>
+            <div class="field"><label class="fl">Until (optional)</label><input id="evUntil" type="date" /></div>
+          </div>
+        </div>
+
+        <div id="scopePicker" hidden class="field">
+          <label class="fl">This change applies to</label>
+          <div class="chips">
+            <button class="chip" id="scopeOne" onclick="setScope('one')">Only this one</button>
+            <button class="chip" id="scopeAll" onclick="setScope('all')">All of them</button>
+          </div>
+          <div class="setting-desc" id="scopeNote" style="margin-top:6px"></div>
+        </div>
+
+        <button class="submit" onclick="saveEvent()">Save</button>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="ghost" style="flex:1" onclick="closeEditor()">Cancel</button>
+          <button class="ghost" id="deleteBtn" style="flex:1;color:var(--coral);border-color:var(--coral)" onclick="deleteEvent()">Delete</button>
+        </div>
+      </div>
+
+      <div id="eventList"></div>
+
+      <h3 id="catHeading">Your own categories</h3>
+      <div id="categoryList"></div>
+      <div class="add-row">
+        <input id="catLabel" placeholder="Add a category…" onkeydown="if(event.key==='Enter')addCategory()" />
+        <button onclick="addCategory()">Add</button>
+      </div>
+      <div class="note">Alongside the built-in ones (school, work, sports…), for when those don't match how your household actually thinks about things.</div>
+    </div>
+
+    <!-- PEOPLE -->
+    <div id="people" class="panel">
+      <h2>People</h2>
+      <div id="peopleList"></div>
+      <div class="add-row">
+        <label class="swatch">
+          <span id="newPersonSwatch" style="position:absolute;inset:0;background:#00F5D4"></span>
+          <input id="personColor" type="color" value="#00F5D4" onchange="document.getElementById('newPersonSwatch').style.background=this.value" />
+        </label>
+        <input id="personName" placeholder="Add a person…" onkeydown="if(event.key==='Enter')addPerson()" />
+        <button onclick="addPerson()">Add</button>
+      </div>
+      <div class="note">Tap anyone's dot to change their color. Every event they own is drawn with that color on the kitchen display — a bar down the left of the event, not just a dot, so it reads from across the room. Turning someone off hides their events without deleting them.</div>
+    </div>
+
+    <!-- GROCERY -->
+    <div id="grocery" class="panel">
+      <h2>Grocery List</h2>
+      <div class="add-row" style="margin-top:0">
+        <input id="groceryInput" placeholder="Add an item…" onkeydown="if(event.key==='Enter')addGrocery()" />
+        <button onclick="addGrocery()">Add</button>
+      </div>
+      <div id="groceryList" style="margin-top:20px"></div>
+      <div class="note">Shared with the kitchen display and everyone else's phone. Tap an item here or on the kiosk to check it off. You can also just say "Baja, add oat milk to the grocery list."</div>
+    </div>
+
+    <!-- BAKE NIGHT -->
+    <!--
+      The phone is the better place to choose the week's bake: it has a real
+      keyboard, it's what people have in their hand on the sofa, and whoever
+      is at the shop needs the ingredients, not the kiosk.
+    -->
+    <div id="bake" class="panel">
+      <h2 id="bakeHeading">Bake Night</h2>
+      <div id="bakeNow"></div>
+
+      <div class="add-row" style="margin-top:22px">
+        <input id="bakeSearch" placeholder="Search recipes…" onkeydown="if(event.key==='Enter')searchBake()" />
+        <button onclick="searchBake()">Search</button>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label class="fl">Which week</label>
+        <select id="bakeWeek"></select>
+      </div>
+      <div id="bakeResults" style="margin-top:16px"></div>
+      <div class="note">Whatever you pick shows up on the kitchen calendar straight away, on that week's bake day.</div>
+    </div>
+
+    <!-- CHORES -->
+    <div id="chores" class="panel">
+      <h2>Chores</h2>
+      <div id="chorePeople"></div>
+      <div id="choreList"></div>
+      <div id="choreGoal"></div>
+
+      <h3>Today's list</h3>
+      <div id="choreManage"></div>
+      <div class="add-row">
+        <input id="choreLabel" placeholder="Add a daily job…" onkeydown="if(event.key==='Enter')addChore()" />
+        <input id="chorePoints" type="number" min="0" max="500" value="10" style="width:74px;flex:none" />
+        <button onclick="addChore()">Add</button>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label class="fl">Who it's for</label>
+        <select id="chorePerson"></select>
+      </div>
+
+      <h3>Rewards</h3>
+      <div id="rewardList"></div>
+      <div class="add-row">
+        <input id="rewardLabel" placeholder="Add a reward…" onkeydown="if(event.key==='Enter')addReward()" />
+        <input id="rewardPoints" type="number" min="1" value="100" style="width:84px;flex:none" />
+        <button onclick="addReward()">Add</button>
+      </div>
+      <div class="note">The list everyone picks from. Add as many as you like, at whatever price feels right.</div>
+
+      <h3>Who's saving for what</h3>
+      <div id="personGoals"></div>
+      <div class="note">Each person works towards their own reward, measured against their own running total — so one person cashing in doesn't reset anybody else.</div>
+
+      <h3>The household goal</h3>
+      <div class="row2">
+        <div class="field"><label class="fl">Reward</label><input id="goalLabel" onchange="saveGoal()" placeholder="Movie night" /></div>
+        <div class="field"><label class="fl">Points needed</label><input id="goalTarget" type="number" min="1" onchange="saveGoal()" /></div>
+      </div>
+      <div class="note">One extra bar that everyone's points push together, on top of the individual ones. Lists reset at midnight; the history is kept for a year.</div>
+    </div>
+
+    <!-- PHOTOS -->
+    <div id="photos" class="panel">
+      <h2>Family Photos</h2>
+      <input id="photoInput" type="file" accept="image/*" multiple style="display:none" onchange="uploadPhotos(this)" />
+      <button class="submit" onclick="document.getElementById('photoInput').click()">Add photos</button>
+      <div id="uploadStatus" class="setting-desc" style="margin-top:10px"></div>
+      <div id="photoGrid" class="photo-grid"></div>
+      <div class="note">Pick as many as you like at once. Photos live on the Mac mini and are never uploaded anywhere else. They're scaled down to 2000px on this phone before sending — the originals stay in your camera roll untouched, and a batch takes seconds instead of minutes. They appear in the always-on frame at the bottom of the kiosk rail and in the idle reel, both toggleable under Ambient.</div>
+    </div>
+
+    <!-- MUSIC -->
+    <div id="music" class="panel">
+      <h2>Music</h2>
+      <div id="nowPlaying"></div>
+
+      <div class="transport">
+        <button onclick="musicCmd('previous')">◀◀</button>
+        <button class="primary" onclick="musicCmd('play')">▶</button>
+        <button onclick="musicCmd('pause')">❚❚</button>
+        <button onclick="musicCmd('next')">▶▶</button>
+      </div>
+      <div class="field" style="margin-top:16px">
+        <label class="fl">Volume</label>
+        <input id="vol" type="range" min="0" max="100" value="30" onchange="setVolume(this.value)" />
+      </div>
+
+      <h3>Sonos speakers on this network</h3>
+      <div id="speakerList"></div>
+      <button class="ghost" style="width:100%;margin-top:14px" onclick="rescan()">Rescan network</button>
+      <div class="note">Found automatically over Wi-Fi — no pairing, no account. This controls the speaker directly: play, pause, skip, volume, and what it's playing right now.</div>
+
+      <h3>Spotify Connect</h3>
+      <div id="spotifyBox"></div>
+      <div class="field" style="margin-top:14px">
+        <label class="fl">Spotify client ID</label>
+        <input id="spotifyClientId" placeholder="from developer.spotify.com" onchange="saveClientId()" />
+      </div>
+      <div class="note">
+        Create a free app at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">developer.spotify.com</a>,
+        add <code>http://127.0.0.1:8787/api/spotify/callback</code> as a Redirect URI, and paste the Client ID here.
+        There's no client secret — this uses PKCE, so nothing secret is stored.
+        <br /><br />
+        <strong>The Connect button has to be pressed on the Mac mini itself</strong>, in a browser there. Spotify only accepts
+        <code>127.0.0.1</code> redirects, and on your phone that address means your phone. Once it's connected, controlling it
+        from here works fine.
+        <br /><br />
+        Handing playback to a Sonos needs Spotify Premium — that's Spotify's rule for controlling playback through their API, not this app's.
+      </div>
+
+      <h3>Play on this screen</h3>
+      <div class="field">
+        <label class="fl">Spotify playlist / album / track URI</label>
+        <input id="embedUri" placeholder="spotify:playlist:…" onchange="saveEmbed()" />
+      </div>
+      <div class="embed" id="embedBox"></div>
+      <div class="note">This player makes sound on <strong>the Mac mini's own audio output</strong>. Pair a Bluetooth speaker to the Mac in macOS System Settings and this comes out of it. Free Spotify accounts get 30-second previews here; Premium plays in full.</div>
+
+      <h3 class="warn" style="color:var(--coral)">About Bluetooth and Sonos</h3>
+      <div class="note warn">
+        No app — this one or any other — can push audio to a speaker over Bluetooth from a web page. Bluetooth audio (A2DP) lives in the
+        operating system; the only Bluetooth a browser can speak is for small data, not sound. And most Sonos speakers have no Bluetooth
+        audio input at all — they're Wi-Fi devices.
+        <br /><br />
+        So there are two real routes, and both are better than Bluetooth would have been:
+        <ul>
+          <li><strong>Sonos:</strong> use Spotify Connect above. Audio goes Spotify → speaker over Wi-Fi, never through this Mac. No pairing, no range limit, no quality loss.</li>
+          <li><strong>Any Bluetooth speaker:</strong> pair it to the Mac mini once in macOS System Settings → Bluetooth, then set it as the output device. Everything the Mac plays, including the player above, goes there.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- DISPLAY -->
+    <div id="display" class="panel">
+      <h2>Display</h2>
+      <div id="displaySettings"></div>
+    </div>
+
+    <!-- AMBIENT -->
+    <div id="ambient" class="panel">
+      <h2>Ambient / Idle</h2>
+      <div id="ambientSettings"></div>
+    </div>
+
+    <!-- INTELLIGENCE -->
+    <div id="intelligence" class="panel">
+      <h2>Intelligence</h2>
+      <div id="intelligenceSettings"></div>
+    </div>
+
+    <!-- BAJA -->
+    <div id="baja" class="panel">
+      <h2>Baja</h2>
+      <div id="bajaSettings"></div>
+      <div style="margin-top:18px">
+        <div class="field-label">Anthropic API key (paid, best quality)</div>
+        <input id="bajaKey" type="password" placeholder="sk-ant-… (optional)" onchange="saveBajaKey()" />
+        <div class="setting-desc" style="margin-top:8px">Stored only on this local server, never sent anywhere except directly to Anthropic when Baja needs to answer a question. Usage-based — roughly a fraction of a cent per question.</div>
+      </div>
+      <div style="margin-top:20px">
+        <div class="field-label">Or: free local model name (via Ollama)</div>
+        <input id="bajaModel" placeholder="llama3.2" onchange="saveBajaModel()" />
+        <div class="setting-desc" style="margin-top:8px">If no Anthropic key is set above, Baja automatically tries this model through <a href="https://ollama.com" target="_blank" rel="noreferrer" style="color:var(--accent)">Ollama</a> running locally on this Mac mini — completely free, no internet needed for the answer itself, nothing sent anywhere. Install Ollama, then run <code>ollama pull llama3.2</code> once in Terminal. Small models (1B–3B) run fine on any Mac mini from the last few years.</div>
+      </div>
+      <div class="note" style="margin-top:20px">
+        Baja is <strong>not</strong> Apple's Siri — there's no public API that lets a third-party app plug into Siri's brain. Baja is a real, working alternative built on your browser/Electron's own continuous speech recognition, which typically runs through the OS/browser's speech service rather than fully on-device, so listening itself still needs an internet connection even when the answering part is free and local.
+        <br /><br />
+        Say <strong>"Baja"</strong> anywhere near the kiosk, either with your question in the same breath ("Baja, what's next?") or just the name — it'll say "Yes?" and listen for a moment. A few things it always handles instantly, no model needed:
+        <ul>
+          <li>"Add [item] to the grocery list"</li>
+          <li>"What's next?"</li>
+          <li>"What's the weather?"</li>
+        </ul>
+        Anything else is answered by whichever of the two options above is configured, with today's schedule and grocery list included as context. Neither configured → Baja says so out loud instead of failing silently.
+      </div>
+    </div>
+
+    <!-- SYSTEM -->
+    <div id="system" class="panel">
+      <h2>System</h2>
+      <div class="setting-row stack" style="border-top:none">
+        <div class="setting-label">Household name</div>
+        <input id="householdName" onchange="saveHouseholdName()" style="margin-top:8px" />
+      </div>
+      <div class="setting-row stack">
+        <div class="setting-label">Home location</div>
+        <div class="setting-desc">Used for weather and travel estimates</div>
+        <input id="locLabel" placeholder="Nashua, NH" onchange="saveLocation()" style="margin-top:10px" />
+        <div class="row2" style="margin-top:8px">
+          <input id="locLat" type="number" step="0.0001" placeholder="Latitude" onchange="saveLocation()" />
+          <input id="locLon" type="number" step="0.0001" placeholder="Longitude" onchange="saveLocation()" />
+        </div>
+      </div>
+      <div class="setting-row stack">
+        <div class="setting-label">Trending tickers</div>
+        <div class="setting-desc">Comma-separated, up to eight. Yahoo Finance, with Stooq as a backup.</div>
+        <input id="tickers" placeholder="AAPL, NVDA, MSFT, TSLA, SPY" onchange="saveTickers()" style="margin-top:10px" />
+      </div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Kiosk mode</div>
+          <div class="setting-desc">Runs full-screen with no OS chrome via Electron</div>
+        </div>
+        <div class="setting-stat">Configured in<br />electron/main.cjs</div>
+      </div>
+
+      <div class="setting-row stack" id="updateRow">
+        <div class="setting-label">Automatic updates</div>
+        <div class="setting-desc" id="updateDesc">Checking…</div>
+        <div class="row2" style="margin-top:10px">
+          <button class="ghost" id="updateCheckBtn" onclick="checkUpdate()">Check now</button>
+          <button class="ghost" id="updateInstallBtn" onclick="installUpdate()" hidden>Update now</button>
+        </div>
+        <div class="setting-desc" style="margin-top:10px">
+          This updates the app's code. The Electron runtime inside the app itself changes about
+          once a year and needs the stick rebuilt — that one isn't automatic.
+        </div>
+      </div>
+
+      <div class="setting-row stack">
+        <div class="setting-label">This phone page</div>
+        <div class="setting-desc" id="phoneUrlDesc">—</div>
+        <div class="setting-desc" style="margin-top:8px">
+          The address follows whichever Mac is running the app, so it changes if you move the
+          stick. The kiosk shows the current one — with a QR code — under ⌘, → System.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint">Everything here is the same panel as ⌘, on the kiosk. Changes apply within a few seconds.</div>
+  <div id="toast" class="toast"></div>
+
+  <div id="lock" class="lock" hidden>
+    <div class="lock-card">
+      <h1 style="padding:0">Baja Blast</h1>
+      <div class="lock-sub">Household passcode</div>
+      <input id="lockInput" type="password" inputmode="numeric" autocomplete="current-password"
+             placeholder="••••" onkeydown="if(event.key==='Enter')signIn()" />
+      <div id="lockError" class="lock-error"></div>
+      <button class="submit" onclick="signIn()">Sign in</button>
+      <div class="note" style="margin-top:18px">
+        One passcode for the whole family — there's no separate account per person.
+        Set or change it on the kiosk itself: ⌘, → System.
+        <br /><br />
+        Worth being straight about what this is: a lock so a guest on your Wi-Fi can't rewrite
+        the calendar. It isn't encryption — this is plain HTTP on your home network — and it
+        doesn't make the kiosk safe to expose to the internet.
+      </div>
+    </div>
+  </div>
+
+<script>
+  var settings = null;
+  var CATEGORIES = ['school','work','sports','meal','medical','social','travel','birthday','holiday','household','entertainment','other'];
+
+  /* ---- Installed-app plumbing ---------------------------------------------
+     The service worker is what makes this open instantly from a phone on a
+     mobile network and still show something useful when the kitchen isn't
+     answering. It needs a secure origin, so it registers over HTTPS or on
+     localhost and quietly doesn't over plain LAN HTTP. That's not a failure
+     worth reporting: the app still works, it just isn't cached, and the fix
+     is Tailscale rather than anything the person holding the phone can do. */
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {});
+    });
+  }
+
+  /**
+   * Wrap fetch once, rather than editing sixty call sites.
+   *
+   * Every request in this page then reports whether its answer came off the
+   * wire or out of the cache, without any of the calling code knowing about
+   * it. A grocery list from two hours ago presented as current is how
+   * somebody ends up buying milk twice — so when the answer is stale the page
+   * says so, and keeps saying so until it reaches home again.
+   *
+   * Nothing is queued while offline. Two phones editing the same event with
+   * no connection is a conflict-resolution problem, not a caching one, and
+   * silently "saving" something that never arrives is worse than saying no.
+   */
+  (function () {
+    var real = window.fetch.bind(window);
+    window.fetch = function (input, init) {
+      return real(input, init).then(
+        function (res) {
+          if (res.headers && res.headers.get('X-Baja-From-Cache') === '1') setConnectionState('stale');
+          else if (res.ok) setConnectionState('live');
+          return res;
+        },
+        function (err) {
+          setConnectionState('offline');
+          throw err;
+        }
+      );
+    };
+  })();
+
+  function setConnectionState(state) {
+    var bar = document.getElementById('connbar');
+    if (!bar) return;
+    if (state === 'live') { bar.hidden = true; return; }
+    bar.hidden = false;
+    bar.textContent = state === 'offline'
+      ? "Can't reach home \u2014 showing what this phone last saw"
+      : "Showing saved data \u2014 the kitchen isn't answering right now";
+  }
+
+  document.querySelectorAll('.tab').forEach(function(t) {
+    t.addEventListener('click', function() {
+      document.querySelectorAll('.tab').forEach(function(x) { x.classList.remove('active'); });
+      document.querySelectorAll('.panel').forEach(function(x) { x.classList.remove('active'); });
+      t.classList.add('active');
+      document.getElementById(t.dataset.panel).classList.add('active');
+      window.scrollTo({ top: 0 });
+      if (t.dataset.panel === 'music') loadMusic();
+      if (t.dataset.panel === 'chores') loadChores();
+      if (t.dataset.panel === 'bake') loadBake();
+    });
+  });
+
+  // Today in the phone's LOCAL timezone. toISOString() converts to UTC first,
+  // so from 8pm onward in New York it hands back tomorrow and the date box
+  // quietly defaults to the wrong day.
+  function localDateValue(d) {
+    function pad(n) { return String(n).padStart(2, '0'); }
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+  document.getElementById('evDate').value = localDateValue(new Date());
+
+  // Live local clock in the header — the same time the kiosk is showing,
+  // read off this phone rather than the Mac mini.
+  function tickClock() {
+    var now = new Date();
+    document.getElementById('clockTime').textContent =
+      now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    document.getElementById('clockDate').textContent =
+      now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  }
+  tickClock();
+  setInterval(tickClock, 10000);
+  document.getElementById('evCategory').innerHTML = CATEGORIES.map(function(c) {
+    return '<option value="' + c + '">' + c.charAt(0).toUpperCase() + c.slice(1) + '</option>';
+  }).join('');
+
+  // Apostrophes are escaped too, not just the four obvious characters: the
+  // bake panel builds onclick="pick('<id>')" handlers, and a recipe called
+  // "Shepherd's Pie" would otherwise close the string and break the button.
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function toast(msg) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(function() { el.classList.remove('show'); }, 1700);
+  }
+
+  function toggleEl(on, onClick) {
+    var btn = document.createElement('button');
+    btn.className = 'toggle' + (on ? ' on' : '');
+    btn.innerHTML = '<span class="toggle-knob"></span>';
+    btn.onclick = onClick;
+    return btn;
+  }
+
+  function settingRow(label, desc, control) {
+    var row = document.createElement('div');
+    row.className = 'setting-row';
+    var left = document.createElement('div');
+    left.innerHTML = '<div class="setting-label">' + label + '</div>' + (desc ? '<div class="setting-desc">' + desc + '</div>' : '');
+    row.appendChild(left);
+    row.appendChild(control);
+    return row;
+  }
+
+  function selectEl(value, options, onChange) {
+    var sel = document.createElement('select');
+    sel.style.width = '190px';
+    sel.innerHTML = options.map(function(o) {
+      return '<option value="' + o[0] + '"' + (o[0] === value ? ' selected' : '') + '>' + o[1] + '</option>';
+    }).join('');
+    sel.onchange = function() { onChange(sel.value); };
+    return sel;
+  }
+
+  async function saveSettings() {
+    await fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) });
+  }
+
+  async function loadSettings() {
+    var res = await fetch('/api/settings', { cache: 'no-store' });
+    settings = await res.json();
+    if (!settings) return;
+    renderPeople();
+    renderPersonPicker();
+    renderDisplay();
+    renderAmbient();
+    renderIntelligence();
+    renderBaja();
+    renderSystem();
+  }
+
+  // ---- People --------------------------------------------------------------
+  function renderPeople() {
+    var el = document.getElementById('peopleList');
+    el.innerHTML = '';
+    settings.people.forEach(function(p) {
+      var row = document.createElement('div');
+      row.className = 'item';
+
+      var left = document.createElement('div');
+      left.style.cssText = 'display:flex;align-items:center;gap:12px;min-width:0';
+      var swatch = document.createElement('label');
+      swatch.style.cssText = 'position:relative;display:inline-block;width:24px;height:24px;border-radius:50%;flex-shrink:0';
+      var dot = document.createElement('span');
+      dot.style.cssText = 'position:absolute;inset:0;border-radius:50%;background:' + p.color;
+      var colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.value = p.color;
+      colorInput.style.cssText = 'position:absolute;inset:0;opacity:0;width:100%;height:100%';
+      colorInput.onchange = function() {
+        p.color = colorInput.value;
+        dot.style.background = colorInput.value;
+        saveSettings();
+        renderPersonPicker();
+      };
+      swatch.appendChild(dot);
+      swatch.appendChild(colorInput);
+      var label = document.createElement('span');
+      label.className = 'label';
+      label.style.fontWeight = '600';
+      label.textContent = p.name;
+      left.appendChild(swatch);
+      left.appendChild(label);
+      row.appendChild(left);
+
+      var controls = document.createElement('div');
+      controls.style.cssText = 'display:flex;align-items:center;gap:12px';
+      controls.appendChild(toggleEl(p.enabled, function() {
+        p.enabled = !p.enabled;
+        saveSettings();
+        renderPeople();
+      }));
+      var del = document.createElement('button');
+      del.className = 'del';
+      del.textContent = 'Delete';
+      del.onclick = function() {
+        settings.people = settings.people.filter(function(x) { return x.id !== p.id; });
+        saveSettings();
+        renderPeople();
+        renderPersonPicker();
+        toast('Person deleted');
+      };
+      controls.appendChild(del);
+      row.appendChild(controls);
+      el.appendChild(row);
+    });
+    if (settings.people.length === 0) el.innerHTML = '<div class="empty">No one added yet.</div>';
+  }
+
+  // The event form picks people with chips now (several per event), so this
+  // just refreshes those if the editor happens to be open while someone is
+  // added or renamed on the People tab.
+  function renderPersonPicker() {
+    if (document.getElementById('evPeople')) renderPeopleChips();
+  }
+
+  function addPerson() {
+    var input = document.getElementById('personName');
+    var colorInput = document.getElementById('personColor');
+    if (!input.value.trim()) return;
+    settings.people.push({
+      id: 'person-' + Date.now(),
+      name: input.value.trim(),
+      color: colorInput.value,
+      initials: input.value.trim()[0].toUpperCase(),
+      enabled: true,
+    });
+    input.value = '';
+    saveSettings();
+    renderPeople();
+    renderPersonPicker();
+    toast('Person added');
+  }
+
+  // ---- Display / Ambient / Intelligence / Baja / System ---------------------
+  function renderDisplay() {
+    var el = document.getElementById('displaySettings');
+    el.innerHTML = '';
+    el.appendChild(settingRow('Theme', 'Auto adapts to time of day', selectEl(settings.display.theme, [['auto', 'Auto'], ['dark', 'Dark'], ['light', 'Light']], function(v) {
+      settings.display.theme = v; saveSettings();
+    })));
+    el.appendChild(settingRow('Clock seconds', 'Show a ticking seconds readout', toggleEl(settings.display.clockStyle === 'digital-seconds', function() {
+      settings.display.clockStyle = settings.display.clockStyle === 'digital-seconds' ? 'digital' : 'digital-seconds';
+      saveSettings(); renderDisplay();
+    })));
+    el.appendChild(settingRow('Reduced motion', 'Minimize animation across the interface', toggleEl(settings.display.reducedMotion, function() {
+      settings.display.reducedMotion = !settings.display.reducedMotion; saveSettings(); renderDisplay();
+    })));
+    el.appendChild(settingRow('Large text', 'Increase text size for readability', toggleEl(settings.display.largeText, function() {
+      settings.display.largeText = !settings.display.largeText; saveSettings(); renderDisplay();
+    })));
+    el.appendChild(settingRow('High contrast', 'Increase contrast for low light or vision needs', toggleEl(settings.display.highContrast, function() {
+      settings.display.highContrast = !settings.display.highContrast; saveSettings(); renderDisplay();
+    })));
+  }
+
+  function renderAmbient() {
+    var el = document.getElementById('ambientSettings');
+    el.innerHTML = '';
+    el.appendChild(settingRow('Idle mode', 'Enter the cinematic Today Reel when inactive', toggleEl(settings.ambient.enabled, function() {
+      settings.ambient.enabled = !settings.ambient.enabled; saveSettings(); renderAmbient();
+    })));
+
+    var slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = 30; slider.max = 600; slider.step = 15;
+    slider.value = settings.ambient.idleTimeoutSeconds;
+    slider.style.width = '150px';
+    slider.onchange = function() {
+      settings.ambient.idleTimeoutSeconds = Number(slider.value);
+      saveSettings(); renderAmbient();
+    };
+    el.appendChild(settingRow('Idle timeout', settings.ambient.idleTimeoutSeconds + ' seconds of inactivity', slider));
+
+    [['showWeather', 'Show weather in reel', ''],
+     ['showBirthdays', 'Show birthdays in reel', ''],
+     ['showNews', 'Show news in reel', ''],
+     ['showGrocery', 'Show grocery list in reel', ''],
+     ['showPhotos', 'Show family photos in reel', 'Cycles through photos uploaded via the phone']
+    ].forEach(function(row) {
+      el.appendChild(settingRow(row[1], row[2], toggleEl(settings.ambient[row[0]], function() {
+        settings.ambient[row[0]] = !settings.ambient[row[0]];
+        saveSettings(); renderAmbient();
+      })));
+    });
+
+    el.appendChild(settingRow('Photo frame on main screen', 'An always-on photo tile at the bottom of the rail', toggleEl(settings.feeds.showPhotoFrame, function() {
+      settings.feeds.showPhotoFrame = !settings.feeds.showPhotoFrame; saveSettings(); renderAmbient();
+    })));
+    el.appendChild(settingRow('Now Playing on main screen', 'Show what the speakers are playing', toggleEl(settings.music.showNowPlaying, function() {
+      settings.music.showNowPlaying = !settings.music.showNowPlaying; saveSettings(); renderAmbient();
+    })));
+    el.appendChild(settingRow('Video source', 'Where idle backgrounds come from', selectEl(settings.ambient.videoSource, [['generated', 'Generated gradients'], ['local', 'Local videos (/IdleVideos)'], ['off', 'Off']], function(v) {
+      settings.ambient.videoSource = v; saveSettings();
+    })));
+  }
+
+  function renderIntelligence() {
+    var el = document.getElementById('intelligenceSettings');
+    el.innerHTML = '';
+    [['prioritizationEnabled', 'Event prioritization', 'Surface what matters most, hide routine noise'],
+     ['weatherAwareness', 'Weather awareness', 'Flag outdoor events at risk of rain'],
+     ['travelTimeEnabled', 'Travel time / Leave Now', 'Estimate when to leave for events with a location'],
+     ['preparationReminders', 'Preparation reminders', 'Show what to bring for recognized event types'],
+     ['conflictDetection', 'Conflict detection', 'Flag overlapping household events']
+    ].forEach(function(row) {
+      el.appendChild(settingRow(row[1], row[2], toggleEl(settings.intelligence[row[0]], function() {
+        settings.intelligence[row[0]] = !settings.intelligence[row[0]];
+        saveSettings(); renderIntelligence();
+      })));
+    });
+  }
+
+  function renderBaja() {
+    var el = document.getElementById('bajaSettings');
+    el.innerHTML = '';
+    el.appendChild(settingRow('Enable Baja', 'Listens continuously for "Baja" — not Siri, see note below', toggleEl(settings.voiceEnabled, function() {
+      settings.voiceEnabled = !settings.voiceEnabled; saveSettings(); renderBaja();
+    })));
+    document.getElementById('bajaKey').value = settings.bajaApiKey || '';
+    document.getElementById('bajaModel').value = settings.bajaLocalModel || '';
+  }
+
+  function saveBajaKey() { settings.bajaApiKey = document.getElementById('bajaKey').value; saveSettings(); toast('Saved'); }
+  function saveBajaModel() { settings.bajaLocalModel = document.getElementById('bajaModel').value; saveSettings(); toast('Saved'); }
+
+  function renderSystem() {
+    document.getElementById('householdName').value = settings.householdName || '';
+    var loc = settings.homeLocation || {};
+    document.getElementById('locLabel').value = loc.label || '';
+    document.getElementById('locLat').value = loc.lat != null ? loc.lat : '';
+    document.getElementById('locLon').value = loc.lon != null ? loc.lon : '';
+    document.getElementById('tickers').value = (settings.feeds.tickers || []).join(', ');
+    document.getElementById('spotifyClientId').value = settings.music.spotifyClientId || '';
+    document.getElementById('embedUri').value = settings.music.embedUri || '';
+    loadPhoneAddress();
+    loadUpdateStatus();
+  }
+
+  // ---- This phone's own address --------------------------------------------
+  // Shows what you're connected through right now, and whether the app can be
+  // installed. The distinction that matters: a plain http:// address on the
+  // house Wi-Fi can never become a home-screen app, no matter how many times
+  // someone taps Add to Home Screen, because phones refuse to install pages
+  // that didn't arrive over HTTPS.
+  async function loadPhoneAddress() {
+    var el = document.getElementById('phoneUrlDesc');
+    el.textContent = location.origin + '/mobile';
+    try {
+      var res = await fetch('/api/version', { cache: 'no-store' });
+      var v = await res.json();
+      var installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+      var secure = location.protocol === 'https:';
+      var note = '';
+      if (installed) note = ' \u00b7 running as an installed app';
+      else if (secure) note = ' \u00b7 add this to your home screen to use it as an app';
+      else if (v.remoteUrl) note = ' \u00b7 open ' + v.remoteUrl + ' instead to install it as an app';
+      else note = ' \u00b7 local only \u2014 run setup/remote-setup.sh on the kitchen Mac for an address that works anywhere';
+      el.textContent = location.origin + '/mobile' + note;
+    } catch (e) { /* the address alone is still useful */ }
+  }
+
+  // ---- Updates -------------------------------------------------------------
+  // Same three endpoints the kiosk's Settings panel uses. Being able to press
+  // "Update now" from a phone matters more here than on the kiosk: the kitchen
+  // screen has no keyboard, and this is the surface that always does.
+  var updateBusy = false;
+
+  function paintUpdate(s) {
+    var desc = document.getElementById('updateDesc');
+    var install = document.getElementById('updateInstallBtn');
+    var checkBtn = document.getElementById('updateCheckBtn');
+    if (!s) { desc.textContent = 'Local server not reachable.'; return; }
+
+    checkBtn.disabled = updateBusy;
+    install.disabled = updateBusy;
+
+    if (!s.repo) {
+      desc.textContent = 'Not set up. Run setup/github-setup.sh on the Mac once, and every push after that updates this on its own.';
+      install.hidden = true;
+      checkBtn.hidden = true;
+      return;
+    }
+
+    checkBtn.hidden = false;
+    var current = s.current ? (s.current.build + ' · rev ' + s.current.rev) : 'unknown';
+    var checked = s.lastChecked ? new Date(s.lastChecked).toLocaleString() : 'never';
+
+    if (s.lastError) {
+      desc.textContent = 'Running ' + current + '. Last check failed: ' + s.lastError;
+      install.hidden = true;
+    } else if (s.updateAvailable) {
+      desc.textContent = 'Running ' + current + '. ' + (s.latest ? s.latest.build : 'A new build') + ' is ready.';
+      install.hidden = false;
+    } else {
+      desc.textContent = 'Up to date — ' + current + '. Checked ' + checked + '.';
+      install.hidden = true;
+    }
+  }
+
+  async function loadUpdateStatus() {
+    try {
+      var res = await fetch('/api/update/status', { cache: 'no-store' });
+      paintUpdate(await res.json());
+    } catch (e) {
+      paintUpdate(null);
+    }
+  }
+
+  async function checkUpdate() {
+    if (updateBusy) return;
+    updateBusy = true;
+    document.getElementById('updateDesc').textContent = 'Checking…';
+    document.getElementById('updateCheckBtn').disabled = true;
+    try {
+      var res = await fetch('/api/update/check', { method: 'POST' });
+      var body = await res.json();
+      updateBusy = false;
+      paintUpdate(body.status);
+      toast(body.ok ? (body.available ? 'Update available' : 'Already up to date') : 'Check failed');
+    } catch (e) {
+      updateBusy = false;
+      paintUpdate(null);
+    }
+  }
+
+  async function installUpdate() {
+    if (updateBusy) return;
+    updateBusy = true;
+    document.getElementById('updateDesc').textContent = 'Downloading…';
+    try {
+      var res = await fetch('/api/update/install', { method: 'POST' });
+      var body = await res.json();
+      updateBusy = false;
+      if (body.ok) {
+        document.getElementById('updateDesc').textContent =
+          'Installed ' + body.build + '. The kiosk restarts as soon as nobody is mid-edit.';
+        document.getElementById('updateInstallBtn').hidden = true;
+        toast('Update installed');
+      } else {
+        paintUpdate(body.status);
+        toast(body.error || 'Update failed');
+      }
+    } catch (e) {
+      updateBusy = false;
+      paintUpdate(null);
+      toast('Update failed');
+    }
+  }
+
+  function saveHouseholdName() { settings.householdName = document.getElementById('householdName').value; saveSettings(); toast('Saved'); }
+
+  function saveLocation() {
+    var lat = parseFloat(document.getElementById('locLat').value);
+    var lon = parseFloat(document.getElementById('locLon').value);
+    if (isNaN(lat) || isNaN(lon)) { toast('Latitude and longitude must be numbers'); return; }
+    settings.homeLocation = { lat: lat, lon: lon, label: document.getElementById('locLabel').value || 'Home' };
+    saveSettings();
+    toast('Location saved');
+  }
+
+  function saveTickers() {
+    var list = document.getElementById('tickers').value.split(',').map(function(s) { return s.trim().toUpperCase(); }).filter(Boolean).slice(0, 8);
+    settings.feeds.tickers = list;
+    saveSettings();
+    document.getElementById('tickers').value = list.join(', ');
+    toast('Tickers saved');
+  }
+
+  // ---- Grocery -------------------------------------------------------------
+  async function loadGrocery() {
+    var res = await fetch('/api/grocery', { cache: 'no-store' });
+    var items = await res.json();
+    var el = document.getElementById('groceryList');
+    if (items.length === 0) { el.innerHTML = '<div class="empty">Nothing on the list.</div>'; return; }
+    el.innerHTML = items.map(function(g) {
+      return '<div class="item ' + (g.done ? 'done' : '') + '">' +
+        '<div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0" onclick="toggleGrocery(\'' + g.id + '\')">' +
+        '<span class="check"></span><span class="label" style="font-weight:600">' + esc(g.label) + '</span></div>' +
+        '<button class="del" onclick="removeGrocery(\'' + g.id + '\')">Remove</button></div>';
+    }).join('');
+  }
+
+  async function addGrocery() {
+    var input = document.getElementById('groceryInput');
+    if (!input.value.trim()) return;
+    await fetch('/api/grocery', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label: input.value.trim() }) });
+    input.value = '';
+    toast('Added');
+    loadGrocery();
+  }
+  /* ---------------- bake night ---------------- */
+
+  var bakeState = null;
+
+  async function loadBake() {
+    try {
+      var res = await fetch('/api/bake');
+      if (!res.ok) return;
+      bakeState = await res.json();
+    } catch (err) {
+      return; // offline; whatever was drawn last stays
+    }
+
+    document.getElementById('bakeHeading').textContent = bakeState.label || 'Bake Night';
+
+    var week = document.getElementById('bakeWeek');
+    week.innerHTML = bakeState.upcoming
+      .map(function (w) {
+        return '<option value="' + w.date + '">' + esc(w.dayName) + ' ' + w.date.slice(5) +
+          (w.pick ? ' — ' + esc(w.pick.title) : ' — free') + '</option>';
+      })
+      .join('');
+
+    var next = bakeState.next;
+    var host = document.getElementById('bakeNow');
+    if (!next) { host.innerHTML = ''; return; }
+
+    if (!next.pick) {
+      host.innerHTML = '<div class="note" style="margin-top:8px">Nothing picked for ' +
+        esc(next.dayName) + ' yet. Search below.</div>';
+      return;
+    }
+
+    var pick = next.pick;
+    host.innerHTML =
+      '<div style="margin-top:10px">' +
+      (pick.image ? '<img src="' + esc(pick.image) + '" alt="" style="width:100%;max-height:220px;object-fit:cover;border-radius:6px" />' : '') +
+      '<h3 style="margin:12px 0 2px">' + esc(pick.title) + '</h3>' +
+      '<div class="note" style="margin-top:0">' + esc(next.dayName) + ' ' + next.date + '</div>' +
+      (pick.ingredients && pick.ingredients.length
+        ? '<ul style="margin:14px 0;padding-left:20px">' +
+          pick.ingredients.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>'
+        : '') +
+      // Wrapping, not .add-row: three buttons in one row runs off the side of
+      // a phone, and a page that scrolls sideways feels broken.
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">' +
+      (pick.ingredients && pick.ingredients.length
+        ? '<button onclick="bakeToGrocery()">Add ingredients to grocery</button>' : '') +
+      (pick.url ? '<button class="ghost" onclick="window.open(\'' + esc(pick.url) + '\',\'_blank\')">Open the page</button>' : '') +
+      '<button class="ghost" onclick="clearBake(\'' + next.date + '\')">Clear</button>' +
+      '</div></div>';
+  }
+
+  async function bakeToGrocery() {
+    var pick = bakeState && bakeState.next && bakeState.next.pick;
+    if (!pick) return;
+    for (var i = 0; i < pick.ingredients.length; i += 1) {
+      await fetch('/api/grocery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: pick.ingredients[i] }),
+      });
+    }
+    loadGrocery();
+    toast(pick.ingredients.length + ' ingredients added to the grocery list');
+  }
+
+  async function clearBake(date) {
+    await fetch('/api/bake/pick?date=' + encodeURIComponent(date), { method: 'DELETE' });
+    loadBake();
+  }
+
+  async function searchBake() {
+    var q = document.getElementById('bakeSearch').value.trim();
+    var host = document.getElementById('bakeResults');
+    if (q.length < 2) { host.innerHTML = ''; return; }
+    host.innerHTML = '<div class="note">Searching…</div>';
+    try {
+      var res = await fetch('/api/recipes/search?q=' + encodeURIComponent(q));
+      var list = await res.json();
+      if (!res.ok) throw new Error(list.error || res.status);
+      if (!list.length) { host.innerHTML = '<div class="note">Nothing found.</div>'; return; }
+      host.innerHTML = list
+        .map(function (r) {
+          return '<button class="ghost" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left;margin-bottom:8px;padding:8px" ' +
+            'onclick="pickBake(\'' + esc(r.id) + '\')">' +
+            (r.image ? '<img src="' + esc(r.image) + '" alt="" style="width:46px;height:46px;border-radius:4px;object-fit:cover" />' : '') +
+            '<span>' + esc(r.title) + '</span></button>';
+        })
+        .join('');
+    } catch (err) {
+      host.innerHTML = '<div class="note">Could not search: ' + esc(err.message || err) + '</div>';
+    }
+  }
+
+  async function pickBake(id) {
+    var date = document.getElementById('bakeWeek').value;
+    try {
+      // Fetch the whole recipe first, so the pick carries its ingredients and
+      // the kitchen can still read them on a bad Wi-Fi Saturday.
+      var full = await (await fetch('/api/recipes/' + encodeURIComponent(id))).json();
+      await fetch('/api/bake/pick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: date,
+          recipe: {
+            id: full.id, title: full.title, image: full.image, kind: full.kind,
+            url: full.source || undefined, ingredients: full.ingredients, steps: full.steps,
+          },
+        }),
+      });
+      document.getElementById('bakeResults').innerHTML = '';
+      document.getElementById('bakeSearch').value = '';
+      loadBake();
+      toast(full.title + ' — ' + date);
+    } catch (err) {
+      toast('Could not save that pick.');
+    }
+  }
+
+  async function toggleGrocery(id) { await fetch('/api/grocery/' + id + '/toggle', { method: 'POST' }); loadGrocery(); }
+  async function removeGrocery(id) { await fetch('/api/grocery/' + id, { method: 'DELETE' }); loadGrocery(); }
+
+  // ---- Events ---------------------------------------------------------------
+  var BUILT_IN_CATS = ['school','work','sports','meal','medical','social','travel','birthday','holiday','household','entertainment','other'];
+  var DOW_LABELS = ['S','M','T','W','T','F','S'];
+  var editing = null;          // the occurrence being edited, or null for new
+  var editorPeople = [];
+  var editorWeekdays = [];
+  var editorScope = 'one';
+
+  function localDateValue(d) {
+    function pad(n) { return String(n).padStart(2, '0'); }
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+  function localTimeValue(d) {
+    function pad(n) { return String(n).padStart(2, '0'); }
+    return pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  async function loadEvents() {
+    var res = await fetch('/api/events/expanded', { cache: 'no-store' });
+    var events = await res.json();
+    window.__events = events;
+    var el = document.getElementById('eventList');
+    // One row per series, not one per date. A weekly class expanded across the
+    // window is thirty rows of the same thing, and the list stops being usable
+    // for the thing it's for — finding an event to change.
+    var upcoming = events
+      .filter(function(e) { return new Date(e.end).getTime() > Date.now() - 12 * 3600 * 1000; })
+      .sort(function(a, b) { return new Date(a.start) - new Date(b.start); });
+
+    var seen = {};
+    var order = [];
+    upcoming.forEach(function(e) {
+      // An override has its own id but the same parent, so key on the parent
+      // or an edited week shows up as a second series.
+      var key = e.recurrenceParentId || e.id;
+      if (seen[key]) { seen[key].more += 1; return; }
+      seen[key] = { event: e, more: 0 };
+      order.push(key);
+    });
+    var sorted = order.map(function(k) { return seen[k]; }).slice(0, 60);
+
+    if (sorted.length === 0) { el.innerHTML = '<div class="empty">No upcoming events.</div>'; return; }
+    el.innerHTML = sorted.map(function(row, i) {
+      var e = row.event;
+      var d = new Date(e.start);
+      var when = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) +
+        ' · ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      var dots = (settings ? (e.personIds || (e.personId ? [e.personId] : [])) : []).map(function(pid) {
+        var p = settings.people.find(function(x) { return x.id === pid; });
+        return p ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + p.color + ';margin-right:5px"></span>' : '';
+      }).join('');
+      var more = row.more > 0
+        ? '<div class="setting-desc" style="color:var(--accent)">Repeats \u00b7 ' + row.more + ' more coming up</div>'
+        : '';
+      return '<div class="item" onclick="openEditor(' + i + ')"><div style="min-width:0">' +
+        '<div style="font-weight:700">' + dots + esc(e.title) + (e.recurrenceParentId ? ' <span style="opacity:.5">↻</span>' : '') + '</div>' +
+        '<div class="setting-desc">' + (row.more > 0 ? 'Next: ' : '') + when + (e.location ? ' · ' + esc(e.location.label) : '') + '</div>' +
+        more + '</div>' +
+        '<span class="setting-desc">Edit</span></div>';
+    }).join('');
+    // The editor opens on the occurrence shown, so it keeps the same shape it
+    // always had — an array of events, not of the collapsed rows.
+    window.__sortedEvents = sorted.map(function(row) { return row.event; });
+  }
+
+  function openEditor(index) {
+    editing = index === null ? null : window.__sortedEvents[index];
+    document.getElementById('eventEditor').hidden = false;
+    document.getElementById('eventList').hidden = true;
+    document.getElementById('catHeading').hidden = true;
+    document.getElementById('categoryList').hidden = true;
+    document.querySelector('#calendar .add-row').hidden = true;
+    document.querySelector('#calendar .note').hidden = true;
+    document.getElementById('calHeading').textContent = editing ? 'Edit event' : 'Add event';
+    document.getElementById('deleteBtn').hidden = !editing;
+
+    var start = editing ? new Date(editing.start) : new Date();
+    var end = editing ? new Date(editing.end) : new Date(Date.now() + 3600e3);
+    document.getElementById('evTitle').value = editing ? editing.title : '';
+    document.getElementById('evDate').value = localDateValue(start);
+    document.getElementById('evStart').value = localTimeValue(start);
+    document.getElementById('evEnd').value = localTimeValue(end);
+    document.getElementById('evLocation').value = editing && editing.location ? editing.location.label : '';
+
+    renderCategoryOptions(editing ? editing.category : 'other');
+    editorPeople = editing ? (editing.personIds || (editing.personId ? [editing.personId] : [])) : [];
+    renderPeopleChips();
+
+    var rule = editing && editing.recurrence ? editing.recurrence : null;
+    document.getElementById('evRepeats').checked = !!rule;
+    document.getElementById('evFreq').value = rule ? rule.freq : 'weekly';
+    document.getElementById('evInterval').value = rule && rule.interval ? rule.interval : 1;
+    document.getElementById('evUntil').value = rule && rule.until ? rule.until : '';
+    editorWeekdays = rule && rule.byWeekday ? rule.byWeekday.slice() : [start.getDay()];
+    renderRepeatFields();
+
+    var isSeries = !!(editing && editing.recurrenceParentId);
+    document.getElementById('scopePicker').hidden = !isSeries;
+    setScope('one');
+    window.scrollTo({ top: 0 });
+  }
+
+  function closeEditor() {
+    editing = null;
+    document.getElementById('eventEditor').hidden = true;
+    document.getElementById('eventList').hidden = false;
+    document.getElementById('catHeading').hidden = false;
+    document.getElementById('categoryList').hidden = false;
+    document.querySelector('#calendar .add-row').hidden = false;
+    document.querySelector('#calendar .note').hidden = false;
+    document.getElementById('calHeading').textContent = 'Events';
+  }
+
+  function setScope(scope) {
+    editorScope = scope;
+    document.getElementById('scopeOne').classList.toggle('on', scope === 'one');
+    document.getElementById('scopeAll').classList.toggle('on', scope === 'all');
+    document.getElementById('scopeNote').textContent = scope === 'one'
+      ? 'Just this date changes. The rest of the series stays as it is.'
+      : 'Every occurrence changes, including ones already past.';
+    document.getElementById('deleteBtn').textContent = scope === 'one' && editing && editing.recurrenceParentId
+      ? 'Delete this one' : 'Delete';
+  }
+
+  function renderCategoryOptions(selected) {
+    var custom = settings ? (settings.customCategories || []) : [];
+    var all = BUILT_IN_CATS.map(function(c) { return { id: c, label: c.charAt(0).toUpperCase() + c.slice(1) }; })
+      .concat(custom);
+    document.getElementById('evCategory').innerHTML = all.map(function(c) {
+      return '<option value="' + c.id + '"' + (c.id === selected ? ' selected' : '') + '>' + esc(c.label) + '</option>';
+    }).join('');
+  }
+
+  function renderPeopleChips() {
+    if (!settings) return;
+    document.getElementById('evPeople').innerHTML = settings.people.map(function(p) {
+      var on = editorPeople.indexOf(p.id) !== -1;
+      return '<button class="chip' + (on ? ' on' : '') + '" onclick="togglePerson(\'' + p.id + '\')">' +
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + p.color + ';margin-right:6px"></span>' +
+        esc(p.name) + '</button>';
+    }).join('');
+  }
+
+  function togglePerson(id) {
+    var i = editorPeople.indexOf(id);
+    if (i === -1) editorPeople.push(id); else editorPeople.splice(i, 1);
+    renderPeopleChips();
+  }
+
+  function renderRepeatFields() {
+    var on = document.getElementById('evRepeats').checked;
+    document.getElementById('repeatFields').hidden = !on;
+    var weekly = document.getElementById('evFreq').value === 'weekly';
+    document.getElementById('weekdayField').hidden = !weekly;
+    document.getElementById('evWeekdays').innerHTML = DOW_LABELS.map(function(label, i) {
+      return '<button class="chip round' + (editorWeekdays.indexOf(i) !== -1 ? ' on' : '') +
+        '" onclick="toggleWeekday(' + i + ')">' + label + '</button>';
+    }).join('');
+  }
+
+  function toggleWeekday(day) {
+    var i = editorWeekdays.indexOf(day);
+    if (i === -1) editorWeekdays.push(day); else editorWeekdays.splice(i, 1);
+    if (editorWeekdays.length === 0) editorWeekdays = [day];
+    editorWeekdays.sort();
+    renderRepeatFields();
+  }
+
+  function collectDraft() {
+    var title = document.getElementById('evTitle').value.trim();
+    var date = document.getElementById('evDate').value;
+    var start = document.getElementById('evStart').value;
+    var end = document.getElementById('evEnd').value;
+    if (!title || !date || !start || !end) { toast('Fill in title, date and times'); return null; }
+    var draft = {
+      title: title,
+      start: new Date(date + 'T' + start + ':00').toISOString(),
+      end: new Date(date + 'T' + end + ':00').toISOString(),
+      calendarId: 'household',
+      category: document.getElementById('evCategory').value,
+      personIds: editorPeople,
+      personId: undefined,
+      importance: editing ? editing.importance : 2,
+    };
+    var loc = document.getElementById('evLocation').value.trim();
+    if (loc) draft.location = { label: loc };
+    if (document.getElementById('evRepeats').checked) {
+      draft.recurrence = {
+        freq: document.getElementById('evFreq').value,
+        interval: Number(document.getElementById('evInterval').value) || 1,
+        byWeekday: document.getElementById('evFreq').value === 'weekly' ? editorWeekdays : undefined,
+        until: document.getElementById('evUntil').value || undefined,
+      };
+    }
+    return draft;
+  }
+
+  async function saveEvent() {
+    var draft = collectDraft();
+    if (!draft) return;
+    if (!editing) {
+      await fetch('/api/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) });
+    } else if (editing.recurrenceParentId && editorScope === 'one') {
+      await fetch('/api/events/occurrence', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ masterId: editing.recurrenceParentId, occurrenceDate: editing.occurrenceDate, patch: draft }),
+      });
+    } else {
+      await fetch('/api/events/' + (editing.recurrenceParentId || editing.id), {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft),
+      });
+    }
+    toast('Saved');
+    closeEditor();
+    loadEvents();
+  }
+
+  async function deleteEvent() {
+    if (!editing) return;
+    if (editing.recurrenceParentId && editorScope === 'one') {
+      await fetch('/api/events/occurrence', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ masterId: editing.recurrenceParentId, occurrenceDate: editing.occurrenceDate, patch: null }),
+      });
+    } else {
+      await fetch('/api/events/' + (editing.recurrenceParentId || editing.id), { method: 'DELETE' });
+    }
+    toast('Deleted');
+    closeEditor();
+    loadEvents();
+  }
+
+  function renderCategories() {
+    var el = document.getElementById('categoryList');
+    var custom = settings ? (settings.customCategories || []) : [];
+    if (custom.length === 0) { el.innerHTML = '<div class="empty">None yet.</div>'; return; }
+    el.innerHTML = custom.map(function(c) {
+      return '<div class="item"><div style="font-weight:700">' + esc(c.label) + '</div>' +
+        '<button class="del" onclick="deleteCategory(\'' + c.id + '\')">Delete</button></div>';
+    }).join('');
+  }
+
+  function addCategory() {
+    var label = document.getElementById('catLabel').value.trim();
+    if (!label || !settings) return;
+    settings.customCategories = (settings.customCategories || []).concat([{ id: 'cat-' + Date.now(), label: label }]);
+    document.getElementById('catLabel').value = '';
+    saveSettings().then(renderCategories);
+    toast('Category added');
+  }
+
+  function deleteCategory(id) {
+    settings.customCategories = (settings.customCategories || []).filter(function(c) { return c.id !== id; });
+    saveSettings().then(renderCategories);
+    toast('Category removed');
+  }
+
+  // ---- Photos --------------------------------------------------------------
+  async function loadPhotos() {
+    var res = await fetch('/api/photos', { cache: 'no-store' });
+    var photos = await res.json();
+    var el = document.getElementById('photoGrid');
+    if (photos.length === 0) { el.innerHTML = '<div class="empty">No photos yet.</div>'; return; }
+    el.innerHTML = photos.map(function(p) {
+      return '<div class="photo-thumb"><img src="' + p.url + '" /><button class="del" onclick="deletePhoto(\'' + p.id + '\')">Remove</button></div>';
+    }).join('');
+  }
+
+  // Scale a photo down before sending. A modern phone shoots 12MP files that
+  // base64 to ~7MB each; a dozen of those over home Wi-Fi is minutes of
+  // waiting and hundreds of megabytes on the Mac mini — to be displayed on a
+  // 380px-wide tile. 2000px is still far more than either surface can show.
+  function shrinkImage(file, maxEdge) {
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onerror = function() { reject(new Error('read-failed')); };
+      reader.onload = function() {
+        var img = new Image();
+        // Formats the canvas can't decode (some HEICs) go up untouched rather
+        // than failing — the server stores whatever it's given.
+        img.onerror = function() { resolve(reader.result); };
+        img.onload = function() {
+          var scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+          if (scale === 1) { resolve(reader.result); return; }
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function uploadPhotos(input) {
+    var files = Array.prototype.slice.call(input.files || []);
+    if (files.length === 0) return;
+    var status = document.getElementById('uploadStatus');
+    var failed = 0;
+
+    for (var i = 0; i < files.length; i++) {
+      status.textContent = 'Uploading ' + (i + 1) + ' of ' + files.length + '…';
+      try {
+        var dataUrl = await shrinkImage(files[i], 2000);
+        var res = await fetch('/api/photos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dataUrl: dataUrl }),
+        });
+        if (!res.ok) failed++;
+      } catch (e) {
+        failed++;
+      }
+      loadPhotos(); // show each one as it lands, not all at the end
+    }
+
+    input.value = '';
+    var added = files.length - failed;
+    status.textContent = failed
+      ? 'Added ' + added + ' of ' + files.length + ' — ' + failed + ' could not be read.'
+      : '';
+    toast(added === 1 ? 'Photo added' : 'Added ' + added + ' photos');
+    loadPhotos();
+  }
+
+  async function deletePhoto(id) { await fetch('/api/photos/' + id, { method: 'DELETE' }); loadPhotos(); }
+
+  // ---- Music ---------------------------------------------------------------
+  var musicState = null;
+
+  async function loadMusic() {
+    try {
+      var res = await fetch('/api/music/state', { cache: 'no-store' });
+      musicState = await res.json();
+    } catch (e) {
+      musicState = null;
+    }
+    renderNowPlaying();
+    renderSpeakers();
+    renderSpotify();
+    renderEmbed();
+  }
+
+  function renderNowPlaying() {
+    var el = document.getElementById('nowPlaying');
+    var np = musicState && musicState.nowPlaying;
+    if (!np || !np.title) {
+      el.innerHTML = '<div class="np"><div><div class="np-title">Nothing playing</div><div class="np-artist">' +
+        (musicState && musicState.speakers && musicState.speakers.length ? 'Pick a speaker below, or start something in Spotify.' : 'No Sonos speakers found on this network yet.') +
+        '</div></div></div>';
+      return;
+    }
+    el.innerHTML = '<div class="np">' +
+      (np.artwork ? '<img class="np-art" src="' + esc(np.artwork) + '" />' : '<div class="np-art"></div>') +
+      '<div style="min-width:0"><div class="np-title">' + esc(np.title) + '</div>' +
+      '<div class="np-artist">' + esc(np.artist || '') + '</div>' +
+      '<div class="np-where">' + (np.playing ? 'Playing' : 'Paused') + ' · ' + esc(np.deviceName || np.source) + '</div></div></div>';
+    if (np.volume != null) document.getElementById('vol').value = np.volume;
+  }
+
+  function renderSpeakers() {
+    var el = document.getElementById('speakerList');
+    var speakers = (musicState && musicState.speakers) || [];
+    if (speakers.length === 0) {
+      el.innerHTML = '<div class="empty">None found. Sonos speakers announce themselves over Wi-Fi — make sure the Mac mini is on the same network, then rescan.</div>';
+      return;
+    }
+    el.innerHTML = speakers.map(function(s) {
+      var sel = musicState.selected === s.ip;
+      return '<div class="speaker' + (sel ? ' sel' : '') + '"><div><div class="speaker-name">' + esc(s.room) + '</div>' +
+        '<div class="speaker-sub">' + esc(s.model) + ' · ' + esc(s.ip) + '</div></div>' +
+        '<button class="ghost" onclick="selectSpeaker(\'' + esc(s.ip) + '\',\'' + esc(s.room) + '\')">' + (sel ? 'Selected' : 'Use') + '</button></div>';
+    }).join('');
+  }
+
+  function renderSpotify() {
+    var el = document.getElementById('spotifyBox');
+    var sp = (musicState && musicState.spotify) || {};
+    if (!sp.clientIdSet) {
+      el.innerHTML = '<div class="empty">Paste a client ID below to enable Spotify Connect.</div>';
+      return;
+    }
+    if (!sp.connected) {
+      el.innerHTML = '<div class="empty">Not connected. Open this page on the Mac mini and press Connect.</div>' +
+        '<button class="ghost" style="width:100%;margin-top:12px" onclick="location.href=\'/api/spotify/login\'">Connect Spotify</button>';
+      return;
+    }
+    el.innerHTML = '<div class="setting-row" style="border-top:none"><div><div class="setting-label">Connected</div>' +
+      '<div class="setting-desc">Pick where the music should come out.</div></div>' +
+      '<button class="del" onclick="disconnectSpotify()">Disconnect</button></div>' +
+      '<div id="spotifyDevices"></div>' +
+      '<button class="ghost" style="width:100%;margin-top:12px" onclick="loadSpotifyDevices()">Refresh devices</button>';
+    loadSpotifyDevices();
+  }
+
+  async function loadSpotifyDevices() {
+    var el = document.getElementById('spotifyDevices');
+    if (!el) return;
+    try {
+      var res = await fetch('/api/spotify/devices', { cache: 'no-store' });
+      var data = await res.json();
+      if (data.error) { el.innerHTML = '<div class="empty">' + esc(data.error) + '</div>'; return; }
+      if (!data.devices.length) { el.innerHTML = '<div class="empty">No Spotify Connect devices are awake right now. Open Spotify on the speaker or a phone once and it will appear.</div>'; return; }
+      el.innerHTML = data.devices.map(function(d) {
+        return '<div class="speaker' + (d.is_active ? ' sel' : '') + '"><div><div class="speaker-name">' + esc(d.name) + '</div>' +
+          '<div class="speaker-sub">' + esc(d.type) + (d.is_active ? ' · active' : '') + '</div></div>' +
+          '<button class="ghost" onclick="transferTo(\'' + esc(d.id) + '\')">Play here</button></div>';
+      }).join('');
+    } catch (e) {
+      el.innerHTML = '<div class="empty">Could not reach Spotify.</div>';
+    }
+  }
+
+  async function checkSpotify() {
+    var el = document.getElementById('spotifyVerdict');
+    el.textContent = 'Checking…';
+    try {
+      var d = await (await fetch('/api/spotify/diagnose', { cache: 'no-store' })).json();
+      el.textContent = d.verdict;
+      el.style.borderLeft = '2px solid var(--accent)';
+      el.style.paddingLeft = '12px';
+    } catch (e) {
+      el.textContent = 'Could not reach the kiosk.';
+    }
+  }
+
+  async function transferTo(id) {
+    var res = await fetch('/api/spotify/transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: id }) });
+    var data = await res.json();
+    toast(data.error ? data.error : 'Moved playback');
+    setTimeout(loadMusic, 1200);
+  }
+
+  async function disconnectSpotify() {
+    await fetch('/api/spotify/disconnect', { method: 'POST' });
+    toast('Disconnected');
+    loadMusic();
+  }
+
+  function renderEmbed() {
+    var uri = settings && settings.music ? settings.music.embedUri : '';
+    var box = document.getElementById('embedBox');
+    if (!uri) { box.innerHTML = ''; return; }
+    var parts = uri.replace('spotify:', '').split(':');
+    if (parts.length < 2) { box.innerHTML = '<div class="empty">That doesn\'t look like a Spotify URI.</div>'; return; }
+    box.innerHTML = '<iframe src="https://open.spotify.com/embed/' + encodeURIComponent(parts[0]) + '/' + encodeURIComponent(parts[1]) +
+      '" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture" loading="lazy"></iframe>';
+  }
+
+  async function selectSpeaker(ip, room) {
+    settings.music.speakerIp = ip;
+    settings.music.speakerRoom = room;
+    await saveSettings();
+    toast(room + ' selected');
+    loadMusic();
+  }
+
+  async function musicCmd(action) {
+    var res = await fetch('/api/music/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: action }) });
+    var data = await res.json();
+    if (data.error) toast(data.error);
+    setTimeout(loadMusic, 700);
+  }
+
+  async function setVolume(level) {
+    var res = await fetch('/api/music/volume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ level: Number(level) }) });
+    var data = await res.json();
+    if (data.error) toast(data.error);
+  }
+
+  async function rescan() {
+    toast('Scanning…');
+    await fetch('/api/music/discover', { method: 'POST' });
+    loadMusic();
+  }
+
+  function saveClientId() {
+    settings.music.spotifyClientId = document.getElementById('spotifyClientId').value.trim();
+    saveSettings();
+    toast('Saved');
+    loadMusic();
+  }
+
+  function saveEmbed() {
+    settings.music.embedUri = document.getElementById('embedUri').value.trim();
+    saveSettings();
+    renderEmbed();
+  }
+
+  // ---- Kiosk remote --------------------------------------------------------
+  async function kioskCommand(opts) {
+    try {
+      var res = await fetch('/api/kiosk/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(opts),
+      });
+      if (!res.ok) { toast('Could not reach the kiosk'); return; }
+      if (opts.view) toast('Switched to ' + opts.view + ' view');
+      else if (opts.nav === 'today') toast('Back to today');
+      else if (!opts.nav) toast('Screen woken');
+      // The kiosk polls for commands every couple of seconds and reports back
+      // after acting, so check twice: once optimistically, once after it has
+      // certainly had a turn. Otherwise the label on the phone lags a press.
+      setTimeout(loadKioskStatus, 900);
+      setTimeout(loadKioskStatus, 2600);
+    } catch (e) {
+      toast('Could not reach the kiosk');
+    }
+  }
+
+  // Mirror what the kitchen display is showing, so the arrows aren't pressed
+  // blind — otherwise you're paging a calendar you can't see from the sofa.
+  async function loadKioskStatus() {
+    try {
+      var state = await (await fetch('/api/kiosk/state', { cache: 'no-store' })).json();
+      var st = state.status || {};
+      document.getElementById('remoteRange').textContent = st.rangeLabel || '—';
+      document.querySelectorAll('#remoteViews button').forEach(function(b) {
+        b.classList.toggle('live', b.dataset.view === st.view);
+      });
+    } catch (e) {
+      document.getElementById('remoteRange').textContent = 'Kiosk not reachable';
+    }
+  }
+
+  // ---- Chores --------------------------------------------------------------
+  var choreState = null;
+  var chorePersonId = null;
+
+  async function loadChores() {
+    try {
+      choreState = await (await fetch('/api/chores', { cache: 'no-store' })).json();
+    } catch (e) {
+      return;
+    }
+    renderChorePeople();
+    renderChoreList();
+    renderChoreGoal();
+    renderChoreManage();
+    renderRewards();
+    renderPersonGoals();
+    if (settings) {
+      document.getElementById('goalLabel').value = choreState.goal.label || '';
+      document.getElementById('goalTarget').value = choreState.goal.targetPoints || 0;
+      document.getElementById('chorePerson').innerHTML =
+        '<option value="">Anyone</option>' +
+        settings.people.map(function(p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join('');
+    }
+  }
+
+  function renderChorePeople() {
+    var el = document.getElementById('chorePeople');
+    if (!settings) { el.innerHTML = ''; return; }
+    var people = settings.people.filter(function(p) { return p.enabled; });
+    el.innerHTML = '<div class="chore-who">' + people.map(function(p) {
+      var t = choreState.totals[p.id] || { todayDone: 0, todayTotal: 0, totalPoints: 0, goalPct: 0 };
+      var done = t.todayTotal > 0 && t.todayDone === t.todayTotal;
+      var goal = t.goalLabel
+        ? '<span class="who-goal"><span class="who-goal-track"><span class="who-goal-fill" style="width:' +
+          t.goalPct + '%;background:' + p.color + '"></span></span><span class="who-goal-label">' +
+          (t.goalReached ? esc(t.goalLabel) + ' — earned!' : esc(t.goalLabel) + ' · ' + t.totalPoints + '/' + t.goalPoints) +
+          '</span></span>'
+        : '';
+      return '<button class="who' + (chorePersonId === p.id ? ' sel' : '') + (done ? ' done' : '') + '" ' +
+        'style="border-color:' + p.color + '" onclick="pickChorePerson(\'' + p.id + '\')">' +
+        '<span class="who-dot" style="background:' + p.color + '"></span>' +
+        '<span class="who-name">' + esc(p.name) + '</span>' +
+        '<span class="who-meta">' + t.todayDone + '/' + t.todayTotal + ' today · ' + t.totalPoints + ' pts</span>' +
+        goal + '</button>';
+    }).join('') + '</div>';
+  }
+
+  function pickChorePerson(id) {
+    chorePersonId = chorePersonId === id ? null : id;
+    renderChorePeople();
+    renderChoreList();
+  }
+
+  function renderChoreList() {
+    var el = document.getElementById('choreList');
+    if (!chorePersonId) { el.innerHTML = '<div class="empty">Tap your name to see your list.</div>'; return; }
+    var mine = choreState.items.filter(function(c) { return !c.personId || c.personId === chorePersonId; });
+    var done = {};
+    choreState.completions.forEach(function(c) { if (c.personId === chorePersonId) done[c.choreId] = true; });
+    if (mine.length === 0) { el.innerHTML = '<div class="empty">Nothing on the list today.</div>'; return; }
+    el.innerHTML = mine.map(function(c) {
+      return '<div class="item ' + (done[c.id] ? 'done' : '') + '" onclick="tickChore(\'' + c.id + '\')">' +
+        '<div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">' +
+        '<span class="check"></span><span class="label" style="font-weight:600">' + esc(c.label) + '</span></div>' +
+        '<span class="setting-desc">' + c.points + ' pts</span></div>';
+    }).join('');
+  }
+
+  async function tickChore(choreId) {
+    if (!chorePersonId) return;
+    var res = await fetch('/api/chores/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ choreId: choreId, personId: chorePersonId }),
+    });
+    var result = await res.json();
+    await loadChores();
+    if (result.completedAll) {
+      confetti();
+      toast('All done! Nice work.');
+    }
+  }
+
+  function renderChoreGoal() {
+    var pct = choreState.goal.targetPoints
+      ? Math.min(100, (choreState.goalPoints / choreState.goal.targetPoints) * 100) : 0;
+    document.getElementById('choreGoal').innerHTML =
+      '<div class="goal"><div class="goal-head"><span class="feed-src">Working towards</span>' +
+      '<span class="goal-label">' + esc(choreState.goal.label) + '</span></div>' +
+      '<div class="goal-track"><span class="goal-fill" style="width:' + pct + '%"></span></div>' +
+      '<div class="setting-desc" style="margin-top:8px">' + choreState.goalPoints + ' / ' +
+      choreState.goal.targetPoints + ' points — everyone\'s together</div></div>';
+  }
+
+  function renderChoreManage() {
+    var el = document.getElementById('choreManage');
+    var items = settings ? (settings.chores.items || []) : [];
+    if (items.length === 0) { el.innerHTML = '<div class="empty">No chores set up yet.</div>'; return; }
+    el.innerHTML = items.map(function(c) {
+      var who = c.personId && settings ? (settings.people.find(function(p) { return p.id === c.personId; }) || {}).name : 'Anyone';
+      return '<div class="item"><div style="min-width:0"><div style="font-weight:700">' + esc(c.label) + '</div>' +
+        '<div class="setting-desc">' + esc(who || 'Anyone') + ' · ' + c.points + ' pts</div></div>' +
+        '<button class="del" onclick="deleteChore(\'' + c.id + '\')">Delete</button></div>';
+    }).join('');
+  }
+
+  function addChore() {
+    var label = document.getElementById('choreLabel').value.trim();
+    if (!label || !settings) return;
+    settings.chores.items.push({
+      id: 'chore-' + Date.now(),
+      label: label,
+      personId: document.getElementById('chorePerson').value || '',
+      points: Number(document.getElementById('chorePoints').value) || 10,
+      active: true,
+    });
+    document.getElementById('choreLabel').value = '';
+    saveSettings().then(loadChores);
+    toast('Chore added');
+  }
+
+  function deleteChore(id) {
+    settings.chores.items = settings.chores.items.filter(function(c) { return c.id !== id; });
+    saveSettings().then(loadChores);
+    toast('Chore removed');
+  }
+
+  function renderRewards() {
+    var el = document.getElementById('rewardList');
+    var rewards = settings ? (settings.chores.rewards || []) : [];
+    if (rewards.length === 0) { el.innerHTML = '<div class="empty">No rewards yet.</div>'; return; }
+    el.innerHTML = rewards.map(function(r) {
+      return '<div class="item"><div style="min-width:0"><div style="font-weight:700">' + esc(r.label) + '</div>' +
+        '<div class="setting-desc">' + r.points + ' points</div></div>' +
+        '<button class="del" onclick="deleteReward(\'' + r.id + '\')">Delete</button></div>';
+    }).join('');
+  }
+
+  function addReward() {
+    var label = document.getElementById('rewardLabel').value.trim();
+    if (!label || !settings) return;
+    settings.chores.rewards.push({
+      id: 'reward-' + Date.now(),
+      label: label,
+      points: Number(document.getElementById('rewardPoints').value) || 100,
+    });
+    document.getElementById('rewardLabel').value = '';
+    saveSettings().then(loadChores);
+    toast('Reward added');
+  }
+
+  function deleteReward(id) {
+    settings.chores.rewards = settings.chores.rewards.filter(function(r) { return r.id !== id; });
+    // Don't leave anyone pointed at a reward that no longer exists.
+    Object.keys(settings.chores.personGoals || {}).forEach(function(pid) {
+      if (settings.chores.personGoals[pid] === id) delete settings.chores.personGoals[pid];
+    });
+    saveSettings().then(loadChores);
+    toast('Reward removed');
+  }
+
+  function renderPersonGoals() {
+    var el = document.getElementById('personGoals');
+    if (!settings) { el.innerHTML = ''; return; }
+    var rewards = settings.chores.rewards || [];
+    el.innerHTML = settings.people.map(function(p) {
+      var chosen = (settings.chores.personGoals || {})[p.id] || '';
+      var options = '<option value="">No goal yet</option>' + rewards.map(function(r) {
+        return '<option value="' + r.id + '"' + (r.id === chosen ? ' selected' : '') + '>' +
+          esc(r.label) + ' — ' + r.points + ' pts</option>';
+      }).join('');
+      return '<div class="setting-row stack"><div class="setting-label">' + esc(p.name) + '</div>' +
+        '<select style="margin-top:8px" onchange="setPersonGoal(\'' + p.id + '\', this.value)">' + options + '</select></div>';
+    }).join('');
+  }
+
+  function setPersonGoal(personId, rewardId) {
+    if (!settings.chores.personGoals) settings.chores.personGoals = {};
+    settings.chores.personGoals[personId] = rewardId;
+    saveSettings().then(loadChores);
+    toast('Goal set');
+  }
+
+  function saveGoal() {
+    if (!settings) return;
+    settings.chores.goal = {
+      label: document.getElementById('goalLabel').value || 'A treat',
+      targetPoints: Number(document.getElementById('goalTarget').value) || 100,
+    };
+    saveSettings().then(loadChores);
+    toast('Goal saved');
+  }
+
+  // Small canvas burst — same idea as the kiosk's, sized for a phone.
+  function confetti() {
+    if (settings && settings.display && settings.display.reducedMotion) return;
+    var canvas = document.createElement('canvas');
+    canvas.className = 'confetti';
+    document.body.appendChild(canvas);
+    var w = canvas.width = window.innerWidth;
+    var h = canvas.height = window.innerHeight;
+    var ctx = canvas.getContext('2d');
+    var colors = ['#00F5D4', '#FF5C72', '#FFFFFF', '#7DE8DC'];
+    var bits = [];
+    for (var i = 0; i < 90; i++) {
+      bits.push({
+        x: w / 2 + (Math.random() - 0.5) * w * 0.6,
+        y: h * 0.45 + Math.random() * 40,
+        vx: (Math.random() - 0.5) * 13,
+        vy: -8 - Math.random() * 13,
+        rot: Math.random() * 3,
+        vr: (Math.random() - 0.5) * 0.4,
+        w: 5 + Math.random() * 6,
+        h: 3 + Math.random() * 4,
+        c: colors[Math.floor(Math.random() * colors.length)],
+        life: 1,
+      });
+    }
+    function frame() {
+      ctx.clearRect(0, 0, w, h);
+      var alive = 0;
+      bits.forEach(function(b) {
+        b.vy += 0.4; b.x += b.vx; b.y += b.vy; b.rot += b.vr;
+        if (b.y > h * 0.6) b.life -= 0.018;
+        if (b.life <= 0 || b.y > h + 30) return;
+        alive++;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, b.life);
+        ctx.translate(b.x, b.y); ctx.rotate(b.rot);
+        ctx.fillStyle = b.c;
+        ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+        ctx.restore();
+      });
+      if (alive > 0) requestAnimationFrame(frame); else canvas.remove();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---- sign-in -------------------------------------------------------------
+  var booted = false;
+
+  async function signIn() {
+    var input = document.getElementById('lockInput');
+    var err = document.getElementById('lockError');
+    err.textContent = '';
+    try {
+      var res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode: input.value }),
+      });
+      if (!res.ok) { err.textContent = 'That passcode didn’t work.'; input.select(); return; }
+      input.value = '';
+      document.getElementById('lock').hidden = true;
+      boot();
+    } catch (e) {
+      err.textContent = 'Could not reach the kiosk.';
+    }
+  }
+
+  function showLock() {
+    document.getElementById('lock').hidden = false;
+    setTimeout(function() { document.getElementById('lockInput').focus(); }, 100);
+  }
+
+  // ---- boot ----------------------------------------------------------------
+  async function boot() {
+    if (booted) return;
+    booted = true;
+    await loadSettings();
+    loadGrocery();
+    loadEvents();
+    loadPhotos();
+    loadChores();
+    loadKioskStatus();
+    setInterval(loadKioskStatus, 3000);
+    setInterval(loadGrocery, 5000);
+    setInterval(loadEvents, 15000);
+    setInterval(function() {
+      if (document.getElementById('chores').classList.contains('active')) loadChores();
+    }, 20000);
+    setInterval(function() {
+      if (document.getElementById('music').classList.contains('active')) loadMusic();
+    }, 8000);
+  }
+
+  (async function start() {
+    try {
+      var status = await (await fetch('/api/auth/status', { cache: 'no-store' })).json();
+      if (status.required && !status.signedIn) { showLock(); return; }
+    } catch (e) {
+      // Server unreachable — let boot() surface that per-panel rather than
+      // stranding the page behind a lock screen it can't verify.
+    }
+    boot();
+  })();
+</script>
+</body>
+</html>

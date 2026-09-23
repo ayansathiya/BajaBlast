@@ -1,0 +1,16 @@
+node_modules/
+dist/
+release/
+*.tsbuildinfo
+
+# The household. This must never go to GitHub: it's the family's calendar,
+# photos, chore points and Spotify tokens. The repo holds code only.
+baja-blast-data/
+*.local
+
+.DS_Store
+
+# Built packages and test screenshots — artefacts, not source. The .deb is
+# rebuilt by `npm run pi`; the screenshots by the browser tests.
+dist-pi/
+test/shots/
