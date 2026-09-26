@@ -33,6 +33,9 @@ The format matters, because `app/changelog.cjs` parses it: a heading of
 - **Low power mode**, in Settings → Display. One switch that turns off the
   animation, the idle reel and the rotating photo frame, for a small box where
   those are most of the work the processor does.
+- Fixed: the first attempt at this update log shipped a test that could never
+  pass on GitHub's builder, which quietly blocked the release. It now checks
+  that no entry is dated in the future instead.
 
 ## 2026-09-21 — Recipes, Bake Night, and a browser inside the app
 

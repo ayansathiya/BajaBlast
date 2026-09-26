@@ -118,11 +118,17 @@ console.log('\nThe real file');
     dated.map((e) => e.date).join(',')
   );
 
-  // The build being shipped should be in the log. Forgetting to write the
-  // entry is the failure mode this whole file exists to prevent.
+  // Not "today's build has an entry": the release workflow stamps build.json
+  // with the date it runs, so that assertion can never pass on CI and blocks
+  // every release. What's worth checking is that nobody has dated an entry
+  // into the future, which is the real typo.
   const build = JSON.parse(fs.readFileSync(path.join(ROOT, 'build.json'), 'utf8')).build;
   const stamp = String(build).slice(0, 10);
-  check(`this build (${build}) has an entry`, dated.some((e) => e.date === stamp), dated.map((e) => e.date).join(','));
+  check(
+    `no entry is dated after this build (${stamp})`,
+    dated.every((e) => e.date <= stamp),
+    dated.map((e) => e.date).join(',')
+  );
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
