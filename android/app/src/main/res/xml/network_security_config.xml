@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The calendar is served over plain http on the home network
+     (http://192.168.x.x:8787), with no certificate to present. Android blocks
+     that by default, so cleartext is allowed. Tailscale addresses are https
+     and are unaffected; everything outside the page opens in the browser. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

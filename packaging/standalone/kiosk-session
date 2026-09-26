@@ -1,0 +1,109 @@
+#!/bin/bash
+#
+# The calendar, full screen, on a small box with no desktop.
+#
+# Started by startx from the kiosk user's autologin on tty1. There is no
+# window manager: Chromium in kiosk mode is the only window, and a window
+# manager on a 1GB box is memory spent drawing nothing.
+#
+# If Chromium exits — a crash, an out-of-memory kill, someone finding a way to
+# close it — it comes straight back. If this script itself exits, X exits,
+# the login shell exits, and getty logs the user straight back in. There is no
+# state from which the screen stays on a console prompt.
+#
+set -u
+
+URL="${BAJA_BLAST_URL:-http://localhost:8787/}"
+
+# Let the calendar's own service (same user, but a different login) reach
+# this display to sleep and wake it, without depending on a cookie file.
+xhost "+SI:localuser:$(id -un)" >/dev/null 2>&1 || true
+
+# The only screen blanking should be the calendar's own schedule. Left at
+# X's defaults the panel would go dark after ten idle minutes at lunchtime,
+# which on a wall display nobody touches is every ten minutes. DPMS stays
+# *enabled* with no timeouts, so `xset dpms force off` at 11pm still works.
+# One setting per call: some xset builds stop at the first argument they
+# don't expect, which would silently leave the ten-minute default in place.
+xset s off 2>/dev/null || true
+xset s 0 0 2>/dev/null || true
+xset s noblank 2>/dev/null || true
+xset dpms 0 0 0 2>/dev/null || true
+xset +dpms 2>/dev/null || true
+
+# Hide the pointer when it isn't moving (for a mouse; a touchscreen has none).
+if command -v unclutter >/dev/null 2>&1; then
+  unclutter --timeout 3 >/dev/null 2>&1 &
+fi
+
+BROWSER=""
+for b in chromium chromium-browser; do
+  if command -v "$b" >/dev/null 2>&1; then BROWSER="$b"; break; fi
+done
+if [ -z "$BROWSER" ]; then
+  xmessage -center "Baja Blast: Chromium isn't installed. Install the chromium package." 2>/dev/null || sleep 60
+  exit 1
+fi
+
+# Wait for the calendar to answer before pointing a browser at it, so a cold
+# boot shows the calendar and not Chromium's "This site can't be reached".
+for _ in $(seq 1 120); do
+  (exec 3<>/dev/tcp/127.0.0.1/8787) 2>/dev/null && break
+  sleep 1
+done
+
+PROFILE_DIR="${HOME}/.config/baja-blast-kiosk"
+mkdir -p "$PROFILE_DIR"
+
+# Flags chosen for a 1GB box with a Mali-450:
+#   --disable-gpu            the open-source Mali driver is GLES2-only and
+#                            Chromium's GPU path on it is the likeliest thing
+#                            to hang; software drawing of a mostly-static
+#                            calendar is cheap. BAJA_BLAST_GPU=1 to try it.
+#   --renderer-process-limit one page, one renderer; each extra is ~60MB
+#   --disk-cache-size        the calendar is served from the box itself
+#   --disable-*              no background networking, no component updates,
+#                            no translate bar, no restore-session bubble
+FLAGS=(
+  --kiosk "$URL"
+  --user-data-dir="$PROFILE_DIR"
+  --no-first-run
+  --noerrdialogs
+  --disable-infobars
+  --disable-session-crashed-bubble
+  --disable-features=Translate,MediaRouter,OptimizationHints
+  --disable-background-networking
+  --disable-component-update
+  --disable-sync
+  --password-store=basic
+  --check-for-update-interval=31536000
+  --overscroll-history-navigation=0
+  --disable-pinch
+  --renderer-process-limit=1
+  --disk-cache-size=33554432
+  --autoplay-policy=no-user-gesture-required
+)
+# Kiosk mode asks the window manager to go full screen, and there isn't one,
+# so without this Chromium opens at its default size in the corner. Read the
+# screen's size from X each time round the loop, so a different TV plugged in
+# gets the right size on the next restart.
+screen_size() {
+  xdpyinfo 2>/dev/null | awk '/dimensions:/ { split($2, d, "x"); print d[1] "," d[2]; exit }'
+}
+
+if [ "${BAJA_BLAST_GPU:-0}" != "1" ]; then
+  FLAGS+=(--disable-gpu)
+fi
+
+while true; do
+  # A crash or an OOM kill leaves "exited_cleanly": false, and the next start
+  # would open with a restore bar across the top of the calendar.
+  prefs="$PROFILE_DIR/Default/Preferences"
+  if [ -f "$prefs" ]; then
+    sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"Crashed"/"exit_type":"Normal"/' "$prefs" 2>/dev/null || true
+  fi
+  SIZE="$(screen_size)"
+  "$BROWSER" "${FLAGS[@]}" --window-position=0,0 ${SIZE:+--window-size=$SIZE}
+  echo "baja-blast-kiosk: $BROWSER exited ($?), restarting in 3s" >&2
+  sleep 3
+done

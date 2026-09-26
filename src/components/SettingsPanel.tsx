@@ -551,7 +551,7 @@ function ScreenScheduleRows({
         label="Sleep the screen overnight"
         desc={
           schedule.enabled
-            ? `Off between ${schedule.off} and ${schedule.on} — around $${saving} a year at New Hampshire prices. The Pi keeps running, so your phone still works and updates still arrive.`
+            ? `Off between ${schedule.off} and ${schedule.on} — around $${saving} a year at New Hampshire prices. The computer behind it keeps running, so your phone still works and updates still arrive.`
             : 'The screen stays on all night. The panel is most of what this costs to run.'
         }
       >
@@ -581,6 +581,12 @@ function ScreenScheduleRows({
             desc="Tapping the screen at 2am brings it back for an hour and a half. Turn this off if the display is somewhere a cat can reach."
           >
             <Toggle on={schedule.wakeOnTouch !== false} onClick={() => set({ wakeOnTouch: schedule.wakeOnTouch === false })} />
+          </Row>
+          <Row
+            label="Turn the TV off too"
+            desc="For a box plugged into a television: sends it to standby over HDMI at night and switches it back on in the morning. Most TVs otherwise sit lit up saying “No signal”. Leave off if the TV is shared."
+          >
+            <Toggle on={schedule.hdmiCec === true} onClick={() => set({ hdmiCec: schedule.hdmiCec !== true })} />
           </Row>
         </>
       )}

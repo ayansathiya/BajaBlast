@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+case "$1" in
+  remove|purge)
+    rm -f /etc/systemd/system/getty@tty1.service.d/baja-blast-autologin.conf
+    rmdir /etc/systemd/system/getty@tty1.service.d 2>/dev/null || true
+    rm -f /etc/baja-blast/kiosk-user
+    [ -d /run/systemd/system ] && systemctl daemon-reload || true
+    # The kiosk user and the household's data are left alone: the user may
+    # be the one somebody logs in as, and the data is the family's calendar.
+    ;;
+esac
+exit 0

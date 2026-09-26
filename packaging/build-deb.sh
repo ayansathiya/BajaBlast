@@ -1,10 +1,16 @@
 #!/bin/bash
 #
-# Build the installable package for a Raspberry Pi.
+# Build the installable packages for a Raspberry Pi or an Armbian TV box.
 #
 #   npm run pi
 #
 # Produces  dist-pi/baja-blast_<version>_all.deb
+#           dist-pi/baja-blast-standalone_<version>_all.deb
+#
+# The first is the calendar: a server, nothing on screen by itself. The second
+# is optional and only for a box with no desktop of its own (an A95X running
+# Armbian, say): it logs in on the box's console, shows the calendar full
+# screen, and starts the household in low power mode. See README → Armbian.
 #
 # On the Pi that's one file and one install; after that the calendar starts on
 # boot, restarts itself if it dies, and updates itself from GitHub. No Node to
@@ -31,6 +37,8 @@ VERSION="${VERSION}+${REV}"
 
 STAGE="$PROJECT_DIR/dist-pi/stage"
 OUT="$PROJECT_DIR/dist-pi/baja-blast_${VERSION}_all.deb"
+SA_STAGE="$PROJECT_DIR/dist-pi/stage-standalone"
+SA_OUT="$PROJECT_DIR/dist-pi/baja-blast-standalone_${VERSION}_all.deb"
 
 printf "\n%s\n\n" "${BOLD}Baja Blast — building the Pi package${OFF}"
 say "Version $VERSION (build $BUILD, rev $REV)"
@@ -149,6 +157,7 @@ Priority: optional
 Architecture: all
 Depends: nodejs (>= 18)
 Recommends: chromium | chromium-browser, wlopm | x11-xserver-utils
+Suggests: baja-blast-standalone, v4l-utils
 Maintainer: Baja Blast <noreply@example.com>
 Installed-Size: $INSTALLED_KB
 Description: Ambient kitchen calendar
@@ -265,11 +274,59 @@ else
   dpkg-deb --build --root-owner-group "$STAGE" "$OUT" >/dev/null
 fi
 
+# ---------------------------------------------------------------------------
+# 8. The standalone package, for a box with no desktop
+# ---------------------------------------------------------------------------
+say "Staging the standalone package…"
+rm -rf "$SA_STAGE"
+mkdir -p "$SA_STAGE/DEBIAN" "$SA_STAGE/etc/baja-blast" "$SA_STAGE/etc/profile.d" \
+         "$SA_STAGE/usr/lib/baja-blast" "$SA_STAGE/lib/udev/rules.d"
+SA="$PROJECT_DIR/packaging/standalone"
+install -m 644 "$SA/profile.json"            "$SA_STAGE/etc/baja-blast/profile.json"
+install -m 644 "$SA/baja-blast-kiosk.sh"     "$SA_STAGE/etc/profile.d/baja-blast-kiosk.sh"
+install -m 755 "$SA/kiosk-session"           "$SA_STAGE/usr/lib/baja-blast/kiosk-session"
+install -m 644 "$SA/60-baja-blast-cec.rules" "$SA_STAGE/lib/udev/rules.d/60-baja-blast-cec.rules"
+install -m 755 "$SA/postinst"                "$SA_STAGE/DEBIAN/postinst"
+install -m 755 "$SA/postrm"                  "$SA_STAGE/DEBIAN/postrm"
+
+# The profile is a config file: if someone edits it, an upgrade asks rather
+# than overwriting. (It's only read once per setting anyway — app/profile.cjs.)
+printf '/etc/baja-blast/profile.json\n/etc/profile.d/baja-blast-kiosk.sh\n' > "$SA_STAGE/DEBIAN/conffiles"
+
+cat > "$SA_STAGE/DEBIAN/control" <<CONTROL
+Package: baja-blast-standalone
+Version: $VERSION
+Section: utils
+Priority: optional
+Architecture: all
+Depends: baja-blast (= $VERSION), xserver-xorg-core, xserver-xorg-input-libinput, xinit, x11-xserver-utils, x11-utils, chromium | chromium-browser, adduser
+Recommends: unclutter-xfixes | unclutter, v4l-utils, fonts-noto-color-emoji
+Maintainer: Baja Blast <noreply@example.com>
+Installed-Size: $(du -sk "$SA_STAGE" | cut -f1)
+Description: Baja Blast on its own screen, for a small box with no desktop
+ Turns a TV box or single-board computer running a server image (Armbian,
+ for instance) into a dedicated kitchen display: logs in on the first
+ console, starts Chromium full screen on the calendar with no desktop behind
+ it, and brings it back if it ever closes.
+ .
+ Starts the household in low power mode (no animation, idle reel or photo
+ frame) and turns the TV off overnight over HDMI-CEC. Both are ordinary
+ settings afterwards. SSH and the other consoles are left untouched.
+CONTROL
+
+if command -v fakeroot >/dev/null 2>&1; then
+  fakeroot dpkg-deb --build --root-owner-group "$SA_STAGE" "$SA_OUT" >/dev/null
+else
+  dpkg-deb --build --root-owner-group "$SA_STAGE" "$SA_OUT" >/dev/null
+fi
+
 printf "\n"
 say "Built ${BOLD}$(basename "$OUT")${OFF} ($(du -h "$OUT" | cut -f1))"
+say "Built ${BOLD}$(basename "$SA_OUT")${OFF} ($(du -h "$SA_OUT" | cut -f1))"
 printf "\n"
-note "Copy it to the Pi and install with:"
+note "On a Raspberry Pi with a desktop, the first one is all you need:"
 note "    sudo apt install ./$(basename "$OUT")"
 printf "\n"
-note "That's the whole setup. It starts now and on every boot after."
+note "On an Armbian box with no desktop, install both:"
+note "    sudo apt install ./$(basename "$OUT") ./$(basename "$SA_OUT")"
 printf "\n"

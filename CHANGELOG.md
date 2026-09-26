@@ -9,6 +9,45 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-09-26 — An Android app
+
+- **Baja Blast for Android**: the phone page as a real app, with its own icon,
+  on the ordinary home-Wi-Fi address. No Tailscale or HTTPS is needed just
+  to get it onto the home screen.
+- It finds the kitchen on the Wi-Fi by itself. Open it and it's usually on the
+  calendar within a few seconds, with no address to type.
+- Photos can be added several at once, and links to recipe sites open in the
+  browser instead of trapping you inside the app.
+- Long-press the icon for the grocery list, a new event, or chores.
+- Fixed: the phone page's own home-screen shortcuts (grocery, event, chores)
+  opened the calendar every time. They now open the tab they name.
+- GitHub builds the app and keeps it at one link that never changes.
+
+## 2026-09-26 — Runs on a TV box, on its own
+
+- **Armbian TV boxes**, starting with an A95X (S905X, 1GB). One line on the
+  box downloads the packages from GitHub, installs them and reboots into the
+  calendar. README → On an Armbian TV box has the steps, from the SD card up.
+- A second, optional package makes the box **standalone**: it logs itself in,
+  shows the calendar full screen with no desktop underneath, and brings the
+  browser back within seconds if it ever closes.
+- A box like that **starts in low power mode**, so nobody has to find the
+  switch on a slow screen. It's applied once. Turn it off in Settings and it
+  stays off.
+- **Turn the TV off too**, in Settings → Display. Most TVs ignore a blank
+  signal and stay lit up saying "No signal", so this sends the TV to standby
+  over HDMI at night and switches it back on in the morning. It's on for the
+  TV box and off everywhere else.
+- Every release now includes the installable packages as well, so setting up
+  a new box no longer needs a computer with Node on it.
+
+## 2026-09-26 — The corner buttons line up
+
+- The settings and recipes buttons in the bottom-right corner now sit on the
+  same margin as the rest of the page, instead of past it.
+- The news ticker stops before those buttons rather than scrolling underneath
+  them.
+
 ## 2026-09-23 — Type with a real keyboard, search the whole web
 
 - The recipe search is a real text box again. Open Recipes and start typing —

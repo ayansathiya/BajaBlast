@@ -20,6 +20,8 @@ on:
       - 'tsconfig.json'
       - 'package.json'
       - 'package-lock.json'
+      - 'packaging/**'
+      - 'CHANGELOG.md'
       - '.github/workflows/release.yml'
   workflow_dispatch:
 
@@ -117,6 +119,17 @@ jobs:
             console.log('Round-trip OK:', JSON.stringify(p.readBuild('/tmp/roundtrip')));
           "
 
+      # The installable packages, so a new box can be set up straight from the
+      # release page (setup/armbian.sh does exactly that) without anyone
+      # needing Node on a computer to build them. Also published under fixed
+      # "latest" names, so releases/latest/download/<name> is a stable link.
+      - name: Build the .deb packages
+        run: |
+          SKIP_BUILD=1 bash packaging/build-deb.sh
+          cp dist-pi/baja-blast_*_all.deb dist-pi/baja-blast_latest_all.deb
+          cp dist-pi/baja-blast-standalone_*_all.deb dist-pi/baja-blast-standalone_latest_all.deb
+          ls -la dist-pi/*.deb
+
       - name: Publish the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -124,5 +137,6 @@ jobs:
           gh release create "v${{ steps.stamp.outputs.rev }}" \
             baja-blast-payload.tar.gz \
             baja-blast-payload.sha256 \
+            dist-pi/*.deb \
             --title "${{ steps.stamp.outputs.stamp }}" \
             --notes "$(git log -1 --pretty=%s)"

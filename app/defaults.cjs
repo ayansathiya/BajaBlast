@@ -36,6 +36,10 @@ const DEFAULT_SETTINGS = {
       // before its scheduled hour. Off means the schedule is absolute, which
       // is what you want if the display is somewhere a cat can reach.
       wakeOnTouch: true,
+      // Also send the TV to standby over HDMI-CEC. Off by default: a monitor
+      // doesn't need it, and a shared TV shouldn't be switched off by the
+      // calendar unless someone chose that. The TV-box profile turns it on.
+      hdmiCec: false,
     },
   },
   ambient: {

@@ -1,0 +1,57 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Stamped by .github/workflows/android.yml. versionCode has to go up with
+// every build or Android refuses to install it over the previous one, so it's
+// the workflow's run number, which only ever goes up.
+def buildNumber = (System.getenv('BAJA_ANDROID_BUILD') ?: '1') as int
+def buildName = System.getenv('BAJA_ANDROID_VERSION') ?: '0.0.1-local'
+
+android {
+    namespace 'com.bajablast.phone'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.bajablast.phone'
+        minSdk 24          // Android 7.0 — every phone in a house from the last eight years
+        targetSdk 35
+        versionCode buildNumber
+        versionName buildName
+    }
+
+    // Android only installs an update over an app signed with the same key.
+    // The key lives in the repository's secrets (see android/README.md); a
+    // build without them is signed with a throwaway key and says so in its
+    // file name, because installing it over a properly signed copy will fail.
+    def ks = System.getenv('BAJA_ANDROID_KEYSTORE')
+    signingConfigs {
+        household {
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv('BAJA_ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('BAJA_ANDROID_KEY_ALIAS') ?: 'baja-blast'
+                keyPassword System.getenv('BAJA_ANDROID_KEY_PASSWORD') ?: System.getenv('BAJA_ANDROID_KEYSTORE_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false   // ~40KB of our own code; nothing to shrink
+            signingConfig ks ? signingConfigs.household : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError true
+        checkReleaseBuilds true
+        // No Play Store: newer-SDK nags are about store policy, not bugs.
+        disable 'OldTargetApi', 'GradleDependency', 'AndroidGradlePluginVersion'
+    }
+}

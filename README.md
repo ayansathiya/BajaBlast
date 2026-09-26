@@ -37,6 +37,92 @@ automatically.
 Deliberately not handled here — you said you had it. The app is just a web
 server; point whatever you use at `http://localhost:8787/`.
 
+## On an Armbian TV box (A95X, S905X, 1GB)
+
+A TV box is a cheaper, smaller Pi with an HDMI port and a case, and with
+Armbian on it the calendar runs the same way. This one is set up
+**standalone**: the box draws the calendar on its own screen, with no desktop
+and no other computer involved, and it starts in **low power mode**.
+
+### 1. Put Armbian on a microSD card
+
+Armbian proper stopped supporting TV boxes; the community builds at
+[ophub/amlogic-s9xxx-armbian](https://github.com/ophub/amlogic-s9xxx-armbian/releases)
+are the ones that are maintained. From the newest **bookworm** release,
+download the file named like
+
+    Armbian_<version>_amlogic_s905x-t95_bookworm_6.12.<n>_server_<date>.img.gz
+
+Pick **bookworm** (or trixie), not noble: Ubuntu's Chromium is a snap, too heavy
+for 1GB. Pick the **6.12** kernel, the long-term one. The `s905x-t95` image
+uses the same bootloader as the A95X.
+
+Write it to a microSD card with [balenaEtcher](https://etcher.balena.io/). Then,
+before ejecting, open the card's `BOOT` partition on the computer and edit
+`uEnv.txt`. Change the `FDT=` line to the A95X's own device tree:
+
+    FDT=/dtb/amlogic/meson-gxl-s905x-nexbox-a95x.dtb
+
+(If the box doesn't come up with that one, `meson-gxl-s905x-p212.dtb` is the
+generic S905X tree and works on most of them.)
+
+### 2. Boot it from the card
+
+Power off, put the card in, then push a toothpick into the AV socket until
+you feel the reset button click. Hold it, plug the power in, and let go
+when the Armbian logo appears. This is only needed the first time. After
+that, the box boots from the card whenever the card is in.
+
+Log in as `root` with password `1234`. Armbian makes you change it straight
+away. Plug in a network cable, or run `armbian-config` to join Wi-Fi.
+
+### 3. One line
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ayansathiya/BajaBlast/main/setup/armbian.sh | bash
+```
+
+The script downloads the two packages from the newest GitHub release,
+installs them (apt brings in Node, X and Chromium), sets the time zone if the
+box is still on UTC, and reboots. The box comes up showing the calendar, and
+from then on it updates itself like the Pi does.
+
+Once you're happy with it, `armbian-install` copies the system from the card
+to the box's own storage so the card can come out. On a few S905X boxes that
+step doesn't work, and they stay on the card permanently, which is fine.
+
+### What the standalone package does
+
+`baja-blast-standalone` is a second, 8KB package on top of the usual one.
+
+- **Logs in on the box's first console with no password** and starts Chromium
+  full screen, with no window manager or desktop underneath. If Chromium
+  crashes or runs out of memory, it's back in three seconds. SSH and the other
+  consoles still ask for a password, so you can always get a normal shell. To
+  switch the kiosk off without removing anything, run
+  `sudo touch /etc/baja-blast/kiosk-disabled`.
+- **Low power mode on from the first start.** That means no animation, no idle
+  reel and no rotating photo frame. On a 1GB box drawing in software, those
+  are most of the work the processor does. The profile is applied exactly
+  once (`/etc/baja-blast/profile.json`, read by `app/profile.cjs`), so if
+  somebody turns low power mode off in Settings, it stays off.
+- **Turns the TV off overnight.** Blanking the HDMI signal is enough for a
+  monitor, but most TVs just sit there lit up saying "No signal". So the box
+  also sends the TV to standby over HDMI-CEC at 23:00, and turns it back on
+  and switches to its input at 06:00. It's a normal setting
+  (Settings → Display → Turn the TV off too), and it's off on every other
+  install, because a shared TV shouldn't be switched off by a calendar.
+- **Chromium is tuned for 1GB.** It runs one renderer, with GPU drawing off and
+  a small cache. The Mali-450's open-source driver is the likeliest thing to
+  hang, and a mostly static calendar is cheap to draw in software. If
+  you want to try the GPU, put `BAJA_BLAST_GPU=1` in the kiosk user's
+  `~/.profile`.
+- If the box has no swap at all, it turns on compressed swap in memory
+  (zram). Armbian normally has this already.
+
+Removing it (`apt remove baja-blast-standalone`) removes the autologin and
+leaves the calendar running as a server.
+
 ## Everything is live
 
 Add an event on your phone and the wall screen has it in about 60ms. No
@@ -218,10 +304,19 @@ list and chore board stay readable, with a coral bar saying so. Changes are
 a conflict-resolution problem, not a caching one, and silently "saving"
 something that never arrives is worse than saying no.
 
+### Or the Android app
+
+For Android phones there's also a real app (`android/`, built into an APK
+by GitHub Actions). It works on the plain home-Wi-Fi address with no
+Tailscale or HTTPS, and finds the kitchen by itself. On the phone, open
+`https://github.com/ayansathiya/BajaBlast/releases/download/android/baja-blast.apk`
+and tap it. [android/README.md](android/README.md) has the rest, including the
+one-time signing key setup.
+
 ## Tests
 
 ```bash
-npm test                     # 176 checks
+npm test                     # 240 checks
 ```
 
 - **update** — a fake release server driving real tarballs through download,
@@ -232,6 +327,9 @@ npm test                     # 176 checks
   bursts coalesce, that arrow presses don't, and the schedule's midnight wrap
 - **recipes** — the twenty-numbered-column ingredient format, blank slots,
   missing measures and steps that arrive with their own numbering
+- **profile** — that a TV box starts in low power mode exactly once and
+  never again after someone turns it off, and the exact HDMI-CEC commands a
+  TV receives at night and in the morning
 - **bake** — the date maths through a daylight-saving change, that the week
   rolls over with nothing scheduling it, that the server's copy of the maths
   and the browser's agree across 2,800 dates, and the routes end to end
@@ -254,8 +352,9 @@ python3 test/qr_verify.py        # the QR encoder against a reference
 ```
 app/          the server, the launcher, the phone page — the payload
 src/          the wall display (React + TypeScript)
-packaging/    builds the .deb
-setup/        GitHub and Tailscale setup, run once each
+android/      the phone page as an Android app
+packaging/    builds the .debs (standalone/ is the TV-box kiosk)
+setup/        GitHub, Tailscale and Armbian setup, run once each
 test/
 ```
 

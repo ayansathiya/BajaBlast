@@ -21,6 +21,15 @@
  *   wlopm      Wayland (Bookworm and later, labwc or wayfire)
  *   xset dpms  X11 (older images, and anyone who switched back)
  *   vcgencmd   the Broadcom firmware call, as a last resort
+ *
+ * And, separately, HDMI-CEC — for a box plugged into a television rather
+ * than a monitor. Blanking the signal is enough for a monitor, which sleeps
+ * when it has nothing to show. A TV mostly doesn't: it sits there lit up
+ * saying "No signal", drawing nearly full power, which defeats the point. CEC
+ * is the wire in the HDMI cable that lets the box tell the TV to go to
+ * standby, and to come back on in the morning. It's opt-in
+ * (display.schedule.hdmiCec) because a TV is often shared — turning the
+ * living-room set off at 11pm mid-film is not a feature.
  */
 const { execFile } = require('node:child_process');
 
@@ -45,6 +54,33 @@ async function wlOutputs() {
     .filter(Boolean);
 }
 
+/**
+ * HDMI-CEC via cec-ctl (v4l-utils), talking to the kernel's /dev/cec0.
+ *
+ * The adapter has to claim a logical address before it may send anything,
+ * which is what --playback does; it's idempotent, so it's done every time
+ * rather than tracked. Waking sends Image View On (the TV powers up) and then
+ * Active Source with our physical address, so the TV also switches to our
+ * input instead of whatever it was last showing.
+ */
+const CEC_DEVICE = process.env.BAJA_BLAST_CEC_DEVICE || '/dev/cec0';
+
+async function setCec(on) {
+  const d = ['-d', CEC_DEVICE];
+  const conf = await run('cec-ctl', [...d, '--playback', '--osd-name', 'Baja Blast']);
+  if (!conf.ok) return { ok: false, error: conf.err || 'cec-ctl unavailable' };
+  if (!on) {
+    const r = await run('cec-ctl', [...d, '--to', '0', '--standby']);
+    return { ok: r.ok, error: r.ok ? null : r.err };
+  }
+  const r = await run('cec-ctl', [...d, '--to', '0', '--image-view-on']);
+  const phys = /Physical Address\s*:\s*([0-9a-f]\.[0-9a-f]\.[0-9a-f]\.[0-9a-f])/i.exec(conf.out);
+  if (r.ok && phys && phys[1] !== 'f.f.f.f') {
+    await run('cec-ctl', [...d, '--to', '15', '--active-source', `phys-addr=${phys[1]}`]);
+  }
+  return { ok: r.ok, error: r.ok ? null : r.err };
+}
+
 let lastMethod = null;
 let lastError = null;
 let currentlyOn = true;
@@ -57,8 +93,15 @@ let currentlyOn = true;
  * rather than throwing: a display that won't blank is a wasted few watts, not
  * a reason to take the calendar down.
  */
-async function setDisplay(on) {
+async function setDisplay(on, options = {}) {
   const attempts = [];
+
+  // The TV first when waking, so it's already warming up while the signal
+  // comes back; after the signal when sleeping. Either way it's in addition
+  // to blanking, never instead of it: with CEC alone, a TV that ignores the
+  // command would leave a lit calendar on all night.
+  let cec = null;
+  if (options.cec && on) cec = await setCec(true);
 
   const tryWayland = async () => {
     const outputs = await wlOutputs();
@@ -92,7 +135,8 @@ async function setDisplay(on) {
         lastMethod = name;
         lastError = null;
         currentlyOn = on;
-        return { ok: true, method: name, on };
+        if (options.cec && !on) cec = await setCec(false);
+        return { ok: true, method: cec && cec.ok ? `${name}+cec` : name, on, cec };
       }
       attempts.push(name);
     } catch (err) {
@@ -100,8 +144,18 @@ async function setDisplay(on) {
     }
   }
 
-  lastError = `no working method (tried ${attempts.join(', ')})`;
-  return { ok: false, error: lastError, on: currentlyOn };
+  // No way to blank the signal, but the TV itself may still be told to sleep
+  // — on a TV box that's the part that actually saves the power.
+  if (options.cec && !on) cec = await setCec(false);
+  if (cec && cec.ok) {
+    lastMethod = null;
+    lastError = null;
+    currentlyOn = on;
+    return { ok: true, method: 'cec', on, cec };
+  }
+
+  lastError = `no working method (tried ${attempts.join(', ')}${options.cec ? ', cec' : ''})`;
+  return { ok: false, error: lastError, on: currentlyOn, cec };
 }
 
 /** Minutes past midnight, for comparing against a HH:MM setting. */

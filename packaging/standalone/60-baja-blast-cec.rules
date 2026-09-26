@@ -1,0 +1,3 @@
+# Baja Blast: let the desktop user talk HDMI-CEC, so the calendar can put the
+# TV to standby at night and wake it in the morning without running as root.
+KERNEL=="cec[0-9]*", SUBSYSTEM=="cec", GROUP="video", MODE="0660"
