@@ -61,6 +61,9 @@ function buildPayload(rev, { breakIt = false, incomplete = false } = {}) {
  * Fake GitHub
  * ---------------------------------------------------------------- */
 const served = { rev: 0, tarball: null, sha: null, corrupt: false };
+// What the fake GitHub has been asked for, so the tests can prove the
+// conditional requests actually happen rather than assuming they do.
+const seen = { releaseHits: 0, conditional: 0, notModified: 0 };
 
 function sha256(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
@@ -78,7 +81,18 @@ const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
 
   if (u.pathname === '/repos/fam/baja-blast/releases/latest') {
-    res.writeHead(200, { 'content-type': 'application/json' });
+    seen.releaseHits += 1;
+
+    // The ETag changes with the release, exactly as GitHub's does.
+    const etag = `W/"release-${served.rev}"`;
+    if (req.headers['if-none-match']) seen.conditional += 1;
+    if (req.headers['if-none-match'] === etag) {
+      seen.notModified += 1;
+      res.writeHead(304, { etag });
+      return res.end();
+    }
+
+    res.writeHead(200, { 'content-type': 'application/json', etag });
     return res.end(
       JSON.stringify({
         tag_name: `v${served.rev}`,
@@ -240,6 +254,54 @@ async function main() {
   r = await updater.check();
   check('check fails gracefully', !r.ok && !!r.error, JSON.stringify(r));
   check('still running rev 15', paths.payloadRoot().rev === 15);
+
+  /*
+    Asking often, for free.
+
+    The screen checks every forty-five seconds now rather than every half
+    hour, which is only affordable because an unchanged release answers 304
+    and 304s don't count against GitHub's hourly limit. If the conditional
+    requests ever stop happening, the polling becomes sixty-odd real API
+    calls an hour and the household starts getting rate-limited — silently,
+    and only after everything has worked fine for an hour. So it's worth
+    proving rather than assuming.
+  */
+  console.log('\nChecking often, without spending requests');
+  process.env.BAJA_BLAST_UPDATE_API = base;
+  seen.releaseHits = 0;
+  seen.conditional = 0;
+  seen.notModified = 0;
+
+  const first = await updater.check();
+  check('the first check reads the release', first.ok && !first.unchanged, JSON.stringify(first));
+  check('…and it was not conditional', seen.conditional === 0, `${seen.conditional}`);
+
+  const second = await updater.check();
+  check('the second check sends the tag', seen.conditional === 1, `${seen.conditional}`);
+  check('…and GitHub answers 304', seen.notModified === 1, `${seen.notModified}`);
+  check('…which the updater reports as unchanged', second.unchanged === true, JSON.stringify(second));
+  check('…while still knowing the release', second.latest && second.latest.rev === 15, JSON.stringify(second.latest));
+
+  for (let i = 0; i < 10; i += 1) await updater.check();
+  check('ten more checks, ten more 304s', seen.notModified === 11, `${seen.notModified}`);
+
+  // A real release still gets through — a cache that never invalidates is
+  // worse than no cache, because the screen would stay on an old build
+  // forever and nothing would look wrong.
+  publish(16, recover.tarball);
+  const after = await updater.check();
+  check('a new release breaks the cache', after.ok && !after.unchanged, JSON.stringify(after));
+  check('…and is seen as available', after.available === true, JSON.stringify(after));
+  check('…at the new revision', after.latest && after.latest.rev === 16, JSON.stringify(after.latest));
+
+  // A failed check must forget the tag, or the retry gets told "nothing
+  // changed" about a release it never managed to read.
+  process.env.BAJA_BLAST_UPDATE_API = 'http://127.0.0.1:1';
+  await updater.check();
+  process.env.BAJA_BLAST_UPDATE_API = base;
+  seen.conditional = 0;
+  await updater.check();
+  check('a failure clears the tag, so the retry asks fully', seen.conditional === 0, `${seen.conditional}`);
 
   server.close();
   console.log(`\n${pass} passed, ${fail} failed\n`);

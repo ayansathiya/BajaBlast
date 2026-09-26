@@ -467,8 +467,26 @@ function mobilePage() {
 let relaunchApp = null;
 let notifyKiosk = () => {};
 
-const UPDATE_CHECK_MS = 30 * 60 * 1000; // half-hourly
+/*
+  How soon a push reaches the kitchen.
+
+  This used to be half-hourly, which is a long time to stand in front of a
+  screen waiting for a fix you just made. It's forty-five seconds now, and
+  that's affordable because the updater asks conditionally: GitHub answers an
+  unchanged release with 304 Not Modified, and 304s don't count against the
+  rate limit. So the common case — nothing has changed — is free, however
+  often we ask.
+
+  End to end, a push now reaches the wall in about three minutes: a minute or
+  two for GitHub to build and publish, forty-five seconds at worst before the
+  screen notices, and a few seconds to download 400KB and restart.
+*/
+const UPDATE_CHECK_MS = 45 * 1000;
 const UPDATE_FIRST_CHECK_MS = 45 * 1000; // let Wi-Fi come up after a cold boot
+// A run of failures means something is wrong — no network, GitHub down, rate
+// limited despite the conditional requests. Backing off turns a fast poll
+// into a slow one rather than into a stream of failing requests.
+const UPDATE_BACKOFF_MAX_MS = 15 * 60 * 1000;
 const QUIET_BEFORE_RESTART_MS = 25 * 1000; // no edits for this long
 const MAX_RESTART_WAIT_MS = 5 * 60 * 1000; // …but don't wait forever
 
@@ -495,10 +513,21 @@ function restartWhenQuiet(startedAt = Date.now()) {
   setTimeout(() => relaunchApp && relaunchApp(), 1_500);
 }
 
+let updateFailures = 0;
+
 async function runUpdateCycle() {
   try {
     const result = await updater.check();
-    if (!result.ok || !result.available) return;
+
+    // Successive failures double the wait, up to a quarter of an hour. One
+    // success puts it straight back to the fast cadence.
+    if (!result.ok) {
+      updateFailures += 1;
+      return;
+    }
+    updateFailures = 0;
+
+    if (!result.available) return;
 
     console.log(`[baja-blast] Update available: rev ${result.latest.rev} (${result.latest.build}).`);
     const installed = await updater.install();
@@ -509,8 +538,15 @@ async function runUpdateCycle() {
     console.log(`[baja-blast] Installed rev ${installed.rev}. Waiting for a quiet moment to restart.`);
     restartWhenQuiet();
   } catch (err) {
+    updateFailures += 1;
     console.error('[baja-blast] Update cycle error:', err.message);
   }
+}
+
+/** The wait before the next check: fast normally, slower while failing. */
+function nextUpdateDelay() {
+  if (updateFailures === 0) return UPDATE_CHECK_MS;
+  return Math.min(UPDATE_CHECK_MS * 2 ** updateFailures, UPDATE_BACKOFF_MAX_MS);
 }
 
 /* ------------------------------------------------------------------ *
@@ -563,8 +599,17 @@ function scheduleDisplay() {
 
 function scheduleUpdates() {
   if (!relaunchApp) return; // started directly, not by systemd — nothing to restart
-  setTimeout(runUpdateCycle, UPDATE_FIRST_CHECK_MS);
-  setInterval(runUpdateCycle, UPDATE_CHECK_MS);
+
+  // setTimeout that re-arms itself, not setInterval: the gap has to be able
+  // to grow while things are failing, and setInterval's is fixed for life.
+  async function tick() {
+    await runUpdateCycle();
+    const timer = setTimeout(tick, nextUpdateDelay());
+    timer.unref();
+  }
+
+  const first = setTimeout(tick, UPDATE_FIRST_CHECK_MS);
+  first.unref();
 }
 
 function startServer(options = {}) {

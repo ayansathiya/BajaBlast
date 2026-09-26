@@ -33,6 +33,13 @@ The format matters, because `app/changelog.cjs` parses it: a heading of
 - **Low power mode**, in Settings → Display. One switch that turns off the
   animation, the idle reel and the rotating photo frame, for a small box where
   those are most of the work the processor does.
+- **Updates arrive in about three minutes instead of up to thirty.** The
+  screen now checks GitHub every forty-five seconds rather than every half
+  hour. That's affordable because it asks conditionally — an unchanged
+  release comes back "304 Not Modified", and those don't count against
+  GitHub's hourly limit, so the usual answer costs nothing however often you
+  ask. A run of failures backs the interval off to fifteen minutes rather
+  than hammering a network that isn't there.
 - Fixed: the two round buttons in the bottom-right corner hung past the page
   margin, and the news ticker ran underneath them. They now line up with
   everything else on screen, and the ticker stops before it reaches them.

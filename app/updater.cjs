@@ -49,6 +49,9 @@ const state = {
   lastError: null,
   lastInstalled: null,
   busy: false,
+  // Only ever in memory. After a restart the first check is unconditional,
+  // which is right: the payload on disk may have changed underneath us.
+  etag: null,
 };
 
 /* ------------------------------------------------------------------ *
@@ -61,7 +64,7 @@ const state = {
 // already running code on the machine.
 const apiBase = () => process.env.BAJA_BLAST_UPDATE_API || 'https://api.github.com';
 
-function request(url, { redirects = 5, headers = {} } = {}) {
+function request(url, { redirects = 5, headers = {}, allowNotModified = false } = {}) {
   return new Promise((resolve, reject) => {
     const transport = url.startsWith('http://') ? http : https;
     const req = transport.get(
@@ -69,6 +72,14 @@ function request(url, { redirects = 5, headers = {} } = {}) {
       { headers: { 'User-Agent': USER_AGENT, ...headers }, timeout: 20_000 },
       (res) => {
         const { statusCode, headers: resHeaders } = res;
+
+        // 304 is a success, not a failure: it means "you already have this".
+        // Checked before the redirect branch because 304 is in the 3xx range
+        // and would otherwise be mistaken for one.
+        if (allowNotModified && statusCode === 304) {
+          res.resume();
+          return resolve({ notModified: true });
+        }
 
         // GitHub hands release assets off to a different host, so following
         // redirects isn't optional here — it's the normal path.
@@ -106,6 +117,41 @@ async function getText(url, opts) {
 
 async function getJSON(url) {
   return JSON.parse(await getText(url, { headers: { Accept: 'application/vnd.github+json' } }));
+}
+
+/**
+ * The latest release, asked for conditionally.
+ *
+ * This is what makes near-instant updates affordable. GitHub allows an
+ * unauthenticated address 60 requests an hour — but a conditional request
+ * answered with 304 Not Modified doesn't count against that limit at all. So
+ * once we've seen a release, every subsequent check carries its ETag, comes
+ * back 304, costs nothing, and can therefore run every forty-five seconds
+ * instead of every half hour. The only checks that spend anything are the
+ * ones where a release actually changed, which is exactly when we want to
+ * spend something.
+ *
+ * Returns `{ notModified: true }`, or `{ json, etag }`. The ETag is handed
+ * back rather than stored here so the caller only remembers it once the
+ * release has been parsed and accepted — remembering a tag for a response we
+ * then rejected would make us skip the retry.
+ */
+async function getRelease(url, etag) {
+  const headers = { Accept: 'application/vnd.github+json' };
+  if (etag) headers['If-None-Match'] = etag;
+
+  const res = await request(url, { headers, allowNotModified: true });
+  if (res.notModified) return { notModified: true };
+
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of res) {
+    total += chunk.length;
+    if (total > 4 * 1024 * 1024) throw new Error('response too large');
+    chunks.push(chunk);
+  }
+
+  return { json: JSON.parse(Buffer.concat(chunks).toString('utf8')), etag: res.headers && res.headers.etag };
 }
 
 /**
@@ -178,7 +224,27 @@ async function check() {
   state.lastError = null;
 
   try {
-    const release = await getJSON(`${apiBase()}/repos/${repo.owner}/${repo.repo}/releases/latest`);
+    const fetched = await getRelease(`${apiBase()}/repos/${repo.owner}/${repo.repo}/releases/latest`, state.etag);
+
+    // Nothing has changed since the last look. The cheapest possible answer,
+    // and the one we get almost every time.
+    if (fetched.notModified) {
+      // Recomputed rather than remembered: the answer can change without the
+      // release changing at all — we may have installed it since, or it may
+      // have been blocked by a failed boot.
+      const rev = state.latest ? state.latest.rev : 0;
+      state.status = rev > currentRev() && !blockedRevs().includes(rev) ? 'ready' : 'idle';
+      state.lastChecked = new Date().toISOString();
+      return {
+        ok: true,
+        available: state.status === 'ready',
+        latest: state.latest,
+        current: currentRev(),
+        unchanged: true,
+      };
+    }
+
+    const release = fetched.json;
     const assets = release.assets || [];
     const payload = assets.find((a) => a.name === ASSET_NAME);
     const checksum = assets.find((a) => a.name === CHECKSUM_NAME);
@@ -205,12 +271,18 @@ async function check() {
     };
     state.lastChecked = new Date().toISOString();
     state.status = rev > currentRev() && !blockedRevs().includes(rev) ? 'ready' : 'idle';
+    // Only now — a tag remembered for a response we went on to reject would
+    // make the next check a 304 and quietly skip the retry.
+    state.etag = fetched.etag || null;
 
     return { ok: true, available: state.status === 'ready', latest: state.latest, current: currentRev() };
   } catch (err) {
     state.status = 'error';
     state.lastError = err.message;
     state.lastChecked = new Date().toISOString();
+    // Forget the tag, so the next attempt asks unconditionally rather than
+    // being told "nothing changed" about a release we never managed to read.
+    state.etag = null;
     return { ok: false, error: err.message };
   }
 }
