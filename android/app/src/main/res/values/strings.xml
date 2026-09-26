@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Baja Blast</string>
+    <string name="setup_title">Find your kitchen</string>
+    <string name="setup_body">Open Settings on the wall screen to see its address, or let the app look for it on this Wi-Fi.</string>
+    <string name="setup_hint">192.168.1.20 or kitchen.tailnet.ts.net</string>
+    <string name="setup_find">Look on this Wi-Fi</string>
+    <string name="setup_connect">Connect</string>
+    <string name="setup_searching">Looking on this Wi-Fi…</string>
+    <string name="setup_checking">Checking %1$s…</string>
+    <string name="setup_found_none">Nothing answered on this Wi-Fi. Type the address from the wall screen instead.</string>
+    <string name="setup_no_wifi">This phone isn\'t on Wi-Fi, so there\'s nothing nearby to look through. Type the address instead.</string>
+    <string name="setup_unreachable">Couldn\'t reach Baja Blast at %1$s. Check the address, and that this phone is on the same Wi-Fi (or Tailscale).</string>
+    <string name="offline_title">Can\'t reach the kitchen</string>
+    <string name="offline_body">The calendar at %1$s isn\'t answering. If you\'re away from home, that\'s expected unless you use Tailscale.</string>
+    <string name="offline_retry">Try again</string>
+    <string name="offline_change">Change address</string>
+    <string name="shortcut_grocery">Grocery list</string>
+    <string name="shortcut_event">Add an event</string>
+    <string name="shortcut_chores">Chores</string>
+    <string name="shortcut_address">Change kitchen address</string>
+    <string name="upload_none">No app on this phone can pick photos.</string>
+</resources>

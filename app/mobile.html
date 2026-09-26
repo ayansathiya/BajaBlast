@@ -635,6 +635,21 @@
     });
   });
 
+  // /mobile#grocery opens straight on that tab. The home-screen shortcuts
+  // (manifest.webmanifest) and the Android app's long-press shortcuts both
+  // link here, and without this they all just opened the calendar.
+  function openFromHash() {
+    var name = (location.hash || '').replace(/^#/, '');
+    if (!name) return;
+    var tab = document.querySelector('.tab[data-panel="' + name.replace(/[^a-z]/g, '') + '"]');
+    if (tab && !tab.classList.contains('active')) {
+      tab.click();
+      if (tab.scrollIntoView) tab.scrollIntoView({ inline: 'center', block: 'nearest' });
+    }
+  }
+  window.addEventListener('hashchange', openFromHash);
+  openFromHash();
+
   // Today in the phone's LOCAL timezone. toISOString() converts to UTC first,
   // so from 8pm onward in New York it hands back tomorrow and the date box
   // quietly defaults to the wrong day.
@@ -921,9 +936,13 @@
       var res = await fetch('/api/version', { cache: 'no-store' });
       var v = await res.json();
       var installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+      // The Android app (android/) is a real app on any address, http or not,
+      // so none of the home-screen advice below applies to it.
+      var androidApp = /BajaBlastAndroid\//.test(navigator.userAgent);
       var secure = location.protocol === 'https:';
       var note = '';
-      if (installed) note = ' \u00b7 running as an installed app';
+      if (androidApp) note = ' \u00b7 in the Android app';
+      else if (installed) note = ' \u00b7 running as an installed app';
       else if (secure) note = ' \u00b7 add this to your home screen to use it as an app';
       else if (v.remoteUrl) note = ' \u00b7 open ' + v.remoteUrl + ' instead to install it as an app';
       else note = ' \u00b7 local only \u2014 run setup/remote-setup.sh on the kitchen Mac for an address that works anywhere';

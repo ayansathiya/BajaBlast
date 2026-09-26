@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the icon. The first three match the web manifest's shortcuts. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="grocery" android:enabled="true"
+        android:icon="@mipmap/ic_launcher" android:shortcutShortLabel="@string/shortcut_grocery">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="com.bajablast.phone" android:targetClass="com.bajablast.phone.MainActivity">
+            <extra android:name="section" android:value="grocery" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="event" android:enabled="true"
+        android:icon="@mipmap/ic_launcher" android:shortcutShortLabel="@string/shortcut_event">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="com.bajablast.phone" android:targetClass="com.bajablast.phone.MainActivity">
+            <extra android:name="section" android:value="calendar" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="chores" android:enabled="true"
+        android:icon="@mipmap/ic_launcher" android:shortcutShortLabel="@string/shortcut_chores">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="com.bajablast.phone" android:targetClass="com.bajablast.phone.MainActivity">
+            <extra android:name="section" android:value="chores" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="address" android:enabled="true"
+        android:icon="@mipmap/ic_launcher" android:shortcutShortLabel="@string/shortcut_address">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="com.bajablast.phone" android:targetClass="com.bajablast.phone.MainActivity">
+            <extra android:name="setup" android:value="true" />
+        </intent>
+    </shortcut>
+</shortcuts>

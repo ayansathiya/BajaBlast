@@ -304,6 +304,15 @@ list and chore board stay readable, with a coral bar saying so. Changes are
 a conflict-resolution problem, not a caching one, and silently "saving"
 something that never arrives is worse than saying no.
 
+### Or the Android app
+
+For Android phones there's also a real app (`android/`, built into an APK
+by GitHub Actions). It works on the plain home-Wi-Fi address with no
+Tailscale or HTTPS, and finds the kitchen by itself. On the phone, open
+`https://github.com/ayansathiya/BajaBlast/releases/download/android/baja-blast.apk`
+and tap it. [android/README.md](android/README.md) has the rest, including the
+one-time signing key setup.
+
 ## Tests
 
 ```bash
@@ -343,6 +352,7 @@ python3 test/qr_verify.py        # the QR encoder against a reference
 ```
 app/          the server, the launcher, the phone page — the payload
 src/          the wall display (React + TypeScript)
+android/      the phone page as an Android app
 packaging/    builds the .debs (standalone/ is the TV-box kiosk)
 setup/        GitHub, Tailscale and Armbian setup, run once each
 test/

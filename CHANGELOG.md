@@ -9,6 +9,20 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-09-26 — An Android app
+
+- **Baja Blast for Android**: the phone page as a real app, with its own icon,
+  on the ordinary home-Wi-Fi address. No Tailscale or HTTPS is needed just
+  to get it onto the home screen.
+- It finds the kitchen on the Wi-Fi by itself. Open it and it's usually on the
+  calendar within a few seconds, with no address to type.
+- Photos can be added several at once, and links to recipe sites open in the
+  browser instead of trapping you inside the app.
+- Long-press the icon for the grocery list, a new event, or chores.
+- Fixed: the phone page's own home-screen shortcuts (grocery, event, chores)
+  opened the calendar every time. They now open the tab they name.
+- GitHub builds the app and keeps it at one link that never changes.
+
 ## 2026-09-26 — Runs on a TV box, on its own
 
 - **Armbian TV boxes**, starting with an A95X (S905X, 1GB). One line on the

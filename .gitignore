@@ -14,3 +14,11 @@ baja-blast-data/
 # rebuilt by `npm run pi`; the screenshots by the browser tests.
 dist-pi/
 test/shots/
+
+# Android build output, and never the signing key (android/README.md)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.jks
+*.keystore
