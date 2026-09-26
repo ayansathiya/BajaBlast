@@ -103,6 +103,9 @@
   align-items: center;
   gap: clamp(20px, 3vw, 56px);
   padding-top: 14px;
+  /* Headlines stop before the two round corner buttons (2 × 56px + 12px gap,
+     plus breathing room) instead of scrolling underneath them. */
+  padding-right: 144px;
   border-top: 1px solid var(--hairline);
   min-width: 0;
 }
@@ -2172,7 +2175,9 @@
 
 .touch-settings {
   position: fixed;
-  right: 22px;
+  /* Same right margin as the page (.kiosk padding), so the button lines up
+     with the edge of everything above it rather than sitting past it. */
+  right: clamp(28px, 4vw, 64px);
   bottom: 22px;
   width: 56px;
   height: 56px;
@@ -2261,7 +2266,8 @@
    people have learned it is. */
 .touch-recipes {
   position: fixed;
-  right: 90px;
+  /* The page margin, plus the gear's 56px and a 12px gap. */
+  right: calc(clamp(28px, 4vw, 64px) + 68px);
   bottom: 22px;
   width: 56px;
   height: 56px;

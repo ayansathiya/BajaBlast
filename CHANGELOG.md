@@ -9,6 +9,13 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-09-26 — The corner buttons line up
+
+- The settings and recipes buttons in the bottom-right corner now sit on the
+  same margin as the rest of the page, instead of past it.
+- The news ticker stops before those buttons rather than scrolling underneath
+  them.
+
 ## 2026-09-23 — Type with a real keyboard, search the whole web
 
 - The recipe search is a real text box again. Open Recipes and start typing —
