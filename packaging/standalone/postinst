@@ -1,0 +1,89 @@
+#!/bin/sh
+#
+# baja-blast-standalone: make this box show the calendar on its own screen.
+#
+set -e
+
+case "$1" in
+  configure) ;;
+  *) exit 0 ;;
+esac
+
+# The kiosk user is uid 1000 — the same user the calendar service runs as
+# (see baja-blast's postinst), so the service can reach the display it draws
+# on. Armbian's first login usually creates one; if nobody has, make one.
+KUSER="$(getent passwd 1000 | cut -d: -f1 || true)"
+if [ -z "$KUSER" ]; then
+  KUSER=kitchen
+  if ! getent passwd "$KUSER" >/dev/null; then
+    adduser --uid 1000 --disabled-password --gecos "Baja Blast kiosk" "$KUSER" >/dev/null
+  fi
+  echo "baja-blast-standalone: created user '$KUSER' for the screen."
+fi
+KGROUP="$(id -gn "$KUSER")"
+KUID="$(id -u "$KUSER")"
+
+# video: HDMI-CEC and the framebuffer. input/render: X without a desktop
+# session manager to hand them out. audio: the kitchen's music.
+for g in video render input audio; do
+  getent group "$g" >/dev/null && usermod -aG "$g" "$KUSER" || true
+done
+
+mkdir -p /etc/baja-blast
+echo "$KUSER" > /etc/baja-blast/kiosk-user
+
+# Log the kiosk user straight in on the first console. No password prompt on
+# a kitchen wall — the box has no keyboard. SSH and the other consoles still
+# ask for one.
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+cat > /etc/systemd/system/getty@tty1.service.d/baja-blast-autologin.conf <<UNIT
+# Written by baja-blast-standalone; removed when it's removed.
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin $KUSER --noclear %I \$TERM
+UNIT
+
+# Let an ordinary user start X from that console (Debian's default only
+# allows it for "console" users, which an autologin may not be judged to be).
+if [ -f /etc/X11/Xwrapper.config ] && ! grep -q '^allowed_users=anybody' /etc/X11/Xwrapper.config; then
+  sed -i 's/^allowed_users=.*/allowed_users=anybody/' /etc/X11/Xwrapper.config
+  grep -q '^allowed_users=' /etc/X11/Xwrapper.config || echo 'allowed_users=anybody' >> /etc/X11/Xwrapper.config
+fi
+
+# If the calendar service was configured before this user existed, it will
+# be running as root. Point it at the kiosk user, the same edit its own
+# postinst makes, and hand it the data folder.
+UNIT=/lib/systemd/system/baja-blast.service
+if [ -f "$UNIT" ]; then
+  sed -i "s|^User=.*|User=$KUSER|; s|^Group=.*|Group=$KGROUP|; s|/run/user/[0-9_A-Z]*|/run/user/$KUID|" "$UNIT"
+  mkdir -p /var/lib/baja-blast
+  chown -R "$KUSER:$KGROUP" /var/lib/baja-blast
+fi
+
+# 1GB is tight for Chromium. Armbian normally already has compressed swap in
+# RAM (zram); if this box has no swap at all, give it some.
+if [ -z "$(swapon --noheadings 2>/dev/null)" ] && [ -f /etc/default/zramswap ]; then
+  grep -q '^PERCENT=' /etc/default/zramswap || echo 'PERCENT=50' >> /etc/default/zramswap
+  if [ -d /run/systemd/system ]; then systemctl enable --now zramswap.service >/dev/null 2>&1 || true; fi
+fi
+
+if command -v udevadm >/dev/null 2>&1; then
+  udevadm control --reload-rules >/dev/null 2>&1 || true
+  udevadm trigger --subsystem-match=cec >/dev/null 2>&1 || true
+fi
+
+if [ -d /run/systemd/system ]; then
+  systemctl daemon-reload || true
+  systemctl restart baja-blast.service || true
+fi
+
+echo ""
+echo "  Baja Blast standalone is set up."
+echo ""
+echo "  Restart the box and it comes up showing the calendar, in low power"
+echo "  mode, and turns the TV off overnight (Settings → Display to change)."
+echo ""
+echo "  SSH still gets you a normal shell. To stop the kiosk without removing"
+echo "  it:  sudo touch /etc/baja-blast/kiosk-disabled"
+echo ""
+exit 0

@@ -173,6 +173,20 @@ function saveStore(store) {
 
 let store = loadStore();
 
+// A box that shipped with a profile (the standalone TV-box package writes one)
+// gets it applied once, before any screen or phone has read the settings.
+// profile.cjs explains why it's once and not every boot.
+try {
+  if (require('./profile.cjs').applyProfile(store, withDefaults)) {
+    console.log('[baja-blast] Applied this device\'s profile (first start with it)');
+    // Deferred a tick: saveStore announces the change, and the broadcast
+    // machinery below this line isn't set up yet.
+    setImmediate(() => saveStore(store));
+  }
+} catch (err) {
+  console.warn('[baja-blast] device profile not applied (not fatal):', err.message);
+}
+
 // Kiosk remote state. Intentionally in memory, not on disk: a command is only
 // meaningful for the few seconds after someone presses the button, and a
 // stale one replayed after a restart would yank the display around for no
@@ -532,7 +546,7 @@ async function applyDisplaySchedule() {
   if (scheduled) displayOverrideUntil = 0;
 
   if (display.status().on === wanted) return;
-  const result = await display.setDisplay(wanted);
+  const result = await display.setDisplay(wanted, { cec: settings.display.schedule.hdmiCec === true });
   if (result.ok) {
     console.log(`[baja-blast] Screen ${wanted ? 'on' : 'off'} (${result.method}).`);
   } else if (!wanted) {
@@ -698,7 +712,8 @@ function startServer(options = {}) {
 
     if (url.pathname === '/api/display/sleep' && req.method === 'POST') {
       displayOverrideUntil = 0;
-      const result = await display.setDisplay(false);
+      const sleepSettings = withDefaults(store.settings);
+      const result = await display.setDisplay(false, { cec: sleepSettings.display.schedule.hdmiCec === true });
       queueBroadcast('display');
       return send(res, result.ok ? 200 : 500, result);
     }

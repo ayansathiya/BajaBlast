@@ -25,7 +25,7 @@ export const DEFAULT_SETTINGS: HouseholdSettings = {
     largeText: false,
     highContrast: false,
     clockStyle: 'digital',
-    schedule: { enabled: true, on: '06:00', off: '23:00', wakeOnTouch: true },
+    schedule: { enabled: true, on: '06:00', off: '23:00', wakeOnTouch: true, hdmiCec: false },
   },
   ambient: {
     idleTimeoutSeconds: 150,

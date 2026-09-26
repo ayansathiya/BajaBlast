@@ -9,6 +9,24 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-09-26 — Runs on a TV box, on its own
+
+- **Armbian TV boxes**, starting with an A95X (S905X, 1GB). One line on the
+  box downloads the packages from GitHub, installs them and reboots into the
+  calendar. README → On an Armbian TV box has the steps, from the SD card up.
+- A second, optional package makes the box **standalone**: it logs itself in,
+  shows the calendar full screen with no desktop underneath, and brings the
+  browser back within seconds if it ever closes.
+- A box like that **starts in low power mode**, so nobody has to find the
+  switch on a slow screen. It's applied once. Turn it off in Settings and it
+  stays off.
+- **Turn the TV off too**, in Settings → Display. Most TVs ignore a blank
+  signal and stay lit up saying "No signal", so this sends the TV to standby
+  over HDMI at night and switches it back on in the morning. It's on for the
+  TV box and off everywhere else.
+- Every release now includes the installable packages as well, so setting up
+  a new box no longer needs a computer with Node on it.
+
 ## 2026-09-26 — The corner buttons line up
 
 - The settings and recipes buttons in the bottom-right corner now sit on the

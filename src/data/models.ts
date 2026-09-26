@@ -169,6 +169,8 @@ export interface DisplaySchedule {
   off: string;
   /** Touching the screen (or waking it from a phone) overrides the schedule. */
   wakeOnTouch: boolean;
+  /** Also put a TV to standby over HDMI-CEC, and wake it in the morning. */
+  hdmiCec?: boolean;
 }
 
 export interface DisplaySettings {
