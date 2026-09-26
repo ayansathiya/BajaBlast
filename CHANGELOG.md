@@ -33,6 +33,22 @@ The format matters, because `app/changelog.cjs` parses it: a heading of
 - **Low power mode**, in Settings → Display. One switch that turns off the
   animation, the idle reel and the rotating photo frame, for a small box where
   those are most of the work the processor does.
+- **The browser is its own screen now**, not something you reach through
+  Recipes. It opens straight from the menu, and everything it could do before
+  — pinning a page as the week's bake, searching Google — it still does.
+- **Bookmarks.** Save any page with the star in the browser bar; the saved
+  list sits under the address bar, one tap from anywhere. The list lives on
+  the server rather than in a browser, so it's the same list on the kitchen
+  screen and on every phone — save the school lunch menu from the sofa and
+  it's on the wall a second later.
+- Bookmarks have their own **Links** tab on the phone: see them, add them,
+  remove them, and tap one to open it in your own browser.
+- Only `http` and `https` addresses can be saved. Anyone on the house Wi-Fi
+  can add a bookmark from the phone page, and a kiosk that will open whatever
+  it is handed would open `file:///` and read its own disk.
+- **One button in the corner instead of two.** It opens a short menu —
+  Recipes, Browser, Chores, Settings — because a third circle was about to
+  arrive with the browser and three controls beside a calendar is too many.
 - **Updates arrive in about three minutes instead of up to thirty.** The
   screen now checks GitHub every forty-five seconds rather than every half
   hour. That's affordable because it asks conditionally — an unchanged
@@ -44,8 +60,10 @@ The format matters, because `app/changelog.cjs` parses it: a heading of
   margin, and the news ticker ran underneath them. They now line up with
   everything else on screen, and the ticker stops before it reaches them.
 - Fixed: the first attempt at this update log shipped a test that could never
-  pass on GitHub's builder, which quietly blocked the release. It now checks
-  that no entry is dated in the future instead.
+  pass on GitHub's builder, which quietly blocked the release. The release
+  stamps the build with the date it runs, and the test insisted the log had an
+  entry for that exact date. It now checks the thing actually worth checking —
+  that no entry is dated in the future.
 
 ## 2026-09-21 — Recipes, Bake Night, and a browser inside the app
 

@@ -184,6 +184,7 @@
     <button class="tab" data-panel="grocery">Grocery</button>
     <button class="tab" data-panel="chores">Chores</button>
     <button class="tab" data-panel="bake">Bake</button>
+    <button class="tab" data-panel="links">Links</button>
     <button class="tab" data-panel="photos">Photos</button>
     <button class="tab" data-panel="music">Music</button>
     <button class="tab" data-panel="display">Display</button>
@@ -332,6 +333,26 @@
       </div>
       <div id="bakeResults" style="margin-top:16px"></div>
       <div class="note">Whatever you pick shows up on the kitchen calendar straight away, on that week's bake day.</div>
+    </div>
+
+    <!-- BOOKMARKS -->
+    <!--
+      The same list the kitchen browser shows. Save the school lunch menu here
+      and it's on the wall a second later; tap one and it opens in your own
+      browser, which is what you want on a phone.
+    -->
+    <div id="links" class="panel">
+      <h2>Bookmarks</h2>
+      <div class="add-row" style="margin-top:0">
+        <input id="linkUrl" placeholder="Paste a web address…" onkeydown="if(event.key==='Enter')addLink()" />
+        <button onclick="addLink()">Save</button>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label class="fl">Name it (optional)</label>
+        <input id="linkTitle" placeholder="School lunch menu" />
+      </div>
+      <div id="linkList" style="margin-top:20px"></div>
+      <div class="note">Shared with the kitchen screen and everyone else's phone. Tap to open here; the kiosk opens it in its own browser.</div>
     </div>
 
     <!-- CHORES -->
@@ -632,6 +653,7 @@
       if (t.dataset.panel === 'music') loadMusic();
       if (t.dataset.panel === 'chores') loadChores();
       if (t.dataset.panel === 'bake') loadBake();
+      if (t.dataset.panel === 'links') loadLinks();
     });
   });
 
@@ -1060,6 +1082,57 @@
     toast('Added');
     loadGrocery();
   }
+  /* ---------------- bookmarks ---------------- */
+
+  async function loadLinks() {
+    var host = document.getElementById('linkList');
+    try {
+      var res = await fetch('/api/bookmarks');
+      if (!res.ok) return;
+      var list = await res.json();
+      if (!list.length) {
+        host.innerHTML = '<div class="note">Nothing saved yet.</div>';
+        return;
+      }
+      host.innerHTML = list
+        .map(function (b) {
+          return '<div class="grocery-row" style="align-items:center">' +
+            '<a href="' + esc(b.url) + '" target="_blank" rel="noopener" style="flex:1;min-width:0">' +
+            '<div style="font-weight:700">' + esc(b.title) + '</div>' +
+            '<div class="note" style="margin:2px 0 0">' + esc(hostOf(b.url)) + '</div></a>' +
+            '<button class="ghost" onclick="removeLink(\'' + esc(b.id) + '\')">Remove</button></div>';
+        })
+        .join('');
+    } catch (err) {
+      /* offline — leave whatever was drawn */
+    }
+  }
+
+  function hostOf(u) {
+    try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; }
+  }
+
+  async function addLink() {
+    var url = document.getElementById('linkUrl').value.trim();
+    var title = document.getElementById('linkTitle').value.trim();
+    if (!url) return;
+    var res = await fetch('/api/bookmarks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url, title: title }),
+    });
+    if (!res.ok) { toast('That is not a web address.'); return; }
+    document.getElementById('linkUrl').value = '';
+    document.getElementById('linkTitle').value = '';
+    loadLinks();
+    toast('Saved');
+  }
+
+  async function removeLink(id) {
+    await fetch('/api/bookmarks/' + encodeURIComponent(id), { method: 'DELETE' });
+    loadLinks();
+  }
+
   /* ---------------- bake night ---------------- */
 
   var bakeState = null;

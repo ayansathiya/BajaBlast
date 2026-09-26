@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BakePick } from '../data/models';
+import { BakePick, Bookmark } from '../data/models';
 import { BakeState, bakeWhen, bakeWhenPhrase } from '../engine/bake';
 import { qrToSvg } from '../engine/qr';
 import { normalizeUrl } from '../engine/websearch';
@@ -12,6 +12,10 @@ interface Props {
   startUrl?: string;
   bake: BakeState | null;
   onPickBake: (recipe: Partial<BakePick> & { title: string }, date?: string) => Promise<boolean>;
+  /** The household's shared list — the same one the phones see. */
+  bookmarks: Bookmark[];
+  onAddBookmark: (url: string, title?: string) => Promise<boolean>;
+  onRemoveBookmark: (id: string) => void;
   onClose: () => void;
   now: Date;
 }
@@ -61,7 +65,18 @@ function hostOf(url: string): string {
   }
 }
 
-export function WebBrowser({ home, onScreenKeyboard, startUrl, bake, onPickBake, onClose, now }: Props) {
+export function WebBrowser({
+  home,
+  onScreenKeyboard,
+  startUrl,
+  bake,
+  onPickBake,
+  bookmarks,
+  onAddBookmark,
+  onRemoveBookmark,
+  onClose,
+  now,
+}: Props) {
   const first = startUrl || home;
   const [url, setUrl] = useState(first);
   // null when nobody is editing: the box then mirrors the live URL.
@@ -141,6 +156,19 @@ export function WebBrowser({ home, onScreenKeyboard, startUrl, bake, onPickBake,
     };
   }, [url]);
 
+  const saved = bookmarks.some((b) => b.url === url);
+
+  async function bookmarkThisPage() {
+    if (saved) {
+      onRemoveBookmark(url);
+      setToast('Removed from bookmarks');
+    } else {
+      const ok = await onAddBookmark(url, title || hostOf(url));
+      setToast(ok ? `Bookmarked ${title || hostOf(url)}` : 'Could not save that page.');
+    }
+    setTimeout(() => setToast(null), 2500);
+  }
+
   async function useThisPage() {
     const ok = await onPickBake({
       title: title || hostOf(url),
@@ -211,6 +239,15 @@ export function WebBrowser({ home, onScreenKeyboard, startUrl, bake, onPickBake,
           </button>
         )}
 
+        <button
+          className={`web-btn web-star ${saved ? 'on' : ''}`}
+          onClick={bookmarkThisPage}
+          aria-label={saved ? 'Remove bookmark' : 'Bookmark this page'}
+          title={saved ? 'Remove bookmark' : 'Bookmark this page'}
+        >
+          {saved ? '★' : '☆'}
+        </button>
+
         {bake?.enabled && (
           <button className="btn-accent" onClick={useThisPage}>
             Bake this{bake.next ? ` ${bakeWhenPhrase(bake.next.date, bake.dayName, now)}` : ''}
@@ -232,6 +269,32 @@ export function WebBrowser({ home, onScreenKeyboard, startUrl, bake, onPickBake,
             urlMode
             submitLabel="Go"
           />
+        </div>
+      )}
+
+      {/*
+        The saved list, always in reach.
+
+        A row rather than a panel you open: on a wall screen, a bookmark you
+        have to go looking for is one nobody uses. Long-press or the × removes
+        one — the same list every phone in the house sees.
+      */}
+      {bookmarks.length > 0 && (
+        <div className="web-marks">
+          {bookmarks.map((mark) => (
+            <span className={`web-mark ${mark.url === url ? 'current' : ''}`} key={mark.id}>
+              <button className="web-mark-open" onClick={() => go(mark.url)} title={mark.url}>
+                {mark.title}
+              </button>
+              <button
+                className="web-mark-x"
+                onClick={() => onRemoveBookmark(mark.id)}
+                aria-label={`Remove ${mark.title}`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
         </div>
       )}
 

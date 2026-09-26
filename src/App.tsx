@@ -21,6 +21,7 @@ import { ViewMode, addDays, eventsOnDay, monthGridStart, rangeLabel, startOfDay,
 import { expandEvents, nextPerSeries } from './engine/recurrence';
 import { bakeEvents } from './engine/bake';
 import { useBake } from './hooks/useBake';
+import { useBookmarks } from './hooks/useBookmarks';
 import { useSettings } from './hooks/useSettings';
 import { calendarProvider } from './providers';
 import { HttpWeatherProvider } from './providers/HttpWeatherProvider';
@@ -54,6 +55,7 @@ import { IdleReel } from './components/IdleReel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { RecipeBrowser } from './components/RecipeBrowser';
 import { WebBrowser } from './components/WebBrowser';
+import { KioskMenu } from './components/KioskMenu';
 import { BajaAssistant } from './components/BajaAssistant';
 import { startLive } from './hooks/live';
 
@@ -89,6 +91,8 @@ export default function App() {
   const [browserUrl, setBrowserUrl] = useState<string | null>(null);
   const recipeSettings = settings.recipes ?? DEFAULT_SETTINGS.recipes;
   const { bake, pick: pickBake } = useBake(recipeSettings.enabled);
+  const { bookmarks, addBookmark, removeBookmark } = useBookmarks(recipeSettings.browserEnabled);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
 
@@ -117,7 +121,7 @@ export default function App() {
   // Rolls the display over at midnight and recovers after the Mac wakes.
   // Paused while a panel is open so a reload can't interrupt someone
   // mid-edit, or wipe the board out from under a kid ticking off chores.
-  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null;
+  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen;
   useDailyReload(!panelOpen);
   const isIdle = useIdleTimer(settings.ambient.idleTimeoutSeconds, settings.ambient.enabled && !panelOpen, remote);
 
@@ -173,7 +177,8 @@ export default function App() {
         // One place, one precedence: whatever is on top closes first. The
         // recipe screen's own detail view claims Escape ahead of this (see
         // RecipeBrowser) and stops the event when it does.
-        if (browserUrl !== null) setBrowserUrl(null);
+        if (menuOpen) setMenuOpen(false);
+        else if (browserUrl !== null) setBrowserUrl(null);
         else if (recipesOpen) setRecipesOpen(false);
         else if (choresOpen) setChoresOpen(false);
         else setSettingsOpen(false);
@@ -181,7 +186,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [browserUrl, recipesOpen, choresOpen]);
+  }, [browserUrl, recipesOpen, choresOpen, menuOpen]);
 
   // Accessibility settings reflected as body classes (global.css hooks into these).
   useEffect(() => {
@@ -463,6 +468,9 @@ export default function App() {
           startUrl={browserUrl || undefined}
           bake={bake}
           onPickBake={pickBake}
+          bookmarks={bookmarks}
+          onAddBookmark={addBookmark}
+          onRemoveBookmark={removeBookmark}
           onClose={() => setBrowserUrl(null)}
           now={now}
         />
@@ -489,32 +497,25 @@ export default function App() {
         so it doesn't compete with the calendar from across the room. Big
         enough to hit reliably with a thumb, which is the part that matters.
       */}
-      {/* Same corner, same reasoning as the gear below: on a wall panel a
-          feature you can't reach with a thumb may as well not exist. */}
-      {!panelOpen && !isIdle && recipeSettings.enabled && (
-        <button className="touch-recipes" onClick={() => setRecipesOpen(true)} aria-label="Recipes">
-          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d="M8.1 2v7.2a2.9 2.9 0 0 0 2 2.75V22h1.8v-10.05a2.9 2.9 0 0 0 2-2.75V2h-1.5v6.2h-1V2h-1.4v6.2h-1V2Zm9.05 0c-1.5 1-2.35 3.2-2.35 6.2 0 2.1.65 3.6 1.9 4.15V22h1.8V2Z"
-            />
-          </svg>
-        </button>
-      )}
 
-      {!panelOpen && !isIdle && (
-        <button
-          className="touch-settings"
-          onClick={() => setSettingsOpen(true)}
-          aria-label="Settings"
-        >
-          <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d="M12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5Zm7.43-2.53a7.66 7.66 0 0 0 0-1.94l2.05-1.58a.5.5 0 0 0 .12-.64l-1.94-3.36a.5.5 0 0 0-.61-.22l-2.42.97a7.3 7.3 0 0 0-1.68-.97l-.36-2.57a.5.5 0 0 0-.5-.42h-3.88a.5.5 0 0 0-.49.42l-.37 2.57a7.6 7.6 0 0 0-1.67.97l-2.42-.97a.5.5 0 0 0-.61.22L2.4 8.81a.5.5 0 0 0 .12.64l2.05 1.58a7.93 7.93 0 0 0 0 1.94L2.52 14.6a.5.5 0 0 0-.12.64l1.94 3.36a.5.5 0 0 0 .61.22l2.42-.98a7.3 7.3 0 0 0 1.67.98l.37 2.56a.5.5 0 0 0 .49.42h3.88a.5.5 0 0 0 .5-.42l.36-2.56a7.6 7.6 0 0 0 1.68-.98l2.42.98a.5.5 0 0 0 .61-.22l1.94-3.36a.5.5 0 0 0-.12-.64Z"
-            />
-          </svg>
-        </button>
+      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !isIdle && (
+        <KioskMenu
+          open={menuOpen}
+          onToggle={() => setMenuOpen((v) => !v)}
+          onClose={() => setMenuOpen(false)}
+          entries={[
+            ...(recipeSettings.enabled
+              ? [{ key: 'recipes', label: 'Recipes', icon: '🍴', onPick: () => setRecipesOpen(true) }]
+              : []),
+            ...(recipeSettings.browserEnabled
+              ? [{ key: 'browser', label: 'Browser', icon: '🌐', onPick: () => setBrowserUrl('') }]
+              : []),
+            ...(settings.chores?.enabled !== false && choreState.state
+              ? [{ key: 'chores', label: 'Chores', icon: '✓', onPick: () => setChoresOpen(true) }]
+              : []),
+            { key: 'settings', label: 'Settings', icon: '⚙', onPick: () => setSettingsOpen(true) },
+          ]}
+        />
       )}
 
       {settingsOpen && (

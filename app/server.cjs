@@ -22,6 +22,7 @@ const display = require('./display.cjs');
 const recipes = require('./recipes.cjs');
 const bake = require('./bake.cjs');
 const changelog = require('./changelog.cjs');
+const bookmarks = require('./bookmarks.cjs');
 
 const PORT = 8787;
 
@@ -61,7 +62,7 @@ const PREV_FILE = path.join(DIR, 'store.prev.json');
 const MAX_BACKUPS = 30;
 
 function emptyStore() {
-  return { events: [], grocery: [], settings: null, photos: [], spotify: null, auth: null, completions: [], bake: { picks: {} } };
+  return { events: [], grocery: [], settings: null, photos: [], spotify: null, auth: null, completions: [], bake: { picks: {} }, bookmarks: [] };
 }
 
 function normalizeStore(data) {
@@ -1588,6 +1589,31 @@ function startServer(options = {}) {
       return send(res, 200, { build: BUILD, entries: changelog.entries() });
     }
 
+    /* ---------------- bookmarks ---------------- */
+    //
+    // Shared, not per-browser: someone saves a page on the sofa and it's on
+    // the kitchen wall and everyone's phone a moment later.
+
+    if (url.pathname === '/api/bookmarks' && req.method === 'GET') {
+      return send(res, 200, bookmarks.normalize(store.bookmarks));
+    }
+
+    if (url.pathname === '/api/bookmarks' && req.method === 'POST') {
+      const body = await readBody(req);
+      const result = bookmarks.add(store.bookmarks, body);
+      if (result.error) return send(res, 400, { error: result.error });
+      store.bookmarks = result.list;
+      saveStore(store);
+      return send(res, 201, result.bookmark);
+    }
+
+    const bookmarkDelete = url.pathname.match(/^\/api\/bookmarks\/(.+)$/);
+    if (bookmarkDelete && req.method === 'DELETE') {
+      store.bookmarks = bookmarks.remove(store.bookmarks, decodeURIComponent(bookmarkDelete[1]));
+      saveStore(store);
+      return send(res, 200, { ok: true });
+    }
+
     /* ---------------- bake night ---------------- */
 
     if (url.pathname === '/api/bake' && req.method === 'GET') {
@@ -1669,6 +1695,7 @@ function startServer(options = {}) {
         // pick the household had made.
         completions: Array.isArray(body.completions) ? body.completions : [],
         bake: bake.normalizeBake(body.bake),
+        bookmarks: bookmarks.normalize(body.bookmarks),
         auth: store.auth,
         spotify: store.spotify,
       };

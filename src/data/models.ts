@@ -359,6 +359,15 @@ export interface RecipeSettings {
   };
 }
 
+/** A saved link, shared by the whole household. */
+export interface Bookmark {
+  id: string;
+  url: string;
+  title: string;
+  addedBy: string;
+  addedAt: string;
+}
+
 /** One week's baking pick — from the recipe API, or a page off the web. */
 export interface BakePick {
   id: string;

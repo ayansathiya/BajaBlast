@@ -103,8 +103,9 @@
   align-items: center;
   gap: clamp(20px, 3vw, 56px);
   padding-top: 14px;
-  /* The two corner buttons float over this row's right end; without this the
-     last headline slides underneath them. */
+  /* The two corner buttons float over this row's right end. Without this the
+     last headline slides underneath them and is read as a rendering fault
+     rather than as a button sitting on top of text. */
   padding-right: 144px;
   border-top: 1px solid var(--hairline);
   min-width: 0;
@@ -2173,41 +2174,6 @@
    below that people miss, tap again, and hit the thing underneath.
    --------------------------------------------------------------------------- */
 
-.touch-settings {
-  position: fixed;
-  right: clamp(28px, 4vw, 64px);
-  bottom: 22px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--bg-elevated, rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.14));
-  /* Quiet until wanted. From across the kitchen this should read as part of
-     the furniture, not as a control demanding attention. */
-  color: var(--text-muted, #7a7a7a);
-  opacity: 0.4;
-  transition: opacity 0.18s ease, color 0.18s ease, transform 0.12s ease;
-  cursor: pointer;
-  z-index: 15;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.touch-settings:hover,
-.touch-settings:focus-visible {
-  opacity: 1;
-  color: var(--accent, #00f5d4);
-}
-
-/* Immediate, visible feedback on press. On a touchscreen there's no hover
-   state to tell you the tap registered, and without this people tap twice. */
-.touch-settings:active {
-  opacity: 1;
-  color: var(--accent, #00f5d4);
-  transform: scale(0.92);
-}
-
 /* Anything tappable gets a real target. Applied only on touch hardware so the
    desktop layout, which is tuned for a mouse, is left alone. */
 @media (pointer: coarse) {
@@ -2223,7 +2189,9 @@
   .event-row-button,
   .recipe-tab,
   .recipe-week,
-  .recipe-search-field {
+  .recipe-search-field,
+  .kiosk-menu-item,
+  .web-mark-open {
     min-height: 44px;
   }
 
@@ -2260,14 +2228,80 @@
    Recipes, Bake Night and the in-app browser
    =================================================================== */
 
-/* The second corner button. Sits inboard of the gear so the gear stays where
-   people have learned it is. */
-.touch-recipes {
+/*
+  One button in the corner, and the short list it opens.
+
+  There used to be two circles down here and a third was about to arrive with
+  the browser. Three controls competing for attention beside a calendar is
+  three too many, so there's one, and it opens a list.
+*/
+.kiosk-menu {
   position: fixed;
-  /* Same gutter as the rest of the page. 68px is one button plus the gap, so
-     the pair ends flush with the ticker above. */
-  right: calc(clamp(28px, 4vw, 64px) + 68px);
+  right: clamp(28px, 4vw, 64px);
   bottom: 22px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.kiosk-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  min-width: 200px;
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  animation: menu-in 0.14s ease-out;
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.kiosk-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.kiosk-menu-item:hover,
+.kiosk-menu-item:focus-visible {
+  background: var(--bg-elevated);
+  color: var(--accent);
+}
+
+.kiosk-menu-icon {
+  width: 20px;
+  text-align: center;
+  font-size: 15px;
+}
+
+/* The button itself. Opaque rather than glass: it sits over the ticker
+   strip, and a headline showing through it reads as a rendering fault. */
+.touch-menu {
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -2276,23 +2310,26 @@
   background: var(--bg);
   border: 1px solid var(--hairline, rgba(255, 255, 255, 0.14));
   color: var(--text-muted, #7a7a7a);
-  /* Opaque, not glass: they sit over the ticker strip. */
   opacity: 0.75;
   transition: opacity 0.18s ease, color 0.18s ease, transform 0.12s ease;
   cursor: pointer;
-  z-index: 15;
   -webkit-tap-highlight-color: transparent;
 }
 
-.touch-recipes:hover,
-.touch-recipes:focus-visible {
+.touch-menu:hover,
+.touch-menu:focus-visible {
   opacity: 1;
   color: var(--accent, #00f5d4);
 }
 
-.touch-recipes:active {
+.touch-menu.open {
   opacity: 1;
   color: var(--accent, #00f5d4);
+  border-color: var(--accent, #00f5d4);
+}
+
+.touch-menu:active {
+  opacity: 1;
   transform: scale(0.92);
 }
 
@@ -2957,4 +2994,75 @@
   line-height: 1.6;
   color: var(--text-muted);
   margin-bottom: 7px;
+}
+
+/* ---------- bookmarks bar in the browser ---------- */
+
+.web-star.on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.web-marks {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--bg-elevated, #0b0b0b);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.web-marks::-webkit-scrollbar {
+  display: none;
+}
+
+.web-mark {
+  flex: none;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.web-mark.current {
+  border-color: var(--accent);
+}
+
+.web-mark-open {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 6px 9px 14px;
+  max-width: 220px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.web-mark.current .web-mark-open {
+  color: var(--accent);
+}
+
+/* Small on purpose: removing a bookmark should take aim, because there is no
+   undo and the list is shared with everyone else in the house. */
+.web-mark-x {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  padding: 9px 12px 9px 4px;
+  cursor: pointer;
+}
+
+.web-mark-x:hover {
+  color: var(--accent-2, #ff5c72);
 }
