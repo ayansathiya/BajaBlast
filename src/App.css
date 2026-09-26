@@ -103,6 +103,9 @@
   align-items: center;
   gap: clamp(20px, 3vw, 56px);
   padding-top: 14px;
+  /* The two corner buttons float over this row's right end; without this the
+     last headline slides underneath them. */
+  padding-right: 144px;
   border-top: 1px solid var(--hairline);
   min-width: 0;
 }
@@ -2172,7 +2175,7 @@
 
 .touch-settings {
   position: fixed;
-  right: 22px;
+  right: clamp(28px, 4vw, 64px);
   bottom: 22px;
   width: 56px;
   height: 56px;
@@ -2261,17 +2264,20 @@
    people have learned it is. */
 .touch-recipes {
   position: fixed;
-  right: 90px;
+  /* Same gutter as the rest of the page. 68px is one button plus the gap, so
+     the pair ends flush with the ticker above. */
+  right: calc(clamp(28px, 4vw, 64px) + 68px);
   bottom: 22px;
   width: 56px;
   height: 56px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--bg-elevated, rgba(255, 255, 255, 0.06));
+  background: var(--bg);
   border: 1px solid var(--hairline, rgba(255, 255, 255, 0.14));
   color: var(--text-muted, #7a7a7a);
-  opacity: 0.4;
+  /* Opaque, not glass: they sit over the ticker strip. */
+  opacity: 0.75;
   transition: opacity 0.18s ease, color 0.18s ease, transform 0.12s ease;
   cursor: pointer;
   z-index: 15;
