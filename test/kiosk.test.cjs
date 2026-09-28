@@ -15,6 +15,7 @@ const { spawnSync } = require('node:child_process');
 const ROOT = path.resolve(__dirname, '..');
 const KIOSK = path.join(ROOT, 'packaging', 'pi', 'kiosk');
 const UPGRADE = path.join(ROOT, 'packaging', 'pi', 'upgrade');
+const NIGHT = path.join(ROOT, 'packaging', 'pi', 'night');
 
 let pass = 0;
 let fail = 0;
@@ -41,7 +42,7 @@ function fakeBin(dir, name, body) {
 // the machine running the tests can never be the one that answers.
 function basePath(bin) {
   const sys = fs.mkdtempSync(path.join(tmp, 'sys-'));
-  for (const tool of ['sh', 'bash', 'sed', 'rm', 'mkdir', 'seq', 'sleep', 'cat', 'tr', 'tail', 'grep', 'mktemp', 'chmod', 'node', 'echo']) {
+  for (const tool of ['sh', 'bash', 'sed', 'rm', 'mkdir', 'seq', 'sleep', 'cat', 'tr', 'tail', 'grep', 'mktemp', 'chmod', 'node', 'echo', 'cut', 'date']) {
     const found = spawnSync('/bin/sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim();
     if (found.startsWith('/')) fs.symlinkSync(found, path.join(sys, tool));
   }
@@ -197,10 +198,164 @@ function upgradeTests() {
   }
 }
 
+function nightTests() {
+  // All times are New York local; the Pi's own time zone is what the
+  // schedule in Settings means.
+  function run({ at = '2026-09-28T23:01:00', model = 'Raspberry Pi 5 Model B Rev 1.0', uptime = 50000, schedule = { enabled: true, on: '06:00', off: '23:00' }, conf = '', alarmWritable = true } = {}) {
+    const dir = fs.mkdtempSync(path.join(tmp, 'n-'));
+    const bin = path.join(dir, 'bin');
+    const log = path.join(dir, 'log');
+    fs.writeFileSync(log, '');
+    fakeBin(bin, 'systemctl', `echo "systemctl $*" >> "${log}"`);
+    const data = path.join(dir, 'data');
+    fs.mkdirSync(data);
+    fs.writeFileSync(path.join(data, 'store.json'), JSON.stringify({ settings: { display: { schedule } } }));
+    fs.writeFileSync(path.join(dir, 'model'), `${model}\0`);
+    fs.writeFileSync(path.join(dir, 'uptime'), `${uptime}.12 1234.5\n`);
+    const alarm = path.join(dir, 'wakealarm');
+    fs.writeFileSync(alarm, '');
+    if (!alarmWritable) fs.chmodSync(alarm, 0o444);
+    fs.writeFileSync(path.join(dir, 'default'), conf);
+    const r = spawnSync('/bin/sh', [NIGHT], {
+      encoding: 'utf8',
+      env: {
+        PATH: basePath(bin),
+        TZ: 'America/New_York',
+        BAJA_BLAST_NOW: at,
+        BAJA_BLAST_DEFAULTS: path.join(dir, 'default'),
+        BAJA_BLAST_DATA: data,
+        BAJA_BLAST_MODEL_FILE: path.join(dir, 'model'),
+        BAJA_BLAST_WAKEALARM: alarm,
+        BAJA_BLAST_UPTIME_FILE: path.join(dir, 'uptime'),
+      },
+    });
+    const off = fs.readFileSync(log, 'utf8').includes('systemctl poweroff');
+    const wake = fs.readFileSync(alarm, 'utf8').trim();
+    const wakeAt = wake ? new Date(Number(wake) * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }) : null;
+    return { ...r, off, wakeAt };
+  }
+
+  console.log('\nPowering a Pi 5 off overnight');
+  {
+    const r = run();
+    check('at 11pm a Pi 5 powers off', r.off, r.stderr);
+    check('with its clock set to wake it at 6am tomorrow', r.wakeAt === '9/29/2026, 6:00:00 AM', r.wakeAt);
+  }
+  {
+    const r = run({ at: '2026-09-28T22:59:00' });
+    check('not a minute early', !r.off && !r.wakeAt);
+  }
+  {
+    const r = run({ at: '2026-09-28T23:07:00' });
+    check('and not long after, so switching it back on at 11:30 sticks', !r.off);
+  }
+  {
+    const r = run({ uptime: 300 });
+    check('not in the first 15 minutes after someone switched it on', !r.off);
+  }
+  {
+    const r = run({ model: 'Raspberry Pi 4 Model B Rev 1.5' });
+    check('never on a Pi 4, which has no clock to wake it', !r.off && !r.wakeAt);
+  }
+  {
+    const r = run({ alarmWritable: false });
+    check('never without a wake alarm it can set', !r.off);
+  }
+  {
+    const r = run({ schedule: { enabled: true, on: '07:30', off: '21:30' }, at: '2026-09-28T21:31:00' });
+    check('follows the times in Settings → Display', r.off && r.wakeAt === '9/29/2026, 7:30:00 AM', r.wakeAt);
+  }
+  {
+    const r = run({ schedule: { enabled: true, on: '06:00', off: '00:30' }, at: '2026-09-29T00:31:00' });
+    check('an off time after midnight wakes the same morning', r.off && r.wakeAt === '9/29/2026, 6:00:00 AM', r.wakeAt);
+  }
+  {
+    const r = run({ schedule: { enabled: false, on: '06:00', off: '23:00' } });
+    check('the schedule switched off in Settings: stays on', !r.off);
+  }
+  {
+    const r = run({ conf: 'NIGHT_POWER_OFF=0' });
+    check('NIGHT_POWER_OFF=0: stays on', !r.off);
+  }
+}
+
+const RECEIVE = path.join(ROOT, 'setup', 'pi-receive.sh');
+
+function receiveTests() {
+  // A payload as setup/deploy-pi.sh packs it, received into a data folder
+  // that already has a GitHub build running — then asked of the launcher's
+  // own code which build it would start.
+  function run({ complete = true, existing = [] } = {}) {
+    const dir = fs.mkdtempSync(path.join(tmp, 'r-'));
+    const bin = path.join(dir, 'bin');
+    const log = path.join(dir, 'log');
+    fs.writeFileSync(log, '');
+    fakeBin(bin, 'pkill', `echo "pkill $*" >> "${log}"`);
+    fakeBin(bin, 'tar', `exec /usr/bin/tar "$@"`);
+    fakeBin(bin, 'basename', `exec /usr/bin/basename "$@"`);
+    fakeBin(bin, 'mv', `exec /bin/mv "$@"`);
+
+    const data = path.join(dir, 'data');
+    const updates = path.join(data, 'app');
+    const running = path.join(updates, 'v9');
+    fs.mkdirSync(path.join(running, 'dist'), { recursive: true });
+    fs.mkdirSync(path.join(running, 'app'), { recursive: true });
+    fs.writeFileSync(path.join(running, 'build.json'), JSON.stringify({ build: '2026-09-28-9', rev: 9 }));
+    fs.writeFileSync(path.join(running, 'dist', 'index.html'), 'old');
+    fs.writeFileSync(path.join(running, 'app', 'server.cjs'), '');
+    fs.writeFileSync(path.join(updates, 'active.json'), JSON.stringify({ dir: 'v9', rev: 9, blocked: [] }));
+    for (const name of existing) fs.mkdirSync(path.join(updates, name));
+
+    const src = path.join(dir, 'src');
+    fs.mkdirSync(path.join(src, 'dist'), { recursive: true });
+    fs.mkdirSync(path.join(src, 'app'), { recursive: true });
+    fs.writeFileSync(path.join(src, 'build.json'), JSON.stringify({ build: '2026-09-28-mac-abc123', rev: 10 }));
+    fs.writeFileSync(path.join(src, 'dist', 'index.html'), 'new');
+    if (complete) fs.writeFileSync(path.join(src, 'app', 'server.cjs'), '');
+    const tgz = path.join(dir, 'p.tgz');
+    spawnSync('/usr/bin/tar', ['-czf', tgz, '-C', src, '.']);
+
+    const r = spawnSync('/bin/sh', [RECEIVE, 'mac-2026-09-28-mac-abc123', tgz], {
+      encoding: 'utf8',
+      env: { PATH: basePath(bin), BAJA_BLAST_UPDATES: updates },
+    });
+    const boot = spawnSync('node', ['-e', `console.log(JSON.stringify(require(${JSON.stringify(path.join(ROOT, 'app', 'paths.cjs'))}).payloadRoot()))`], {
+      encoding: 'utf8',
+      env: { ...process.env, BAJA_BLAST_DATA: data },
+    });
+    let chosen = {};
+    try {
+      chosen = JSON.parse(boot.stdout);
+    } catch {
+      /* reported by the checks */
+    }
+    const active = JSON.parse(fs.readFileSync(path.join(updates, 'active.json'), 'utf8'));
+    return { ...r, chosen, active, restarted: fs.readFileSync(log, 'utf8').includes('pkill'), left: fs.readdirSync(updates).sort() };
+  }
+
+  console.log('\nSending a build straight from the Mac');
+  {
+    const r = run({ existing: ['mac-older', 'mac-oldest'] });
+    check('it lands and becomes the active build', r.status === 0 && r.active.dir === 'mac-2026-09-28-mac-abc123', r.stderr);
+    check('the launcher would start it', r.chosen.rev === 10 && r.chosen.source === 'installed', JSON.stringify(r.chosen));
+    check('the GitHub build it replaced is kept to roll back to', r.active.previous === 'v9' && r.left.includes('v9'));
+    check('older Mac builds are tidied away', !r.left.includes('mac-older') && !r.left.includes('mac-oldest'));
+    check('rollback bookkeeping is carried over', Array.isArray(r.active.blocked));
+    check('and the calendar is restarted into it', r.restarted);
+  }
+  {
+    const r = run({ complete: false });
+    check('an incomplete build is refused', r.status !== 0 && /missing app\/server\.cjs/.test(r.stderr));
+    check('and nothing changes', r.active.dir === 'v9' && !r.restarted && !r.left.includes('.deploy'));
+  }
+}
+
 (async () => {
   try {
     await kioskTests();
     upgradeTests();
+    nightTests();
+    receiveTests();
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

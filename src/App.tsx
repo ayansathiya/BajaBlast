@@ -62,6 +62,19 @@ import { useMeals, useNotes, useTimers } from './hooks/useKitchen';
 import { buildReminders } from './engine/kitchen';
 import { IdleTimers, RailTimers, TimerAlarm, TimerPanel } from './components/Timers';
 import { IdleReminders, NotesBoard, ReminderStrip, TonightCard, WeekAhead } from './components/DayExtras';
+import { GoodMorning } from './components/GoodMorning';
+import { dayKey, isMorning } from './engine/morning';
+
+// Which day the Good Morning page was last put away, so a tap keeps it away
+// until tomorrow — including across the reload at midnight or an update.
+const MORNING_KEY = 'baja-morning-dismissed';
+function readDismissed(): string | null {
+  try {
+    return localStorage.getItem(MORNING_KEY);
+  } catch {
+    return null;
+  }
+}
 
 // All of these read through the local server, which is the only thing that
 // talks to the outside world (see electron/livedata.cjs). Weather, news and
@@ -98,6 +111,8 @@ export default function App() {
   const { bookmarks, addBookmark, removeBookmark } = useBookmarks(recipeSettings.browserEnabled);
   const [menuOpen, setMenuOpen] = useState(false);
   const [timerPanelOpen, setTimerPanelOpen] = useState(false);
+  const [morningOpen, setMorningOpen] = useState(false);
+  const [morningDismissed, setMorningDismissed] = useState<string | null>(readDismissed);
   const { timers, skewMs, start: startTimer, act: actOnTimer } = useTimers();
   const { week: mealWeek, addToGrocery: mealToGrocery } = useMeals();
   const { notes, removeNote } = useNotes();
@@ -131,7 +146,7 @@ export default function App() {
   // Rolls the display over at midnight and recovers after the Mac wakes.
   // Paused while a panel is open so a reload can't interrupt someone
   // mid-edit, or wipe the board out from under a kid ticking off chores.
-  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen;
+  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen || morningOpen;
   useDailyReload(!panelOpen);
   const isIdle = useIdleTimer(settings.ambient.idleTimeoutSeconds, settings.ambient.enabled && !panelOpen, remote);
 
@@ -165,6 +180,29 @@ export default function App() {
     };
   }, []);
 
+  // The Good Morning page comes up by itself when the screen wakes for the
+  // day, and goes away at ten or when someone taps it — whichever is first.
+  // Checked once a minute; nothing else on screen is disturbed to show it.
+  const morningNow = isMorning(now, settings.display.schedule?.on);
+  const otherPanelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || timerPanelOpen;
+  const today = dayKey(now);
+  useEffect(() => {
+    if (morningNow && morningDismissed !== today && !otherPanelOpen) setMorningOpen(true);
+    if (!morningNow && morningDismissed !== today) setMorningOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [morningNow, today, morningDismissed]);
+
+  function closeMorning() {
+    setMorningOpen(false);
+    if (!morningNow) return;
+    setMorningDismissed(today);
+    try {
+      localStorage.setItem(MORNING_KEY, today);
+    } catch {
+      // Private mode or storage off: it just shows again after a reload.
+    }
+  }
+
   // Tell the server what's on screen, so the phone's arrows aren't pressed blind.
   useEffect(() => {
     fetch('/api/kiosk/report', {
@@ -188,6 +226,7 @@ export default function App() {
         // recipe screen's own detail view claims Escape ahead of this (see
         // RecipeBrowser) and stops the event when it does.
         if (menuOpen) setMenuOpen(false);
+        else if (morningOpen) closeMorning();
         else if (timerPanelOpen) setTimerPanelOpen(false);
         else if (browserUrl !== null) setBrowserUrl(null);
         else if (recipesOpen) setRecipesOpen(false);
@@ -197,7 +236,8 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [browserUrl, recipesOpen, choresOpen, menuOpen, timerPanelOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [browserUrl, recipesOpen, choresOpen, menuOpen, timerPanelOpen, morningOpen, morningNow, today]);
 
   // Accessibility settings reflected as body classes (global.css hooks into these).
   useEffect(() => {
@@ -527,6 +567,21 @@ export default function App() {
         </div>
       )}
 
+      {morningOpen && (
+        <GoodMorning
+          now={now}
+          weather={weather}
+          todayEvents={todayEvents}
+          upcoming={upcomingWithBake}
+          tonight={tonight}
+          chores={settings.chores?.enabled !== false ? choreState.state : null}
+          people={settings.people}
+          news={news}
+          showNews={settings.ambient.showNews}
+          onClose={closeMorning}
+        />
+      )}
+
       {timerPanelOpen && (
         <TimerPanel
           timers={timers}
@@ -568,12 +623,13 @@ export default function App() {
         enough to hit reliably with a thumb, which is the part that matters.
       */}
 
-      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !timerPanelOpen && !isIdle && (
+      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !timerPanelOpen && !morningOpen && !isIdle && (
         <KioskMenu
           open={menuOpen}
           onToggle={() => setMenuOpen((v) => !v)}
           onClose={() => setMenuOpen(false)}
           entries={[
+            { key: 'morning', label: 'Good morning', icon: '☀', onPick: () => setMorningOpen(true) },
             { key: 'timers', label: 'Timers', icon: '⏱', onPick: () => setTimerPanelOpen(true) },
             ...(recipeSettings.enabled
               ? [{ key: 'recipes', label: 'Recipes', icon: '🍴', onPick: () => setRecipesOpen(true) }]

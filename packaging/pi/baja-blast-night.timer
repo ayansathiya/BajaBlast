@@ -1,0 +1,9 @@
+[Unit]
+Description=Check whether it's time for Baja Blast to power off for the night
+
+[Timer]
+OnCalendar=*:*:00
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

@@ -11,6 +11,14 @@ and press Enter. It installs, restarts, and from then on the Pi updates itself.
 curl -fsSL https://raw.githubusercontent.com/ayansathiya/BajaBlast/main/setup/pi.sh | bash
 ```
 
+**Phone app that works anywhere (iPhone):** paste this on the Pi too. It asks
+you to sign in to Tailscale (free) in a browser, then prints what to do on the
+phone.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ayansathiya/BajaBlast/main/setup/remote-setup.sh | bash
+```
+
 ## Getting it onto the Pi
 
 Build the package (on any machine with Node):
@@ -52,6 +60,27 @@ Settings are in `/etc/default/baja-blast`, and your edits survive upgrades:
 - `KIOSK_SCALE=1.25` — how big everything is (1 is normal, 1.5 for across
   the room)
 - `KIOSK=0` — leave the desktop alone, if you'd rather run your own kiosk
+
+### Overnight
+
+At the screen's off time (Settings → Display, 11pm to start with) a
+**Raspberry Pi 5** powers itself off completely and sets its clock to switch
+it back on at the morning time; it logs in without a password and opens on
+the Good Morning page. Not in the first 15 minutes after someone switches it
+on, and never on an older Pi, which has no clock that can wake it — there the
+screen sleeps and the Pi stays up. `NIGHT_POWER_OFF=0` or `AUTOLOGIN=0` in
+`/etc/default/baja-blast` turns either off.
+
+### Updates in seconds, from the Mac
+
+```bash
+bash setup/pi-link.sh   # once: needs SSH on (Pi Configuration → Interfaces)
+npm run deploy          # builds here, sends it over the home network
+```
+
+A change is on the wall in a few seconds instead of the two or three minutes
+GitHub takes to build and test it. Only the app's code goes this way; push to
+GitHub as well, which is where the Pi keeps updating itself from.
 
 ### Updates to the package itself
 

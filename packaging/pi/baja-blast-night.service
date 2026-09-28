@@ -1,0 +1,6 @@
+[Unit]
+Description=Power a Raspberry Pi 5 off overnight and set it to wake in the morning
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/baja-blast/night

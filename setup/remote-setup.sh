@@ -7,7 +7,8 @@
 # exposed to the public internet: there is no address for a stranger to find,
 # because there is no public address at all.
 #
-#   cd ~/Downloads/baja-blast
+#   On the Pi, paste:  curl -fsSL https://raw.githubusercontent.com/ayansathiya/BajaBlast/main/setup/remote-setup.sh | bash
+#   On a Mac, from the project folder:
 #   bash setup/remote-setup.sh
 #
 # Free. Tailscale's Personal plan covers six people, which is more than most
@@ -20,8 +21,10 @@ say()  { printf "%s\n" "${TEAL}▸${OFF} $*"; }
 warn() { printf "%s\n" "${RED}!${OFF} $*"; }
 note() { printf "%s\n" "${DIM}  $*${OFF}"; }
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$PROJECT_DIR" || exit 1
+# Piped in from curl there's no file, and nothing below needs the project.
+if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+  cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
+fi
 
 printf "\n%s\n\n" "${BOLD}Baja Blast — access from anywhere${OFF}"
 
@@ -40,6 +43,17 @@ for candidate in \
 do
   [ -n "$candidate" ] && [ -x "$candidate" ] && { TS="$candidate"; break; }
 done
+
+# On Linux the tailscale command needs root; on a Mac the app handles it.
+SUDO=""
+if [ "$(uname)" != "Darwin" ] && [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi
+
+# On a Pi, just install it: this script is meant to be one pasted line there.
+if [ -z "$TS" ] && [ "$(uname)" = "Linux" ]; then
+  say "Installing Tailscale…"
+  curl -fsSL https://tailscale.com/install.sh | $SUDO sh
+  TS="$(command -v tailscale 2>/dev/null || true)"
+fi
 
 if [ -z "$TS" ]; then
   warn "Tailscale isn't installed yet."
@@ -62,16 +76,16 @@ printf "\n"
 # ---------------------------------------------------------------------------
 # Sign in
 # ---------------------------------------------------------------------------
-if ! "$TS" status >/dev/null 2>&1; then
+if ! $SUDO "$TS" status >/dev/null 2>&1; then
   say "Signing this machine in…"
   note "A browser window opens. Use the same account on every device you want"
   note "to reach the calendar from — your phone, and anyone else's in the house."
   printf "\n"
-  "$TS" up || { warn "Sign-in didn't finish."; exit 1; }
+  $SUDO "$TS" up || { warn "Sign-in didn't finish."; exit 1; }
   printf "\n"
 fi
 
-DNS_NAME="$("$TS" status --json 2>/dev/null | node -e "
+DNS_NAME="$($SUDO "$TS" status --json 2>/dev/null | node -e "
   let s='';
   process.stdin.on('data', d => s += d);
   process.stdin.on('end', () => {
@@ -101,7 +115,7 @@ note "install a page as an app unless it arrived over HTTPS, so this is what"
 note "turns the phone page into something with an icon on your home screen."
 printf "\n"
 
-if "$TS" serve --bg --https=443 http://127.0.0.1:8787 >/dev/null 2>&1; then
+if $SUDO "$TS" serve --bg --https=443 http://127.0.0.1:8787 >/dev/null 2>&1; then
   say "Done."
 else
   warn "Couldn't set that up automatically."

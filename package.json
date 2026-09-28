@@ -13,6 +13,8 @@
     "github": "bash setup/github-setup.sh",
     "test": "node test/update.test.cjs && node test/bootstrap.test.cjs && node test/collapse.test.cjs && node test/changelog.test.cjs && node test/bookmarks.test.cjs && node test/kitchen.test.cjs && node test/recipes.test.cjs && node test/bake.test.cjs && node test/profile.test.cjs && node test/kiosk.test.cjs && node packaging/test-live.cjs",
     "pi": "bash packaging/build-deb.sh",
+    "deploy": "bash setup/deploy-pi.sh",
+    "pi:link": "bash setup/pi-link.sh",
     "mac": "npm run build && electron .",
     "mac:dev": "cross-env BAJA_DEV=1 electron .",
     "mac:app": "npm run build && electron-builder --mac"

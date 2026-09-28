@@ -19,6 +19,8 @@ let revision = 0;
 let connected = false;
 let es: EventSource | null = null;
 let retryTimer: number | null = null;
+// The build the server was running when this page loaded. See 'hello' below.
+let pageBuild: string | null = null;
 
 const listeners = new Set<() => void>();
 
@@ -51,9 +53,23 @@ export function startLive(): void {
   function connect() {
     es = new EventSource('/api/stream');
 
-    es.addEventListener('hello', () => {
+    es.addEventListener('hello', (ev) => {
       connected = true;
       emit();
+
+      // The server restarts itself into an update, but this page is still
+      // the old front end, and on a wall nobody presses reload — it used to
+      // stay stale until midnight. A hello naming a different build than the
+      // one this page first saw means exactly that, so load the new one.
+      let build: string | null = null;
+      try {
+        build = JSON.parse((ev as MessageEvent).data).build ?? null;
+      } catch {
+        // An old server's hello; nothing to compare.
+      }
+      if (!build) return;
+      if (pageBuild === null) pageBuild = build;
+      else if (build !== pageBuild) window.location.reload();
     });
 
     es.addEventListener('change', () => {
@@ -71,7 +87,7 @@ export function startLive(): void {
         es.close();
         es = null;
         if (retryTimer) window.clearTimeout(retryTimer);
-        retryTimer = window.setTimeout(connect, 3000);
+        retryTimer = window.setTimeout(connect, 1000);
       }
     };
   }

@@ -3869,3 +3869,218 @@ body.reduced-motion .timer-alarm { animation: none; }
   color: var(--text-muted);
   line-height: 1.55;
 }
+
+/* ------------------------------------------------------------------ *
+ * Good morning — the day on one screen, read from the doorway
+ * ------------------------------------------------------------------ */
+
+.morning-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  background: var(--bg);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: clamp(24px, 3.5vw, 56px);
+}
+
+.morning {
+  width: min(1500px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 2.4vw, 32px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.morning::-webkit-scrollbar {
+  display: none;
+}
+
+.morning-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.morning-hello {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(48px, 6vw, 92px);
+  line-height: 1;
+  margin: 0;
+}
+
+.morning-date {
+  margin-top: 12px;
+  font-size: clamp(18px, 1.7vw, 26px);
+  color: var(--text-muted);
+}
+
+.morning-go {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 999px;
+  padding: 18px 30px;
+  min-height: 56px;
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.morning-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(14px, 1.6vw, 22px);
+}
+
+.morning-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  padding: clamp(18px, 2vw, 28px);
+  font-size: clamp(18px, 1.5vw, 23px);
+  line-height: 1.35;
+  min-width: 0;
+}
+
+.morning-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.morning-label {
+  display: block;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.morning-empty {
+  color: var(--text-muted);
+}
+
+.mw-now {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.mw-icon {
+  font-size: clamp(44px, 4.5vw, 64px);
+}
+
+.mw-temp {
+  font-family: var(--font-display);
+  font-size: clamp(56px, 6vw, 88px);
+  line-height: 1;
+}
+
+.mw-cond {
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(20px, 1.8vw, 28px);
+}
+
+.mw-range {
+  font-size: 0.72em;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.mw-wear {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hairline);
+  font-size: clamp(20px, 1.8vw, 27px);
+}
+
+.mw-wear .morning-label {
+  margin-bottom: 6px;
+}
+
+.morning-events li {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  border-left: 3px solid var(--accent);
+  padding-left: 14px;
+}
+
+.me-time {
+  flex: 0 0 auto;
+  min-width: 5.2em;
+  color: var(--text-muted);
+}
+
+.me-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.me-leave {
+  font-size: 0.78em;
+  color: var(--accent-2);
+  margin-top: 2px;
+}
+
+.morning-events .me-more {
+  border-left-color: transparent;
+  color: var(--text-muted);
+}
+
+.morning-dinner {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hairline);
+}
+
+.morning-dinner .morning-label {
+  margin-bottom: 6px;
+}
+
+.morning-chores li {
+  display: grid;
+  grid-template-columns: minmax(5em, auto) 1fr auto;
+  gap: 14px;
+  align-items: baseline;
+}
+
+.mc-name {
+  font-weight: 700;
+}
+
+.mc-list {
+  color: var(--text);
+  min-width: 0;
+}
+
+.mc-count,
+.mb-when,
+.mn-source {
+  color: var(--text-muted);
+  font-size: 0.8em;
+}
+
+.mb-when,
+.mn-source {
+  margin-left: 8px;
+}
+
+@media (max-width: 900px) {
+  .morning-grid {
+    grid-template-columns: 1fr;
+  }
+}

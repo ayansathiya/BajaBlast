@@ -9,6 +9,39 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-09-28 — Good morning, lights out at 11, and updates in seconds
+
+- **A Good Morning page.** When the screen wakes for the day it opens on
+  one page with everything needed before leaving the house: the weather
+  and **what to wear** (coat, layers, umbrella), today's events with
+  **when to leave** for each, dinner tonight, who has which chores left,
+  birthdays this week, and a few headlines. Tap "Start the day" and it's
+  the calendar until tomorrow; it goes away by itself at 10am. It's also
+  in the corner menu, any time.
+- **The Pi switches itself off at night.** On a Raspberry Pi 5, at the
+  screen's off time (11pm to start with, Settings → Display) the whole Pi
+  powers down, and it switches itself back on at the morning time — no
+  button, no plug. It won't do it in the first 15 minutes after someone
+  turns it on, so switching it on late at night sticks. Other Pis keep the
+  old behaviour: the screen sleeps and the Pi stays up. Phones can't reach
+  the calendar while it's off; `NIGHT_POWER_OFF=0` in
+  `/etc/default/baja-blast` keeps it on all night.
+- **No password when the Pi starts.** It logs in to the desktop by itself,
+  so after the night or a power cut it goes straight back to the calendar.
+- **Updates show up on the wall straight away.** Before, the Pi installed
+  an update but the screen kept showing the old version until midnight,
+  because nothing told the page to reload. Now it reloads itself the moment
+  the new version is running.
+- **Updates can come straight from the Mac, in seconds.** Once the Mac and
+  the Pi are linked (`bash setup/pi-link.sh`, once), `npm run deploy` sends
+  a change over the home Wi-Fi without waiting two or three minutes for
+  GitHub to build it. GitHub still gets every change, and the Pi still
+  updates itself from there.
+- **The iPhone app, from the Pi in one line.** The "reach it from anywhere"
+  setup now works on the Pi as a single pasted line: it installs Tailscale,
+  signs in, and turns on the HTTPS a phone needs before it will add the page
+  to the home screen as an app.
+
 ## 2026-09-28 — Full screen on its own, and no more typing on the Pi
 
 - **The Pi now shows the calendar full screen by itself** when its desktop

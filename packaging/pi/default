@@ -12,3 +12,13 @@ KIOSK_SCALE=1.25
 # ten minutes. The calendar's own code updates itself either way; this is for
 # the parts that only a package can change (like the settings above).
 AUTO_UPGRADE=1
+
+# On a Raspberry Pi 5: power the whole Pi off when the screen's night
+# schedule starts (Settings → Display, 11pm to start with), and have it
+# switch itself back on at the morning time. 0 keeps the Pi running all
+# night with only the screen off, so phones can still reach it.
+NIGHT_POWER_OFF=1
+
+# Log in to the desktop without a password when the Pi starts, so it comes
+# back to the calendar on its own. 0 leaves the login screen alone.
+AUTOLOGIN=1

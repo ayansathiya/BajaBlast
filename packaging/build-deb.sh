@@ -112,8 +112,10 @@ Wants=network-online.target
 Type=simple
 ExecStart=/usr/bin/node /opt/baja-blast/app/launch.cjs
 Restart=always
-# Back off if it's crash-looping rather than hammering a struggling SD card.
-RestartSec=5
+# Short, because an update restarts it on purpose and the wall is blank until
+# it's back. A build that crash-loops is caught by the launcher's two-strikes
+# rollback (app/launch.cjs), not by waiting longer between tries.
+RestartSec=1
 StartLimitBurst=0
 
 User=__USER__
@@ -161,6 +163,9 @@ install -m 644 "$PI/default"                    "$STAGE/etc/default/baja-blast"
 install -m 755 "$PI/upgrade"                    "$STAGE/usr/lib/baja-blast/upgrade"
 install -m 644 "$PI/baja-blast-upgrade.service" "$STAGE/lib/systemd/system/baja-blast-upgrade.service"
 install -m 644 "$PI/baja-blast-upgrade.timer"   "$STAGE/lib/systemd/system/baja-blast-upgrade.timer"
+install -m 755 "$PI/night"                      "$STAGE/usr/lib/baja-blast/night"
+install -m 644 "$PI/baja-blast-night.service"   "$STAGE/lib/systemd/system/baja-blast-night.service"
+install -m 644 "$PI/baja-blast-night.timer"     "$STAGE/lib/systemd/system/baja-blast-night.timer"
 
 # ---------------------------------------------------------------------------
 # 5. Package metadata
@@ -227,6 +232,20 @@ case "$1" in
       systemctl enable baja-blast.service || true
       systemctl restart baja-blast.service || true
       systemctl enable --now baja-blast-upgrade.timer || true
+      # Does nothing except on a Pi 5, and only at the screen's off time.
+      systemctl enable --now baja-blast-night.timer || true
+    fi
+
+    # Come back to the calendar after a power cut or the overnight power-off
+    # without anyone typing a password. Raspberry Pi OS's own switch for it,
+    # and only when it isn't on already. AUTOLOGIN=0 in /etc/default/baja-blast
+    # leaves the login screen alone.
+    AUTOLOGIN=1
+    [ -r /etc/default/baja-blast ] && . /etc/default/baja-blast
+    if [ "$AUTOLOGIN" = "1" ] && command -v raspi-config >/dev/null 2>&1 \
+       && [ -f /etc/lightdm/lightdm.conf ] \
+       && ! grep -q '^autologin-user=.' /etc/lightdm/lightdm.conf; then
+      raspi-config nonint do_boot_behaviour B4 || true
     fi
 
     IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
@@ -254,6 +273,7 @@ case "$1" in
       systemctl stop baja-blast.service || true
       systemctl disable baja-blast.service || true
       systemctl disable --now baja-blast-upgrade.timer || true
+      systemctl disable --now baja-blast-night.timer || true
     fi
     ;;
 esac

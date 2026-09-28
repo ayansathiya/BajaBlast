@@ -1,0 +1,63 @@
+#!/bin/sh
+#
+# Switch a Raspberry Pi 5 off at night and have it switch itself back on.
+#
+# Run every minute by baja-blast-night.timer, as root. At the screen's "off"
+# time (Settings → Display → schedule, the same one that sleeps the screen)
+# it sets the Pi 5's real-time clock to wake the board at the "on" time, then
+# powers down. With the power lead still in, the Pi 5 starts again by itself
+# in the morning, logs in, and the calendar opens on the Good Morning page.
+#
+# Only on a Pi 5: it is the one board here with a clock that can wake it. On
+# anything else this does nothing, because a box that powers off and can't
+# come back is a blank wall until somebody finds the plug.
+#
+set -eu
+
+CONF="${BAJA_BLAST_DEFAULTS:-/etc/default/baja-blast}"
+DATA="${BAJA_BLAST_DATA:-/var/lib/baja-blast}"
+MODEL_FILE="${BAJA_BLAST_MODEL_FILE:-/proc/device-tree/model}"
+ALARM="${BAJA_BLAST_WAKEALARM:-/sys/class/rtc/rtc0/wakealarm}"
+UPTIME_FILE="${BAJA_BLAST_UPTIME_FILE:-/proc/uptime}"
+
+NIGHT_POWER_OFF=1
+# shellcheck disable=SC1090
+[ -r "$CONF" ] && . "$CONF"
+case "$NIGHT_POWER_OFF" in 0|no|off|false) exit 0 ;; esac
+
+case "$(tr -d '\0' < "$MODEL_FILE" 2>/dev/null || true)" in
+  *"Raspberry Pi 5"*) ;;
+  *) exit 0 ;;
+esac
+[ -w "$ALARM" ] || exit 0
+
+# Someone switched it on in the middle of the night on purpose: leave it be.
+UP="$(cut -d. -f1 "$UPTIME_FILE" 2>/dev/null || echo 0)"
+[ "$UP" -ge 900 ] || exit 0
+
+# Prints the wake-up time as a Unix timestamp when it's time to power off,
+# and nothing otherwise. The timer isn't to-the-second, so "time to power
+# off" is the first five minutes after the off time.
+WAKE="$(node -e '
+  const fs = require("fs");
+  let s = {};
+  try { s = JSON.parse(fs.readFileSync(process.argv[1] + "/store.json", "utf8")).settings || {}; } catch {}
+  const sch = (s.display && s.display.schedule) || {};
+  if (sch.enabled === false) process.exit(0);
+  const hm = (v, d) => { const m = /^(\d{1,2}):(\d{2})$/.exec(v || ""); return m ? [+m[1], +m[2]] : d; };
+  const [offH, offM] = hm(sch.off, [23, 0]);
+  const [onH, onM] = hm(sch.on, [6, 0]);
+  const now = process.env.BAJA_BLAST_NOW ? new Date(process.env.BAJA_BLAST_NOW) : new Date();
+  const off = new Date(now); off.setHours(offH, offM, 0, 0);
+  if (now < off || now - off >= 5 * 60000) process.exit(0);
+  const wake = new Date(now); wake.setHours(onH, onM, 0, 0);
+  if (wake <= now) wake.setDate(wake.getDate() + 1);
+  console.log(Math.floor(wake / 1000));
+' "$DATA")"
+[ -n "$WAKE" ] || exit 0
+
+# The clock only takes a new alarm once the old one is cleared.
+echo 0 > "$ALARM"
+echo "$WAKE" > "$ALARM"
+echo "baja-blast-night: powering off; the clock will wake this Pi at $(date -d "@$WAKE" 2>/dev/null || echo "$WAKE")"
+systemctl poweroff
