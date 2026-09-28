@@ -147,6 +147,22 @@ WantedBy=multi-user.target
 UNIT
 
 # ---------------------------------------------------------------------------
+# 4b. The Pi's own screen, and keeping the package itself up to date
+# ---------------------------------------------------------------------------
+# The kiosk starts from the desktop's autostart, as the desktop user, so it
+# does nothing on a box without a desktop (that's the standalone package's
+# job). The upgrader is the only part that runs as root: it's what lets a
+# change to anything in this package reach the Pi without somebody typing apt.
+PI="$PROJECT_DIR/packaging/pi"
+mkdir -p "$STAGE/etc/default" "$STAGE/etc/xdg/autostart" "$STAGE/usr/lib/baja-blast"
+install -m 755 "$PI/kiosk"                      "$STAGE/usr/bin/baja-blast-kiosk"
+install -m 644 "$PI/baja-blast-kiosk.desktop"   "$STAGE/etc/xdg/autostart/baja-blast-kiosk.desktop"
+install -m 644 "$PI/default"                    "$STAGE/etc/default/baja-blast"
+install -m 755 "$PI/upgrade"                    "$STAGE/usr/lib/baja-blast/upgrade"
+install -m 644 "$PI/baja-blast-upgrade.service" "$STAGE/lib/systemd/system/baja-blast-upgrade.service"
+install -m 644 "$PI/baja-blast-upgrade.timer"   "$STAGE/lib/systemd/system/baja-blast-upgrade.timer"
+
+# ---------------------------------------------------------------------------
 # 5. Package metadata
 # ---------------------------------------------------------------------------
 cat > "$STAGE/DEBIAN/control" <<CONTROL
@@ -155,7 +171,7 @@ Version: $VERSION
 Section: utils
 Priority: optional
 Architecture: all
-Depends: nodejs (>= 18)
+Depends: nodejs (>= 18), curl
 Recommends: chromium | chromium-browser, wlopm | x11-xserver-utils
 Suggests: baja-blast-standalone, v4l-utils
 Maintainer: Baja Blast <noreply@example.com>
@@ -169,8 +185,10 @@ Description: Ambient kitchen calendar
  installing, upgrading or removing this package.
 CONTROL
 
-# Debian will otherwise prompt about the unit file on upgrade.
+# The household's settings. A conffile, so an edit survives upgrades (the
+# upgrader passes --force-confold, so it's kept without asking anyone).
 cat > "$STAGE/DEBIAN/conffiles" <<'CONF'
+/etc/default/baja-blast
 CONF
 
 # ---------------------------------------------------------------------------
@@ -208,6 +226,7 @@ case "$1" in
       systemctl daemon-reload || true
       systemctl enable baja-blast.service || true
       systemctl restart baja-blast.service || true
+      systemctl enable --now baja-blast-upgrade.timer || true
     fi
 
     IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
@@ -217,7 +236,8 @@ case "$1" in
     echo "  On this screen:  http://localhost:8787/"
     [ -n "$IP" ] && echo "  On your phone:   http://$IP:8787/mobile"
     echo ""
-    echo "  It starts on boot and updates itself. Nothing else to do."
+    echo "  It starts on boot, fills the screen when the desktop starts, and"
+    echo "  updates itself. Nothing else to do. Settings: /etc/default/baja-blast"
     echo ""
     ;;
 esac
@@ -233,6 +253,7 @@ case "$1" in
     if [ -d /run/systemd/system ]; then
       systemctl stop baja-blast.service || true
       systemctl disable baja-blast.service || true
+      systemctl disable --now baja-blast-upgrade.timer || true
     fi
     ;;
 esac

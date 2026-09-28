@@ -1,0 +1,11 @@
+[Unit]
+Description=Check GitHub for a new Baja Blast package
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+RandomizedDelaySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

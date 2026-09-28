@@ -9,6 +9,23 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-09-28 — Full screen on its own, and no more typing on the Pi
+
+- **The Pi now shows the calendar full screen by itself** when its desktop
+  starts — no address bar, no tabs, and Chromium comes straight back if it
+  closes. It waits for the calendar before opening, so a cold boot doesn't
+  show "This site can't be reached", and switching off at the wall no longer
+  leaves a "Restore pages?" bar across the calendar.
+- Pinch-zoom and swipe-back are off on the wall: both are things an elbow
+  does to a touch panel, with no way back.
+- **Text size is one setting**: `KIOSK_SCALE` in `/etc/default/baja-blast`,
+  1.25 to start with for a 21.5" panel. It scales the whole layout, and an
+  edit survives upgrades.
+- **The Pi installs new packages on its own.** Until now only the calendar's
+  code updated itself; anything in the package still meant typing wget and apt
+  at the Pi. Now it checks GitHub every ten minutes and installs a newer
+  release itself. This is the last update that has to be installed by hand.
+
 ## 2026-09-28 — Dinner, timers, notes, and no more empty screen
 
 - **A quiet day isn't an empty screen any more.** Under today's events the

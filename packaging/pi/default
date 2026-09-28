@@ -1,0 +1,14 @@
+# Baja Blast settings for this Pi. Edits here survive upgrades.
+
+# Show the calendar full screen when the desktop starts. 0 turns that off,
+# and takes effect the next time the browser restarts.
+KIOSK=1
+
+# How big everything on the wall is. 1.25 suits a 21.5" 1080p panel; 1 is
+# Chromium's normal size, 1.5 for across the room. Scales the whole layout.
+KIOSK_SCALE=1.25
+
+# Install new versions of this package from GitHub on its own, checked every
+# ten minutes. The calendar's own code updates itself either way; this is for
+# the parts that only a package can change (like the settings above).
+AUTO_UPGRADE=1

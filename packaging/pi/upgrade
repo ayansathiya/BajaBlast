@@ -1,0 +1,66 @@
+#!/bin/sh
+#
+# Keep the package itself up to date, as root, on a timer.
+#
+# The calendar's code already updates itself without root (app/updater.cjs),
+# but anything installed by the package — the kiosk launcher, the service,
+# this script — needs apt. Without this, every one of those changes meant
+# somebody at the Pi typing wget and apt.
+#
+# Cheap when there's nothing new: one HEAD request to GitHub's "latest release"
+# page, which isn't rate-limited like the API, compared with the revision this
+# package was built as. Only a newer release is downloaded.
+#
+set -eu
+
+CONF="${BAJA_BLAST_DEFAULTS:-/etc/default/baja-blast}"
+OPT="${BAJA_BLAST_OPT:-/opt/baja-blast}"
+AUTO_UPGRADE=1
+# shellcheck disable=SC1090
+[ -r "$CONF" ] && . "$CONF"
+case "$AUTO_UPGRADE" in 0|no|off|false) exit 0 ;; esac
+
+[ "$(id -u)" = 0 ] || { echo "baja-blast-upgrade: needs root" >&2; exit 1; }
+
+REPO="$(node -p "const u = require('$OPT/build.json').updates || {}; u.owner && u.repo ? u.owner + '/' + u.repo : ''" 2>/dev/null || true)"
+[ -n "$REPO" ] || { echo "baja-blast-upgrade: no GitHub repo in $OPT/build.json; nothing to check"; exit 0; }
+HAVE="$(node -p "require('$OPT/build.json').rev || 0" 2>/dev/null || echo 0)"
+
+# https://github.com/<repo>/releases/latest redirects to .../releases/tag/v57.
+TAG="$(curl -fsSI --max-time 20 "https://github.com/$REPO/releases/latest" | tr -d '\r' | sed -n 's|^[Ll]ocation: .*/releases/tag/v\([0-9][0-9]*\)$|\1|p' | tail -n 1)"
+[ -n "$TAG" ] || { echo "baja-blast-upgrade: couldn't read the latest release; will try again later"; exit 0; }
+[ "$TAG" -gt "$HAVE" ] || exit 0
+
+echo "baja-blast-upgrade: release v$TAG is newer than the installed v$HAVE"
+
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+chmod 755 "$WORK" # apt's sandbox user has to be able to read the files
+BASE="https://github.com/$REPO/releases/download/v$TAG"
+
+curl -fsSL --retry 3 --max-time 120 -o "$WORK/baja-blast.deb" "$BASE/baja-blast_latest_all.deb"
+NEW="$(dpkg-deb -f "$WORK/baja-blast.deb" Version)"
+OLD="$(dpkg-query -W -f='${Version}' baja-blast 2>/dev/null || echo 0)"
+dpkg --compare-versions "$NEW" gt "$OLD" || { echo "baja-blast-upgrade: $NEW is not newer than $OLD"; exit 0; }
+
+# The standalone package depends on exactly this version, so upgrading one
+# without the other would have apt remove the TV box's kiosk. Both or neither.
+DEBS="$WORK/baja-blast.deb"
+if dpkg-query -W -f='${Status}' baja-blast-standalone 2>/dev/null | grep -q 'install ok installed'; then
+  curl -fsSL --retry 3 --max-time 120 -o "$WORK/baja-blast-standalone.deb" "$BASE/baja-blast-standalone_latest_all.deb"
+  DEBS="$DEBS $WORK/baja-blast-standalone.deb"
+fi
+
+# confold: a household's edits to /etc/default/baja-blast are kept, never
+# asked about — there is nobody at the Pi to answer.
+install_debs() {
+  # shellcheck disable=SC2086
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+    -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef $DEBS
+}
+if ! install_debs; then
+  # Usually a new dependency apt hasn't heard of yet.
+  apt-get update -q || true
+  install_debs
+fi
+echo "baja-blast-upgrade: installed $NEW"

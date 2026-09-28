@@ -1,0 +1,111 @@
+#!/bin/bash
+#
+# The calendar, full screen, on a Pi's own desktop.
+#
+# Started at login by /etc/xdg/autostart/baja-blast-kiosk.desktop, which every
+# Raspberry Pi OS desktop honours (labwc, Wayfire and the old X11 one). The
+# standalone package does the same job for a box with no desktop at all; this
+# is the one for a Pi that boots to a desktop and would otherwise sit there.
+#
+# Everything a household might want to change lives in /etc/default/baja-blast
+# and is read again every time the browser starts, so an edit takes effect on
+# the next restart of the browser without logging out.
+#
+set -u
+
+CONF="${BAJA_BLAST_DEFAULTS:-/etc/default/baja-blast}"
+
+read_conf() {
+  KIOSK=1
+  KIOSK_SCALE=1.25
+  KIOSK_URL="http://localhost:8787/"
+  # shellcheck disable=SC1090
+  [ -r "$CONF" ] && . "$CONF"
+  # A typo here would otherwise reach Chromium as a flag it silently ignores,
+  # and the text would be the wrong size with nothing saying why.
+  case "$KIOSK_SCALE" in
+    ''|*[!0-9.]*|.*|*.*.*) echo "baja-blast-kiosk: KIOSK_SCALE='$KIOSK_SCALE' isn't a number; using 1.25" >&2; KIOSK_SCALE=1.25 ;;
+  esac
+}
+
+kiosk_off() {
+  case "$KIOSK" in 0|no|off|false) return 0 ;; esac
+  return 1
+}
+
+read_conf
+if kiosk_off; then
+  exit 0
+fi
+
+BROWSER=""
+for b in chromium chromium-browser; do
+  if command -v "$b" >/dev/null 2>&1; then BROWSER="$b"; break; fi
+done
+if [ -z "$BROWSER" ]; then
+  MSG="Baja Blast: Chromium isn't installed, so the calendar can't go full screen. Install it with: sudo apt install chromium"
+  echo "$MSG" >&2
+  command -v notify-send >/dev/null 2>&1 && notify-send "Baja Blast" "$MSG"
+  exit 1
+fi
+
+# Wait for the calendar to answer before pointing a browser at it, so a cold
+# boot shows the calendar and not Chromium's "This site can't be reached".
+hostport="${KIOSK_URL#*://}"
+hostport="${hostport%%/*}"
+host="${hostport%%:*}"
+port="${hostport##*:}"
+[ "$port" = "$hostport" ] && port=80
+[ "$host" = "localhost" ] && host=127.0.0.1
+for _ in $(seq 1 "${BAJA_BLAST_KIOSK_WAIT:-120}"); do
+  (exec 3<>"/dev/tcp/$host/$port") 2>/dev/null && break
+  sleep 1
+done
+
+PROFILE_DIR="${HOME}/.config/baja-blast-kiosk"
+mkdir -p "$PROFILE_DIR"
+
+# Hide the pointer when it isn't moving. X11 only: Wayland has no equivalent,
+# and on a touch panel labwc and Wayfire hide it after a tap anyway.
+if [ -n "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ] && command -v unclutter >/dev/null 2>&1; then
+  unclutter --timeout 3 >/dev/null 2>&1 &
+fi
+
+while true; do
+  read_conf
+  kiosk_off && exit 0
+
+  # A kiosk gets switched off at the wall. Chromium records that as a crash,
+  # and the next start opens with a "Restore pages?" bar across the calendar.
+  prefs="$PROFILE_DIR/Default/Preferences"
+  if [ -f "$prefs" ]; then
+    sed -i.bak 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"Crashed"/"exit_type":"Normal"/' "$prefs" 2>/dev/null || true
+    rm -f "$prefs.bak"
+  fi
+
+  # --force-device-scale-factor scales the whole layout, not just the text,
+  # which is what keeps a 21.5" panel at arm's length readable without the
+  # calendar reflowing into a phone layout.
+  # Pinch-zoom and swipe-back are off: both are things an elbow does to a
+  # touch panel, and neither has a way back without a keyboard.
+  "$BROWSER" \
+    --kiosk "$KIOSK_URL" \
+    --user-data-dir="$PROFILE_DIR" \
+    --force-device-scale-factor="$KIOSK_SCALE" \
+    --ozone-platform-hint=auto \
+    --no-first-run \
+    --noerrdialogs \
+    --disable-infobars \
+    --disable-session-crashed-bubble \
+    --disable-pinch \
+    --overscroll-history-navigation=0 \
+    --disable-features=Translate,MediaRouter \
+    --password-store=basic \
+    --check-for-update-interval=31536000 \
+    --autoplay-policy=no-user-gesture-required
+  status=$?
+
+  [ -n "${BAJA_BLAST_KIOSK_ONCE:-}" ] && exit "$status"
+  echo "baja-blast-kiosk: $BROWSER exited ($status), restarting in 3s" >&2
+  sleep 3
+done

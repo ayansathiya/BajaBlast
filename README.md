@@ -34,8 +34,25 @@ automatically.
 
 ### Kiosk mode
 
-Deliberately not handled here — you said you had it. The app is just a web
-server; point whatever you use at `http://localhost:8787/`.
+When the Pi's desktop starts, the calendar fills the screen: no address bar,
+no tabs, pinch-zoom and swipe-back off, and Chromium brought straight back if
+it ever closes. It waits for the server first, so a cold boot never shows
+"This site can't be reached", and it clears Chromium's crash flag each time,
+so switching the Pi off at the wall doesn't leave a "Restore pages?" bar.
+
+Settings are in `/etc/default/baja-blast`, and your edits survive upgrades:
+
+- `KIOSK_SCALE=1.25` — how big everything is (1 is normal, 1.5 for across
+  the room)
+- `KIOSK=0` — leave the desktop alone, if you'd rather run your own kiosk
+
+### Updates to the package itself
+
+The calendar's code updates itself (see Updating). The package — the kiosk
+launcher, the service — is kept up to date too: `baja-blast-upgrade.timer`
+checks GitHub every ten minutes and installs a newer release with apt. Set
+`AUTO_UPGRADE=0` in `/etc/default/baja-blast` to stop it. On a TV box it
+upgrades both packages together.
 
 ## On an Armbian TV box (A95X, S905X, 1GB)
 

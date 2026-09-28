@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Baja Blast
+Comment=The kitchen calendar, full screen
+Exec=/usr/bin/baja-blast-kiosk
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
