@@ -16,9 +16,10 @@ The format matters, because `app/changelog.cjs` parses it: a heading of
   roughly forty seconds for GitHub to build and test it, then a few seconds
   to arrive. Checks that find nothing new cost nothing, however often.
 - Fixed: the previous update (the Good Morning page and the rest below)
-  never reached the kitchen. One of its new checks only failed on GitHub,
-  where the real release number is filled in, so GitHub refused to publish
-  it. It goes out with this one.
+  never reached the kitchen. Two of its new checks only failed on GitHub's
+  Linux machines, not on the Mac, so GitHub refused to publish it. Both are
+  fixed, the checks now also run on Linux before anything is sent, and it
+  all goes out with this one.
 
 ## 2026-09-28 — Good morning, lights out at 11, and updates in seconds
 

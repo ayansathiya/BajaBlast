@@ -42,7 +42,7 @@ function fakeBin(dir, name, body) {
 // the machine running the tests can never be the one that answers.
 function basePath(bin) {
   const sys = fs.mkdtempSync(path.join(tmp, 'sys-'));
-  for (const tool of ['sh', 'bash', 'sed', 'rm', 'mkdir', 'seq', 'sleep', 'cat', 'tr', 'tail', 'grep', 'mktemp', 'chmod', 'node', 'echo', 'cut', 'date']) {
+  for (const tool of ['sh', 'bash', 'sed', 'rm', 'mkdir', 'seq', 'sleep', 'cat', 'tr', 'tail', 'grep', 'mktemp', 'chmod', 'node', 'echo', 'cut', 'date', 'gzip']) {
     const found = spawnSync('/bin/sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim();
     if (found.startsWith('/')) fs.symlinkSync(found, path.join(sys, tool));
   }
@@ -214,7 +214,8 @@ function nightTests() {
     fs.writeFileSync(path.join(dir, 'uptime'), `${uptime}.12 1234.5\n`);
     const alarm = path.join(dir, 'wakealarm');
     fs.writeFileSync(alarm, '');
-    if (!alarmWritable) fs.chmodSync(alarm, 0o444);
+    // Missing rather than read-only: root can write a read-only file.
+    if (!alarmWritable) fs.rmSync(alarm);
     fs.writeFileSync(path.join(dir, 'default'), conf);
     const r = spawnSync('/bin/sh', [NIGHT], {
       encoding: 'utf8',
@@ -230,7 +231,7 @@ function nightTests() {
       },
     });
     const off = fs.readFileSync(log, 'utf8').includes('systemctl poweroff');
-    const wake = fs.readFileSync(alarm, 'utf8').trim();
+    const wake = fs.existsSync(alarm) ? fs.readFileSync(alarm, 'utf8').trim() : '';
     const wakeAt = wake ? new Date(Number(wake) * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }) : null;
     return { ...r, off, wakeAt };
   }
