@@ -467,3 +467,43 @@ export interface IdleScene {
   imageUrl?: string;
   durationMs: number;
 }
+
+/** A kitchen timer. Running ones have `endsAt`; paused ones have `remainingMs`. */
+export interface KitchenTimer {
+  id: string;
+  label: string;
+  durationMs: number;
+  endsAt: string | null;
+  remainingMs: number | null;
+  startedBy: string;
+  createdAt: string;
+}
+
+/** One night's dinner. */
+export interface Meal {
+  title: string;
+  url: string | null;
+  image: string | null;
+  ingredients: string[];
+  note: string;
+  cook: string;
+  plannedAt: string;
+}
+
+export interface MealDay {
+  /** Local YYYY-MM-DD. */
+  date: string;
+  weekday: number;
+  isToday: boolean;
+  meal: Meal | null;
+}
+
+/** A note on the wall — the fridge door. */
+export interface WallNote {
+  id: string;
+  text: string;
+  from: string;
+  personId: string;
+  createdAt: string;
+  expiresAt: string | null;
+}

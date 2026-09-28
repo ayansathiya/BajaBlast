@@ -598,6 +598,13 @@
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent 100%);
 }
 
+.timeline-col {
+  /* Rows hang 17px into the gutter for the person strip, and a scrolling
+     column clips horizontally too — this gives them their room back. */
+  padding-left: 17px;
+  margin-left: -17px;
+}
+
 .timeline-col::-webkit-scrollbar {
   display: none;
 }
@@ -3065,4 +3072,800 @@
 
 .web-mark-x:hover {
   color: var(--accent-2, #ff5c72);
+}
+
+/* ================================================================== *
+ * Kitchen: reminders, the space under today, timers, notes
+ * ================================================================== */
+
+/* ---------- reminders across the top of the calendar ---------- */
+.reminder-strip {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-bottom: clamp(12px, 1.3vw, 18px);
+}
+
+.reminder {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 14px 7px 11px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  font-size: clamp(13px, 1vw, 15px);
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+
+.reminder-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.reminder.now {
+  border-color: var(--accent-2);
+  background: rgba(255, 92, 114, 0.12);
+}
+
+.reminder.now .reminder-dot {
+  animation: reminder-pulse 1.4s ease-in-out infinite;
+}
+
+.reminder.more {
+  color: var(--text-muted);
+  padding: 7px 12px;
+}
+
+@keyframes reminder-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+body.reduced-motion .reminder-dot { animation: none !important; }
+
+/* ---------- day view: timeline on top, the rest below ---------- */
+.view-body.with-extras .timeline-col {
+  flex: 0 1 auto;
+}
+
+/* With the week strip, today's list gets at most a bit under half the
+   column and scrolls inside that; without it (a busy day), the list keeps
+   the room and only dinner and notes sit underneath. */
+.view-body.with-week .timeline-col {
+  /* Natural height when there's room; shrinks and scrolls when there isn't,
+     rather than pushing the week off the bottom. */
+  flex: 0 1 auto;
+}
+
+.view-body.with-week .day-extras {
+  flex: 1 0 auto;
+}
+
+.view-body.with-week .week-ahead {
+  min-height: 190px;
+}
+
+.view-body.with-extras .timeline-col .info-banner {
+  padding-bottom: 14px;
+}
+
+.day-extras {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 1.6vw, 24px);
+  padding-top: clamp(16px, 1.6vw, 22px);
+  border-top: 1px solid var(--hairline);
+}
+
+.view-body:not(.with-week) .day-extras {
+  flex: 0 0 auto;
+}
+
+.extras-top {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 2fr;
+  gap: clamp(18px, 2vw, 32px);
+  align-items: stretch;
+}
+
+.extras-top:has(> :only-child) {
+  grid-template-columns: 1fr;
+}
+
+.extras-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.extras-count {
+  color: var(--accent);
+}
+
+/* ---------- tonight ---------- */
+.tonight-card {
+  min-width: 0;
+}
+
+.tonight-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.tonight-img {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.tonight-text {
+  min-width: 0;
+}
+
+.tonight-title {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 2.1vw, 34px);
+  line-height: 1.08;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tonight-sub {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.tonight-grocery {
+  margin-top: 10px;
+  background: none;
+  border: 1px solid var(--hairline);
+  color: var(--accent);
+  border-radius: 3px;
+  padding: 6px 11px;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.tonight-empty {
+  font-family: var(--font-display);
+  font-size: clamp(18px, 1.5vw, 24px);
+  color: var(--text-muted);
+  line-height: 1.25;
+  max-width: 24ch;
+}
+
+/* ---------- notes ---------- */
+.notes-board {
+  min-width: 0;
+}
+
+.notes-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.note-card {
+  min-width: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--hairline);
+  border-top: 3px solid var(--accent);
+  border-radius: 4px;
+  padding: 12px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.note-text {
+  font-size: clamp(15px, 1.2vw, 19px);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.note-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.note-clear {
+  background: none;
+  border: 1px solid var(--hairline);
+  color: var(--text-muted);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.note-clear:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---------- the week ahead ---------- */
+.week-ahead {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.week-ahead-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--hairline);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.wa-day {
+  background: var(--bg);
+  padding: 12px 12px 10px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  overflow: hidden;
+}
+
+.wa-day.weekend {
+  background: var(--bg-elevated);
+}
+
+.wa-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.wa-dow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.wa-day:first-child .wa-dow {
+  color: var(--accent);
+}
+
+.wa-date {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 1.9vw, 30px);
+  line-height: 1;
+  color: var(--text);
+}
+
+.wa-meal {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 3px;
+  background: rgba(0, 245, 212, 0.08);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wa-meal::before {
+  content: '🍽 ';
+  font-size: 11px;
+}
+
+.wa-meal.empty {
+  background: none;
+  border: 1px dashed var(--hairline);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.wa-meal.empty::before {
+  content: '';
+}
+
+.wa-events {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 0;
+}
+
+.wa-event {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-left: 2px solid var(--hairline);
+  padding-left: 8px;
+  min-width: 0;
+}
+
+.wa-time {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.wa-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wa-more,
+.wa-free {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.wa-free {
+  opacity: 0.6;
+}
+
+/* ---------- timers in the rail ---------- */
+.timers-rail {
+  padding-bottom: 6px;
+}
+
+.rail-link {
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  color: var(--accent);
+}
+
+.timer-row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.timer-row-time {
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1;
+  color: var(--text);
+}
+
+.timer-row.paused .timer-row-time {
+  color: var(--text-muted);
+}
+
+.timer-row.ringing .timer-row-time {
+  color: var(--accent-2);
+}
+
+.timer-row-label {
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timer-row-text {
+  min-width: 0;
+}
+
+.timer-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.timer-row-actions button {
+  background: none;
+  border: 1px solid var(--hairline);
+  color: var(--text-muted);
+  border-radius: 3px;
+  min-width: 34px;
+  height: 30px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.timer-row.ringing .timer-row-actions button {
+  color: #000;
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  padding: 0 12px;
+}
+
+.timer-more {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.timer-ring-track {
+  fill: none;
+  stroke: var(--hairline);
+  stroke-width: 3;
+}
+
+.timer-ring-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.timer-ring-fill.ringing {
+  stroke: var(--accent-2);
+}
+
+/* ---------- a timer going off ---------- */
+.timer-alarm {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--accent-2);
+  box-shadow: 0 20px 60px rgba(255, 92, 114, 0.35);
+  animation: alarm-flash 1.2s ease-in-out infinite;
+}
+
+.timer-alarm-row {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 2vw, 32px);
+  padding: clamp(16px, 1.8vw, 26px) clamp(28px, 4vw, 64px);
+  background: #1a0508;
+  border-bottom: 3px solid var(--accent-2);
+}
+
+.timer-alarm-label {
+  font-family: var(--font-display);
+  font-size: clamp(34px, 3.6vw, 60px);
+  line-height: 1;
+  color: #fff;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timer-alarm-label::before {
+  content: '⏱ ';
+  font-size: 0.7em;
+}
+
+.timer-alarm-over {
+  font-size: clamp(14px, 1.2vw, 18px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+}
+
+.timer-alarm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.timer-alarm-actions button {
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 14px 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.timer-alarm-actions button.primary {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: #000;
+  min-width: 120px;
+}
+
+@keyframes alarm-flash {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.45); }
+}
+
+body.reduced-motion .timer-alarm { animation: none; }
+
+/* ---------- over the idle reel ---------- */
+.idle-kitchen {
+  position: fixed;
+  left: clamp(28px, 4vw, 64px);
+  bottom: clamp(28px, 3vw, 48px);
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.idle-timers {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.idle-timer,
+.idle-reminder {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.idle-timer-time {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.idle-timer-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.idle-reminder {
+  font-size: 18px;
+  font-weight: 700;
+  border-color: var(--accent-2);
+}
+
+/* ---------- the start-a-timer panel ---------- */
+.timer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.timer-panel {
+  width: min(720px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  padding: 28px 32px 24px;
+}
+
+.timer-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 18px;
+}
+
+.timer-panel-head h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 40px;
+  margin: 0;
+}
+
+.timer-panel-close {
+  background: none;
+  border: 1px solid var(--hairline);
+  color: var(--text-muted);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.timer-panel-name,
+.timer-custom input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 13px 15px;
+  font-family: var(--font);
+  font-size: 17px;
+  outline: none;
+}
+
+.timer-panel-name:focus,
+.timer-custom input:focus {
+  border-color: var(--accent);
+}
+
+.timer-presets {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.timer-presets button {
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 14px 0 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font);
+}
+
+.timer-presets button span {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.timer-presets button small {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.timer-presets button:hover {
+  border-color: var(--accent);
+}
+
+.timer-custom {
+  display: flex;
+  gap: 8px;
+}
+
+.timer-custom button,
+.timer-panel-row button {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  padding: 0 20px;
+  font-family: var(--font);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.timer-custom button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.timer-panel-list {
+  margin-top: 20px;
+  border-top: 1px solid var(--hairline);
+}
+
+.timer-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.timer-panel-time {
+  font-family: var(--font-display);
+  font-size: 28px;
+  min-width: 96px;
+}
+
+.timer-panel-row.ringing .timer-panel-time {
+  color: var(--accent-2);
+}
+
+.timer-panel-label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timer-panel-row button {
+  background: none;
+  color: var(--text-muted);
+  border: 1px solid var(--hairline);
+  height: 34px;
+  padding: 0 12px;
+  font-size: 11px;
+}
+
+.timer-panel-note {
+  margin-top: 16px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.55;
 }

@@ -23,6 +23,7 @@ const recipes = require('./recipes.cjs');
 const bake = require('./bake.cjs');
 const changelog = require('./changelog.cjs');
 const bookmarks = require('./bookmarks.cjs');
+const kitchen = require('./kitchen.cjs');
 
 const PORT = 8787;
 
@@ -62,7 +63,7 @@ const PREV_FILE = path.join(DIR, 'store.prev.json');
 const MAX_BACKUPS = 30;
 
 function emptyStore() {
-  return { events: [], grocery: [], settings: null, photos: [], spotify: null, auth: null, completions: [], bake: { picks: {} }, bookmarks: [] };
+  return { events: [], grocery: [], settings: null, photos: [], spotify: null, auth: null, completions: [], bake: { picks: {} }, bookmarks: [], timers: [], meals: {}, notes: [] };
 }
 
 function normalizeStore(data) {
@@ -601,6 +602,34 @@ function wakeDisplay(minutes = 90) {
   displayOverrideUntil = Date.now() + minutes * 60 * 1000;
   applyDisplaySchedule();
   return true;
+}
+
+/* ------------------------------------------------------------------ *
+ * Timers going off
+ * ------------------------------------------------------------------ *
+ *
+ * The countdown itself happens on each screen. The server's one job at the
+ * end is to make sure there's a lit screen to ring on: pasta timed for 9:58pm
+ * against a panel that sleeps at 10 would otherwise go off in the dark. One
+ * timeout per running timer, rebuilt whenever the list changes.
+ */
+let timerWakeHandles = [];
+
+function scheduleTimerWakes() {
+  for (const h of timerWakeHandles) clearTimeout(h);
+  timerWakeHandles = [];
+  const now = Date.now();
+  for (const t of kitchen.normalizeTimers(store.timers)) {
+    if (!t.endsAt) continue;
+    const delay = Date.parse(t.endsAt) - now;
+    if (delay < 0 || delay > 2 ** 31 - 1) continue;
+    const h = setTimeout(() => {
+      wakeDisplay(30);
+      queueBroadcast('timers');
+    }, delay);
+    if (h.unref) h.unref();
+    timerWakeHandles.push(h);
+  }
 }
 
 function scheduleDisplay() {
@@ -1629,6 +1658,111 @@ function startServer(options = {}) {
       return send(res, 200, { ok: true });
     }
 
+    /* ---------------- kitchen timers ---------------- */
+    //
+    // Started from a phone or the wall, ringing on the wall. The server keeps
+    // the moment each one ends; every screen counts down on its own from that,
+    // and `serverNow` lets a phone whose clock is a minute out still agree.
+
+    if (url.pathname === '/api/timers' && req.method === 'GET') {
+      return send(res, 200, { serverNow: new Date().toISOString(), timers: kitchen.normalizeTimers(store.timers) });
+    }
+
+    if (url.pathname === '/api/timers' && req.method === 'POST') {
+      const body = await readBody(req);
+      const result = kitchen.startTimer(store.timers, body);
+      if (result.error) return send(res, 400, { error: result.error });
+      store.timers = result.list;
+      saveStore(store);
+      scheduleTimerWakes();
+      // Someone at the stove glances up to check it took.
+      nudgeKiosk();
+      return send(res, 201, result.timer);
+    }
+
+    const timerAction = url.pathname.match(/^\/api\/timers\/([^/]+)\/(pause|resume|add|dismiss)$/);
+    if (timerAction && req.method === 'POST') {
+      const body = await readBody(req);
+      const result = kitchen.actOnTimer(store.timers, decodeURIComponent(timerAction[1]), timerAction[2], body);
+      if (result.error) return send(res, 400, { error: result.error });
+      store.timers = result.list;
+      saveStore(store);
+      scheduleTimerWakes();
+      return send(res, 200, result.timer || { ok: true });
+    }
+
+    const timerDelete = url.pathname.match(/^\/api\/timers\/([^/]+)$/);
+    if (timerDelete && req.method === 'DELETE') {
+      const result = kitchen.actOnTimer(store.timers, decodeURIComponent(timerDelete[1]), 'dismiss');
+      if (!result.error) {
+        store.timers = result.list;
+        saveStore(store);
+        scheduleTimerWakes();
+      }
+      return send(res, 200, { ok: true });
+    }
+
+    /* ---------------- dinner plan ---------------- */
+
+    if (url.pathname === '/api/meals' && req.method === 'GET') {
+      const days = Math.min(Math.max(Number(url.searchParams.get('days')) || 7, 1), 21);
+      return send(res, 200, { week: kitchen.mealWeek(store.meals, new Date(), days), meals: kitchen.normalizeMeals(store.meals) });
+    }
+
+    const mealGrocery = url.pathname.match(/^\/api\/meals\/(\d{4}-\d{2}-\d{2})\/grocery$/);
+    if (mealGrocery && req.method === 'POST') {
+      const meal = kitchen.normalizeMeals(store.meals)[mealGrocery[1]];
+      if (!meal) return send(res, 404, { error: 'nothing planned that night' });
+      const added = kitchen.missingFromGrocery(meal.ingredients, store.grocery);
+      for (const label of added) {
+        store.grocery.push({ id: crypto.randomUUID(), label, addedBy: meal.title, done: false, createdAt: new Date().toISOString() });
+      }
+      if (added.length) saveStore(store);
+      return send(res, 200, { added, skipped: meal.ingredients.length - added.length });
+    }
+
+    const mealDate = url.pathname.match(/^\/api\/meals\/(\d{4}-\d{2}-\d{2})$/);
+    if (mealDate && req.method === 'PUT') {
+      const body = await readBody(req);
+      const meal = kitchen.normalizeMeal(body);
+      if (!meal) return send(res, 400, { error: 'a dinner needs a name' });
+      store.meals = kitchen.pruneMeals(store.meals);
+      store.meals[mealDate[1]] = meal;
+      saveStore(store);
+      return send(res, 200, { date: mealDate[1], meal });
+    }
+
+    if (mealDate && req.method === 'DELETE') {
+      store.meals = kitchen.normalizeMeals(store.meals);
+      delete store.meals[mealDate[1]];
+      saveStore(store);
+      return send(res, 200, { ok: true });
+    }
+
+    /* ---------------- notes on the wall ---------------- */
+
+    if (url.pathname === '/api/notes' && req.method === 'GET') {
+      return send(res, 200, kitchen.normalizeNotes(store.notes));
+    }
+
+    if (url.pathname === '/api/notes' && req.method === 'POST') {
+      const body = await readBody(req);
+      const result = kitchen.addNote(store.notes, body);
+      if (result.error) return send(res, 400, { error: result.error });
+      store.notes = result.list;
+      saveStore(store);
+      // A note is for someone who isn't looking at a phone — light the wall.
+      nudgeKiosk('day');
+      return send(res, 201, result.note);
+    }
+
+    const noteDelete = url.pathname.match(/^\/api\/notes\/([^/]+)$/);
+    if (noteDelete && req.method === 'DELETE') {
+      store.notes = kitchen.removeNote(store.notes, decodeURIComponent(noteDelete[1]));
+      saveStore(store);
+      return send(res, 200, { ok: true });
+    }
+
     /* ---------------- bake night ---------------- */
 
     if (url.pathname === '/api/bake' && req.method === 'GET') {
@@ -1711,6 +1845,10 @@ function startServer(options = {}) {
         completions: Array.isArray(body.completions) ? body.completions : [],
         bake: bake.normalizeBake(body.bake),
         bookmarks: bookmarks.normalize(body.bookmarks),
+        // Timers are left behind on purpose: a backup's "pasta, 3 minutes"
+        // is from whatever evening the file was saved.
+        meals: kitchen.normalizeMeals(body.meals),
+        notes: kitchen.normalizeNotes(body.notes),
         auth: store.auth,
         spotify: store.spotify,
       };
@@ -1787,6 +1925,7 @@ function startServer(options = {}) {
     console.log('');
     scheduleUpdates();
     scheduleDisplay();
+    scheduleTimerWakes();
   });
 
   return server;

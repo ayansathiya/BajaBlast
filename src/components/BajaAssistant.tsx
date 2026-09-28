@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { parseTimerRequest } from '../engine/kitchen';
 
 interface Props {
   enabled: boolean;
   onAddGrocery: (label: string) => void;
+  onStartTimer?: (seconds: number, label?: string) => void;
   whatsNextLines: string[];
   weatherLine?: string;
   householdContext: string; // compact text summary of today's schedule + grocery, for LLM fallback
@@ -45,12 +47,17 @@ type BajaState = 'idle' | 'listening-for-question' | 'thinking' | 'speaking';
  * typically round-trips through the OS/browser's speech service rather
  * than running fully on-device, so it needs an internet connection.
  */
-export function BajaAssistant({ enabled, onAddGrocery, whatsNextLines, weatherLine, householdContext }: Props) {
+export function BajaAssistant({ enabled, onAddGrocery, onStartTimer, whatsNextLines, weatherLine, householdContext }: Props) {
   const [state, setState] = useState<BajaState>('idle');
   const [caption, setCaption] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
   const awaitingQuestionRef = useRef(false);
   const stoppedIntentionallyRef = useRef(false);
+
+  // A ref, not a dependency: the parent passes a fresh arrow every render,
+  // and restarting speech recognition once a second would deafen it.
+  const startTimerRef = useRef(onStartTimer);
+  startTimerRef.current = onStartTimer;
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -62,6 +69,17 @@ export function BajaAssistant({ enabled, onAddGrocery, whatsNextLines, weatherLi
     async function handleQuery(question: string) {
       const q = question.trim();
       if (!q) return;
+
+      // Timers first: "set a timer for 10 minutes" is the most-said sentence
+      // in any kitchen with a voice assistant in it.
+      const timerAsk = parseTimerRequest(q);
+      if (timerAsk && startTimerRef.current) {
+        startTimerRef.current(timerAsk.seconds, timerAsk.label);
+        setState('speaking');
+        speak(`Timer set${timerAsk.label ? ` for ${timerAsk.label}` : ''}.`);
+        setState('idle');
+        return;
+      }
 
       const addMatch = q.match(/add (.+?) to (the )?(grocery|shopping) list/);
       if (addMatch) {

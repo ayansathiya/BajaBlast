@@ -101,6 +101,17 @@ export interface LeaveNowInfo {
   traffic: 'Light' | 'Moderate' | 'Heavy';
 }
 
+/** Light buffer heuristic: weekday-ish rush hours count as moderate traffic. */
+export function trafficAt(now: Date): LeaveNowInfo['traffic'] {
+  const hour = now.getHours();
+  return (hour >= 16 && hour <= 18) || (hour >= 7 && hour <= 9) ? 'Moderate' : 'Light';
+}
+
+/** Extra minutes to allow on top of an event's travel time. Shared with the reminders, so the two never disagree. */
+export function trafficBufferMinutes(now: Date): number {
+  return trafficAt(now) === 'Moderate' ? 5 : 0;
+}
+
 export function computeLeaveNow(events: TimelineEvent[], now: Date): LeaveNowInfo | null {
   const candidate = events
     .filter((e) => e.status !== 'past' && e.location?.travelMinutes)
@@ -108,10 +119,8 @@ export function computeLeaveNow(events: TimelineEvent[], now: Date): LeaveNowInf
   if (!candidate || !candidate.location?.travelMinutes) return null;
 
   const start = new Date(candidate.start).getTime();
-  // Light buffer heuristic: pretend traffic is heavier during weekday rush hours.
-  const hour = now.getHours();
-  const traffic: LeaveNowInfo['traffic'] = hour >= 16 && hour <= 18 ? 'Moderate' : hour >= 7 && hour <= 9 ? 'Moderate' : 'Light';
-  const bufferMinutes = traffic === 'Moderate' ? 5 : 0;
+  const traffic = trafficAt(now);
+  const bufferMinutes = trafficBufferMinutes(now);
   const leaveAt = start - (candidate.location.travelMinutes + bufferMinutes) * MINUTE;
   const leaveInMinutes = Math.round((leaveAt - now.getTime()) / MINUTE);
 

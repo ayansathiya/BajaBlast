@@ -112,6 +112,35 @@
   .embed iframe { display:block; width:100%; height:352px; border:0; }
   .warn { border-left:2px solid var(--coral); padding-left:14px; }
 
+  /* kitchen: timers, meals, notes */
+  .tmr { display:flex; align-items:center; gap:14px; padding:14px 0; border-top:1px solid var(--line); }
+  .tmr:first-child { border-top:none; }
+  .tmr-time { font-family:'Zodiak',serif; font-size:34px; line-height:1; min-width:112px; font-variant-numeric:tabular-nums; }
+  .tmr.ringing .tmr-time { color:var(--coral); }
+  .tmr.paused .tmr-time { color:var(--muted); }
+  .tmr-label { flex:1; min-width:0; font-weight:700; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tmr-actions { display:flex; gap:6px; flex-shrink:0; }
+  .tmr-actions button { background:none; border:1px solid var(--line); color:var(--text); border-radius:6px; padding:9px 10px; font-size:11px; font-weight:800; font-family:inherit; text-transform:uppercase; }
+  .tmr.ringing .tmr-actions button.done { background:var(--coral); border-color:var(--coral); color:#000; }
+  .presets { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px; }
+  .presets button { background:var(--bg2); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:12px 0; font-family:'Zodiak',serif; font-size:20px; }
+  .presets button small { display:block; font-family:'Satoshi',-apple-system,sans-serif; font-size:9px; font-weight:800; letter-spacing:0.1em; color:var(--muted); text-transform:uppercase; margin-top:2px; }
+  .meal-day { padding:14px 0; border-top:1px solid var(--line); }
+  .meal-day:first-child { border-top:none; }
+  .meal-head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .meal-dow { font-size:11px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); }
+  .meal-day.today .meal-dow { color:var(--accent); }
+  .meal-title { font-family:'Zodiak',serif; font-size:19px; font-weight:700; margin-top:4px; }
+  .meal-title.empty { color:var(--muted); font-family:inherit; font-size:14px; font-weight:600; }
+  .meal-btns { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .meal-btns button { background:none; border:1px solid var(--line); color:var(--text); border-radius:6px; padding:8px 10px; font-size:11px; font-weight:800; font-family:inherit; text-transform:uppercase; }
+  .wallnote { padding:14px; border:1px solid var(--line); border-top:3px solid var(--accent); border-radius:8px; margin-bottom:10px; background:var(--bg2); }
+  .wallnote-text { font-size:16px; font-weight:600; line-height:1.4; overflow-wrap:anywhere; }
+  .wallnote-meta { display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:11px; color:var(--muted); font-weight:700; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chips button { background:none; border:1px solid var(--line); color:var(--muted); border-radius:16px; padding:8px 12px; font-size:12px; font-weight:700; font-family:inherit; }
+  .chips button.on { color:#000; background:var(--accent); border-color:var(--accent); }
+
   .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--accent); color:#000; padding:11px 20px; border-radius:20px; font-weight:800; font-size:13px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:20; }
   .toast.show { opacity:1; }
   /* Sits at the very top rather than floating: this isn't a transient
@@ -180,6 +209,9 @@
 
   <div class="tabs" id="tabs">
     <button class="tab active" data-panel="calendar">Calendar</button>
+    <button class="tab" data-panel="timers">Timers</button>
+    <button class="tab" data-panel="meals">Meals</button>
+    <button class="tab" data-panel="notes">Notes</button>
     <button class="tab" data-panel="people">People</button>
     <button class="tab" data-panel="grocery">Grocery</button>
     <button class="tab" data-panel="chores">Chores</button>
@@ -319,6 +351,68 @@
       keyboard, it's what people have in their hand on the sofa, and whoever
       is at the shop needs the ingredients, not the kiosk.
     -->
+    <!-- TIMERS -->
+    <div id="timers" class="panel">
+      <h2>Timers</h2>
+      <div id="timerList"></div>
+      <h3 style="margin-top:22px">Start one</h3>
+      <div class="field">
+        <input id="timerLabel" placeholder="What's it for? (optional)" maxlength="40" />
+      </div>
+      <div class="presets" id="timerPresets"></div>
+      <div class="add-row">
+        <input id="timerMinutes" inputmode="decimal" placeholder="Other — minutes" onkeydown="if(event.key==='Enter')startTimerCustom()" />
+        <button onclick="startTimerCustom()">Start</button>
+      </div>
+      <div class="note">Rings on the kitchen screen, and on this phone while this page is open. The screen wakes up for it even overnight.</div>
+    </div>
+
+    <!-- MEALS -->
+    <div id="meals" class="panel">
+      <h2>Dinner this week</h2>
+      <div id="mealWeek"></div>
+      <div id="mealEditor" hidden style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line)">
+        <h3 id="mealEditorTitle" style="margin-top:0">Plan dinner</h3>
+        <div class="field">
+          <input id="mealName" placeholder="What's for dinner?" maxlength="80" onkeydown="if(event.key==='Enter')saveMeal()" />
+        </div>
+        <div class="row2">
+          <div class="field"><input id="mealCook" placeholder="Who's cooking" maxlength="40" /></div>
+          <div class="field"><input id="mealNote" placeholder="Note (optional)" maxlength="200" /></div>
+        </div>
+        <div class="field">
+          <textarea id="mealIngredients" rows="3" placeholder="Ingredients, one per line (optional)"></textarea>
+        </div>
+        <button class="submit" onclick="saveMeal()">Save</button>
+        <div class="add-row">
+          <input id="mealSearch" placeholder="…or search recipes" onkeydown="if(event.key==='Enter')searchMeal()" />
+          <button onclick="searchMeal()">Search</button>
+        </div>
+        <div id="mealResults" style="margin-top:12px"></div>
+      </div>
+      <div class="note">Shows on the kitchen screen: tonight's under today, the rest in the week strip. Ingredients can go straight onto the grocery list, skipping anything already on it.</div>
+    </div>
+
+    <!-- NOTES -->
+    <div id="notes" class="panel">
+      <h2>Notes on the wall</h2>
+      <div class="field">
+        <textarea id="noteText" rows="3" maxlength="200" placeholder="Leave a note for the kitchen…"></textarea>
+      </div>
+      <div class="field">
+        <label class="fl">From</label>
+        <div class="chips" id="noteFrom"></div>
+      </div>
+      <div class="field">
+        <label class="fl">Keep it up for</label>
+        <div class="chips" id="noteLasts">
+          <button data-v="day">A day</button><button data-v="3days" class="on">3 days</button><button data-v="week">A week</button><button data-v="keep">Until cleared</button>
+        </div>
+      </div>
+      <button class="submit" onclick="postNote()">Post to the wall</button>
+      <div id="noteList" style="margin-top:22px"></div>
+    </div>
+
     <div id="bake" class="panel">
       <h2 id="bakeHeading">Bake Night</h2>
       <div id="bakeNow"></div>
@@ -654,6 +748,9 @@
       if (t.dataset.panel === 'chores') loadChores();
       if (t.dataset.panel === 'bake') loadBake();
       if (t.dataset.panel === 'links') loadLinks();
+      if (t.dataset.panel === 'timers') loadTimers();
+      if (t.dataset.panel === 'meals') loadMeals();
+      if (t.dataset.panel === 'notes') loadNotes();
     });
   });
 
@@ -1150,6 +1247,288 @@
   async function removeLink(id) {
     await fetch('/api/bookmarks/' + encodeURIComponent(id), { method: 'DELETE' });
     loadLinks();
+  }
+
+  /* ---------------- kitchen timers ---------------- */
+
+  var timerState = { timers: [], skew: 0 };
+  var rangTimers = {};
+  var TIMER_PRESETS = [1, 3, 5, 8, 10, 15, 20, 30];
+
+  document.getElementById('timerPresets').innerHTML = TIMER_PRESETS.map(function (m) {
+    return '<button onclick="startTimer(' + m * 60 + ')">' + m + '<small>min</small></button>';
+  }).join('');
+
+  async function loadTimers() {
+    try {
+      var res = await fetch('/api/timers', { cache: 'no-store' });
+      if (!res.ok) return;
+      var body = await res.json();
+      // The kitchen's clock is the one that counts; this phone may be out.
+      timerState = { timers: body.timers, skew: Date.parse(body.serverNow) - Date.now() };
+      paintTimers();
+    } catch (e) { /* offline: keep counting what we had */ }
+  }
+
+  function timerLeft(t) {
+    if (t.remainingMs != null) return t.remainingMs;
+    return Date.parse(t.endsAt) - (Date.now() + timerState.skew);
+  }
+
+  function fmtLeft(ms) {
+    var total = ms >= 0 ? Math.ceil(ms / 1000) : Math.floor(-ms / 1000);
+    var h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), sec = total % 60;
+    var body = (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(sec).padStart(2, '0');
+    return ms >= 0 ? body : '+' + body;
+  }
+
+  function paintTimers() {
+    var host = document.getElementById('timerList');
+    var list = timerState.timers.slice().sort(function (a, b) { return timerLeft(a) - timerLeft(b); });
+    if (!list.length) { host.innerHTML = '<div class="empty">Nothing counting down.</div>'; return; }
+    host.innerHTML = list.map(function (t) {
+      var left = timerLeft(t);
+      var ringing = t.remainingMs == null && left <= 0;
+      var paused = t.remainingMs != null;
+      if (ringing && !rangTimers[t.id]) {
+        rangTimers[t.id] = true;
+        if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]);
+        phoneChime();
+      }
+      var id = esc(t.id);
+      return '<div class="tmr ' + (ringing ? 'ringing' : paused ? 'paused' : '') + '">' +
+        '<div class="tmr-time">' + fmtLeft(left) + '</div>' +
+        '<div class="tmr-label">' + esc(t.label) + (paused ? ' · paused' : '') + '</div>' +
+        '<div class="tmr-actions">' +
+        (ringing
+          ? '<button onclick="timerAct(\'' + id + '\',\'add\',60)">+1</button><button class="done" onclick="timerAct(\'' + id + '\',\'dismiss\')">Done</button>'
+          : '<button onclick="timerAct(\'' + id + '\',\'add\',60)">+1</button>' +
+            '<button onclick="timerAct(\'' + id + '\',\'' + (paused ? 'resume' : 'pause') + '\')">' + (paused ? '▶' : '❙❙') + '</button>' +
+            '<button onclick="timerAct(\'' + id + '\',\'dismiss\')">✕</button>') +
+        '</div></div>';
+    }).join('');
+  }
+
+  var phoneAudio = null;
+  function phoneChime() {
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      phoneAudio = phoneAudio || new Ctx();
+      var t0 = phoneAudio.currentTime + 0.02;
+      [880, 1318.5, 880, 1318.5].forEach(function (f, i) {
+        var o = phoneAudio.createOscillator(), g = phoneAudio.createGain();
+        o.frequency.value = f;
+        var at = t0 + i * 0.22;
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(0.3, at + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, at + 0.2);
+        o.connect(g); g.connect(phoneAudio.destination);
+        o.start(at); o.stop(at + 0.22);
+      });
+    } catch (e) { /* no sound; the vibration and the red digits still work */ }
+  }
+
+  async function startTimer(seconds) {
+    var label = document.getElementById('timerLabel').value.trim();
+    // Unlocks audio on iOS: it has to be created inside a tap.
+    try { phoneAudio = phoneAudio || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    var res = await fetch('/api/timers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seconds: seconds, label: label || undefined }),
+    });
+    if (!res.ok) { var b = await res.json().catch(function () { return {}; }); toast(b.error || 'Could not start it'); return; }
+    document.getElementById('timerLabel').value = '';
+    document.getElementById('timerMinutes').value = '';
+    toast('Timer started');
+    loadTimers();
+  }
+
+  function startTimerCustom() {
+    var m = parseFloat(document.getElementById('timerMinutes').value);
+    if (!(m > 0)) { toast('How many minutes?'); return; }
+    startTimer(Math.round(m * 60));
+  }
+
+  async function timerAct(id, action, seconds) {
+    await fetch('/api/timers/' + encodeURIComponent(id) + '/' + action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(seconds ? { seconds: seconds } : {}),
+    });
+    loadTimers();
+  }
+
+  /* ---------------- meals ---------------- */
+
+  var mealState = { week: [] };
+  var mealEditing = null;
+
+  async function loadMeals() {
+    try {
+      var res = await fetch('/api/meals?days=10', { cache: 'no-store' });
+      if (!res.ok) return;
+      mealState = await res.json();
+    } catch (e) { return; }
+    var DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    document.getElementById('mealWeek').innerHTML = mealState.week.map(function (d, i) {
+      var m = d.meal;
+      var label = d.isToday ? 'Tonight' : i === 1 ? 'Tomorrow' : DOW[d.weekday];
+      return '<div class="meal-day ' + (d.isToday ? 'today' : '') + '">' +
+        '<div class="meal-head"><span class="meal-dow">' + label + '</span><span class="note" style="margin:0">' + d.date.slice(5).replace('-', '/') + '</span></div>' +
+        (m
+          ? '<div class="meal-title">' + esc(m.title) + '</div>' +
+            (m.cook || m.note ? '<div class="note" style="margin-top:2px">' + esc([m.cook && m.cook + ' cooking', m.note].filter(Boolean).join(' · ')) + '</div>' : '')
+          : '<div class="meal-title empty">Nothing planned</div>') +
+        '<div class="meal-btns">' +
+        '<button onclick="editMeal(\'' + d.date + '\')">' + (m ? 'Change' : 'Plan') + '</button>' +
+        (m && m.ingredients.length ? '<button onclick="mealToGrocery(\'' + d.date + '\')">To grocery (' + m.ingredients.length + ')</button>' : '') +
+        (m && m.url ? '<button onclick="window.open(\'' + esc(m.url) + '\',\'_blank\')">Recipe</button>' : '') +
+        (m ? '<button onclick="clearMeal(\'' + d.date + '\')">Clear</button>' : '') +
+        '</div></div>';
+    }).join('');
+  }
+
+  function editMeal(date) {
+    mealEditing = date;
+    var day = mealState.week.find(function (d) { return d.date === date; });
+    var m = (day && day.meal) || {};
+    document.getElementById('mealEditor').hidden = false;
+    document.getElementById('mealEditorTitle').textContent = 'Dinner · ' + date.slice(5).replace('-', '/');
+    document.getElementById('mealName').value = m.title || '';
+    document.getElementById('mealCook').value = m.cook || '';
+    document.getElementById('mealNote').value = m.note || '';
+    document.getElementById('mealIngredients').value = (m.ingredients || []).join('\n');
+    document.getElementById('mealResults').innerHTML = '';
+    document.getElementById('mealEditor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('mealName').focus();
+  }
+
+  async function saveMeal(extra) {
+    if (!mealEditing) return;
+    var body = Object.assign({
+      title: document.getElementById('mealName').value.trim(),
+      cook: document.getElementById('mealCook').value.trim(),
+      note: document.getElementById('mealNote').value.trim(),
+      ingredients: document.getElementById('mealIngredients').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean),
+    }, extra || {});
+    if (!body.title) { toast('Give it a name'); return; }
+    var res = await fetch('/api/meals/' + mealEditing, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!res.ok) { toast('Could not save'); return; }
+    document.getElementById('mealEditor').hidden = true;
+    mealEditing = null;
+    toast('Planned');
+    loadMeals();
+  }
+
+  async function clearMeal(date) {
+    await fetch('/api/meals/' + date, { method: 'DELETE' });
+    loadMeals();
+  }
+
+  async function mealToGrocery(date) {
+    var res = await fetch('/api/meals/' + date + '/grocery', { method: 'POST' });
+    var body = await res.json();
+    toast(body.added && body.added.length ? 'Added ' + body.added.length + ' to the list' : 'Already on the list');
+    loadGrocery();
+  }
+
+  async function searchMeal() {
+    var q = document.getElementById('mealSearch').value.trim();
+    var host = document.getElementById('mealResults');
+    if (q.length < 2) { host.innerHTML = ''; return; }
+    host.innerHTML = '<div class="note">Searching…</div>';
+    try {
+      var res = await fetch('/api/recipes/search?q=' + encodeURIComponent(q));
+      var list = await res.json();
+      if (!res.ok) throw new Error(list.error || res.status);
+      if (!list.length) { host.innerHTML = '<div class="note">Nothing found — just type the name above.</div>'; return; }
+      host.innerHTML = list.slice(0, 12).map(function (r) {
+        return '<button class="ghost" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left;margin-bottom:8px;padding:8px" ' +
+          'onclick="pickMeal(\'' + esc(r.id) + '\')">' +
+          (r.image ? '<img src="' + esc(r.image) + '" alt="" style="width:46px;height:46px;border-radius:4px;object-fit:cover" />' : '') +
+          '<span>' + esc(r.title) + '</span></button>';
+      }).join('');
+    } catch (err) {
+      host.innerHTML = '<div class="note">Could not search: ' + esc(err.message || err) + '</div>';
+    }
+  }
+
+  async function pickMeal(id) {
+    try {
+      var full = await (await fetch('/api/recipes/' + encodeURIComponent(id))).json();
+      document.getElementById('mealName').value = full.title || '';
+      document.getElementById('mealIngredients').value = (full.ingredients || []).join('\n');
+      await saveMeal({ url: full.source || undefined, image: full.image || undefined });
+      document.getElementById('mealSearch').value = '';
+    } catch (e) {
+      toast('Could not load that recipe');
+    }
+  }
+
+  /* ---------------- notes ---------------- */
+
+  var noteFrom = { from: '', personId: '' };
+  var noteLasts = '3days';
+
+  function paintNoteFrom() {
+    var people = (settings && settings.people ? settings.people : []).filter(function (p) { return p.enabled; });
+    if (!noteFrom.personId && people[0]) noteFrom = { from: people[0].name, personId: people[0].id };
+    document.getElementById('noteFrom').innerHTML = people.map(function (p) {
+      return '<button class="' + (p.id === noteFrom.personId ? 'on' : '') + '" onclick="pickNoteFrom(\'' + esc(p.id) + '\')">' + esc(p.name) + '</button>';
+    }).join('');
+  }
+
+  function pickNoteFrom(id) {
+    var p = settings.people.find(function (x) { return x.id === id; });
+    if (p) noteFrom = { from: p.name, personId: p.id };
+    paintNoteFrom();
+  }
+
+  document.querySelectorAll('#noteLasts button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      noteLasts = b.dataset.v;
+      document.querySelectorAll('#noteLasts button').forEach(function (x) { x.classList.toggle('on', x === b); });
+    });
+  });
+
+  async function loadNotes() {
+    paintNoteFrom();
+    try {
+      var res = await fetch('/api/notes', { cache: 'no-store' });
+      if (!res.ok) return;
+      var list = await res.json();
+      var host = document.getElementById('noteList');
+      if (!list.length) { host.innerHTML = '<div class="empty">The wall is clear.</div>'; return; }
+      host.innerHTML = '<h3 style="margin-top:0">On the wall now</h3>' + list.map(function (n) {
+        var person = ((settings && settings.people) || []).find(function (p) { return p.id === n.personId; });
+        var until = n.expiresAt ? 'until ' + new Date(n.expiresAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : 'until cleared';
+        return '<div class="wallnote"' + (person ? ' style="border-top-color:' + esc(person.color) + '"' : '') + '>' +
+          '<div class="wallnote-text">' + esc(n.text) + '</div>' +
+          '<div class="wallnote-meta"><span>' + esc(n.from || 'Someone') + ' · ' + until + '</span>' +
+          '<button class="del" onclick="removeNote(\'' + esc(n.id) + '\')">Clear</button></div></div>';
+      }).join('');
+    } catch (e) { /* offline */ }
+  }
+
+  async function postNote() {
+    var text = document.getElementById('noteText').value.trim();
+    if (!text) { toast('Write something first'); return; }
+    var res = await fetch('/api/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text, from: noteFrom.from, personId: noteFrom.personId, lasts: noteLasts }),
+    });
+    if (!res.ok) { toast('Could not post it'); return; }
+    document.getElementById('noteText').value = '';
+    toast('On the wall');
+    loadNotes();
+  }
+
+  async function removeNote(id) {
+    await fetch('/api/notes/' + encodeURIComponent(id), { method: 'DELETE' });
+    loadNotes();
   }
 
   /* ---------------- bake night ---------------- */
@@ -2082,6 +2461,14 @@
     setInterval(loadKioskStatus, 3000);
     setInterval(loadGrocery, 5000);
     setInterval(loadEvents, 15000);
+    // Timers: fetched every few seconds wherever you are on the page, so one
+    // going off buzzes this phone even from the grocery tab; redrawn every
+    // second only while you're looking at them.
+    loadTimers();
+    setInterval(loadTimers, 5000);
+    setInterval(function() {
+      if (document.getElementById('timers').classList.contains('active')) paintTimers();
+    }, 1000);
     setInterval(function() {
       if (document.getElementById('chores').classList.contains('active')) loadChores();
     }, 20000);

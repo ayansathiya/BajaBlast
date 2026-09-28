@@ -58,6 +58,10 @@ import { WebBrowser } from './components/WebBrowser';
 import { KioskMenu } from './components/KioskMenu';
 import { BajaAssistant } from './components/BajaAssistant';
 import { startLive } from './hooks/live';
+import { useMeals, useNotes, useTimers } from './hooks/useKitchen';
+import { buildReminders } from './engine/kitchen';
+import { IdleTimers, RailTimers, TimerAlarm, TimerPanel } from './components/Timers';
+import { IdleReminders, NotesBoard, ReminderStrip, TonightCard, WeekAhead } from './components/DayExtras';
 
 // All of these read through the local server, which is the only thing that
 // talks to the outside world (see electron/livedata.cjs). Weather, news and
@@ -93,6 +97,12 @@ export default function App() {
   const { bake, pick: pickBake } = useBake(recipeSettings.enabled);
   const { bookmarks, addBookmark, removeBookmark } = useBookmarks(recipeSettings.browserEnabled);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [timerPanelOpen, setTimerPanelOpen] = useState(false);
+  const { timers, skewMs, start: startTimer, act: actOnTimer } = useTimers();
+  const { week: mealWeek, addToGrocery: mealToGrocery } = useMeals();
+  const { notes, removeNote } = useNotes();
+  // The kiosk is the server, so this is ~0 here; it's the phones that drift.
+  const nowMs = now.getTime() + skewMs;
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
 
@@ -121,7 +131,7 @@ export default function App() {
   // Rolls the display over at midnight and recovers after the Mac wakes.
   // Paused while a panel is open so a reload can't interrupt someone
   // mid-edit, or wipe the board out from under a kid ticking off chores.
-  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen;
+  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen;
   useDailyReload(!panelOpen);
   const isIdle = useIdleTimer(settings.ambient.idleTimeoutSeconds, settings.ambient.enabled && !panelOpen, remote);
 
@@ -178,6 +188,7 @@ export default function App() {
         // recipe screen's own detail view claims Escape ahead of this (see
         // RecipeBrowser) and stops the event when it does.
         if (menuOpen) setMenuOpen(false);
+        else if (timerPanelOpen) setTimerPanelOpen(false);
         else if (browserUrl !== null) setBrowserUrl(null);
         else if (recipesOpen) setRecipesOpen(false);
         else if (choresOpen) setChoresOpen(false);
@@ -186,7 +197,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [browserUrl, recipesOpen, choresOpen, menuOpen]);
+  }, [browserUrl, recipesOpen, choresOpen, menuOpen, timerPanelOpen]);
 
   // Accessibility settings reflected as body classes (global.css hooks into these).
   useEffect(() => {
@@ -280,6 +291,22 @@ export default function App() {
 
   const whatsNextLines = buildWhatsNext(timeline, weather, now);
 
+  // What the wall should be calling out right now: leave-by times, things
+  // starting soon, and — in the evening — chores still not done.
+  const reminders = useMemo(
+    () => buildReminders(todayEvents, choreState.state, settings.people, now),
+    // Minute resolution is plenty; the text is in whole minutes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [todayEvents, choreState.state, settings.people, minuteBucketForExpansion]
+  );
+
+  // The space under today's timeline. Only on the real today — dinner and
+  // "the week ahead" are about now, not about a Tuesday you've paged to.
+  const showExtras = viewMode === 'day' && anchorIsToday;
+  const upcomingToday = timeline.filter((e) => e.status !== 'past').length;
+  const showWeekAhead = showExtras && upcomingToday <= 4;
+  const tonight = mealWeek.find((d) => d.isToday) ?? null;
+
   const comingUp = useMemo(() => {
     // Only the nearest bake, not every Saturday between here and Christmas.
     // Each synthesised bake has its own id, so nextPerSeries can't collapse
@@ -364,6 +391,7 @@ export default function App() {
       <WhatsNext lines={whatsNextLines} />
 
       <div className="main-col">
+        <ReminderStrip reminders={reminders} />
         <ViewSwitcher
           mode={viewMode}
           anchor={anchor}
@@ -378,7 +406,7 @@ export default function App() {
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={`${viewMode}-${anchor.toDateString()}`}
-            className="view-body"
+            className={`view-body ${showExtras ? 'with-extras' : ''} ${showWeekAhead ? 'with-week' : ''}`}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
@@ -395,6 +423,15 @@ export default function App() {
                 weather={settings.intelligence.weatherAwareness ? weather : null}
               />
             )}
+            {showExtras && (
+              <div className="day-extras">
+                <div className="extras-top">
+                  <TonightCard day={tonight} onAddToGrocery={mealToGrocery} />
+                  <NotesBoard notes={notes} people={settings.people} now={now} onRemove={removeNote} max={showWeekAhead ? 3 : 2} />
+                </div>
+                {showWeekAhead && <WeekAhead events={upcomingWithBake} meals={mealWeek} people={settings.people} now={now} />}
+              </div>
+            )}
             {viewMode === 'week' && (
               <WeekView events={visibleEvents} people={settings.people} anchor={anchor} now={now} />
             )}
@@ -404,7 +441,9 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
 
-        {settings.ambient.showNews && viewMode === 'day' && (
+        {/* Under today, dinner and notes take this room and the headlines give way: they're in the
+            ticker along the bottom already. */}
+        {settings.ambient.showNews && viewMode === 'day' && !showExtras && (
           <Briefing news={news} status={newsStatus} updatedAt={newsUpdatedAt} now={now} />
         )}
       </div>
@@ -427,6 +466,10 @@ export default function App() {
         onOpenChores={() => setChoresOpen(true)}
         bake={recipeSettings.enabled ? bake : null}
         onOpenRecipes={() => setRecipesOpen(true)}
+        timersSlot={
+          <RailTimers timers={timers} nowMs={nowMs} onAct={actOnTimer} onOpen={() => setTimerPanelOpen(true)} />
+        }
+        timersVisible={timers.length > 0}
       />
 
       <TickerBar
@@ -477,10 +520,37 @@ export default function App() {
       )}
 
       {isIdle && settings.ambient.enabled && !panelOpen && <IdleReel scenes={idleScenes} />}
+      {isIdle && settings.ambient.enabled && !panelOpen && (
+        <div className="idle-kitchen">
+          <IdleReminders reminders={reminders} />
+          <IdleTimers timers={timers} nowMs={nowMs} />
+        </div>
+      )}
+
+      {timerPanelOpen && (
+        <TimerPanel
+          timers={timers}
+          nowMs={nowMs}
+          onStart={(seconds, label) => startTimer(seconds, label)}
+          onAct={actOnTimer}
+          onClose={() => setTimerPanelOpen(false)}
+        />
+      )}
+
+      {/* Above everything, idle reel and open panels included: the one thing
+          on this screen allowed to interrupt. */}
+      <TimerAlarm
+        timers={timers}
+        nowMs={nowMs}
+        sound
+        onDismiss={(id) => actOnTimer(id, 'dismiss')}
+        onSnooze={(id) => actOnTimer(id, 'add', 60)}
+      />
 
       <BajaAssistant
         enabled={settings.voiceEnabled}
         onAddGrocery={(label) => groceryState.add(label)}
+        onStartTimer={(seconds, label) => startTimer(seconds, label)}
         whatsNextLines={whatsNextLines}
         weatherLine={weatherLine}
         householdContext={householdContext}
@@ -498,12 +568,13 @@ export default function App() {
         enough to hit reliably with a thumb, which is the part that matters.
       */}
 
-      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !isIdle && (
+      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !timerPanelOpen && !isIdle && (
         <KioskMenu
           open={menuOpen}
           onToggle={() => setMenuOpen((v) => !v)}
           onClose={() => setMenuOpen(false)}
           entries={[
+            { key: 'timers', label: 'Timers', icon: '⏱', onPick: () => setTimerPanelOpen(true) },
             ...(recipeSettings.enabled
               ? [{ key: 'recipes', label: 'Recipes', icon: '🍴', onPick: () => setRecipesOpen(true) }]
               : []),

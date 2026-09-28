@@ -9,6 +9,47 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-09-28 — Dinner, timers, notes, and no more empty screen
+
+- **A quiet day isn't an empty screen any more.** Under today's events the
+  day view now shows tonight's dinner, any notes the family has left, and
+  **the week ahead** — the next six days side by side, each with its dinner
+  and what's on. It used to be one line saying "Nothing scheduled" above a
+  screen's worth of black. On a busy day the week strip steps aside so
+  today's list keeps its room. The headlines that used to sit under today
+  give way to all this — they're in the ticker along the bottom already.
+- **Kitchen timers.** Start them from the phone (Timers tab), from the
+  corner menu on the wall, or by saying "Baja, set a timer for 10 minutes
+  for the pasta". Several at once, each with a name, counting down large at
+  the top of the rail. Pause, +1 minute, cancel — from the wall or any
+  phone.
+- When one goes off, a coral banner goes across the top of everything —
+  over the idle reel and over any open screen — until someone presses Done
+  (or Space/Enter on the keyboard). It chimes if the screen can make sound,
+  buzzes a phone that has the page open, and wakes the screen even if it's
+  asleep for the night. A timer nobody answers stops after fifteen minutes.
+- Timers live on the server and store when they end, not how long is left,
+  so an overnight update or a screen reload doesn't lose or restart one.
+  Timers keep running while the idle reel is up, shown small in the corner.
+- **Dinner this week.** A Meals tab on the phone plans each night: type a
+  name, or search the recipe list and its ingredients come with it.
+  Tonight's dinner sits under today on the wall; "Add ingredients to the
+  list" skips anything already on the grocery list, so pressing it twice, or
+  for two dinners that both need onions, doesn't double anything up.
+- **Reminders that speak up.** A line above the calendar says "Jack: leave
+  for RSM in 15 min" from half an hour before you need to go, turning coral
+  in the last five minutes. Events without a travel time get "Piano starts
+  in 20 min". After 6pm it also names whoever still has chores left. The
+  urgent ones show over the idle reel too.
+- Leave-by times now count the same rush-hour allowance everywhere, so the
+  reminder and the timeline never disagree by five minutes.
+- **Notes on the wall.** The phone's Notes tab posts a note to the kitchen
+  screen — from whoever you pick, for a day, three days, a week, or until
+  cleared. Posting one wakes the screen. Tap ✓ on the wall to clear it.
+- Meals and notes are in backups and come back on restore. Timers aren't,
+  on purpose — a backup's "pasta, 3 minutes" is from some other evening.
+- Fixed: the times in today's list had their left edge clipped off.
+
 ## 2026-09-26 — An Android app
 
 - **Baja Blast for Android**: the phone page as a real app, with its own icon,

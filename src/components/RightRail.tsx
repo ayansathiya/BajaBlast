@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, ReactNode, useEffect, useRef, useState } from 'react';
 import {
   CalendarEvent,
   ChoreState,
@@ -29,6 +29,9 @@ interface Props {
   onOpenChores: () => void;
   bake: BakeState | null;
   onOpenRecipes: () => void;
+  /** Running kitchen timers, drawn first when there are any. */
+  timersSlot?: ReactNode;
+  timersVisible?: boolean;
 }
 
 function describeWhen(e: CalendarEvent, now: Date): string {
@@ -129,6 +132,8 @@ export function RightRail({
   onOpenChores,
   bake,
   onOpenRecipes,
+  timersSlot,
+  timersVisible = false,
 }: Props) {
   const load = computeDayLoad(todayEvents);
   const pendingGrocery = grocery.filter((g) => !g.done);
@@ -139,6 +144,7 @@ export function RightRail({
   return (
     <div className="rail">
       <div className="rail-scroll">
+        {timersSlot}
         {showNowPlaying && <NowPlaying nowPlaying={nowPlaying} onCommand={onMusicCommand} />}
 
         {upcoming.length > 0 && (
@@ -148,7 +154,7 @@ export function RightRail({
             </div>
             {/* One upcoming event when music is on screen, two otherwise —
                 the rail can't hold both at full length on a 1080p display. */}
-            {upcoming.slice(0, musicVisible ? 1 : 2).map((e) => {
+            {upcoming.slice(0, musicVisible || timersVisible ? 1 : 2).map((e) => {
               const person = people.find((p) => p.id === e.personId);
               return (
                 <div
@@ -233,7 +239,7 @@ export function RightRail({
             ) : (
               // One fewer line for each strip above it, so a 1080p rail still
               // ends on a whole row rather than a faded one.
-              pendingGrocery.slice(0, 5 - (choreStripVisible ? 1 : 0) - (bakeVisible ? 1 : 0)).map((g) => (
+              pendingGrocery.slice(0, Math.max(1, 5 - (choreStripVisible ? 1 : 0) - (bakeVisible ? 1 : 0) - (timersVisible ? 2 : 0))).map((g) => (
                 <button className="grocery-row" key={g.id} onClick={() => onToggleGrocery(g.id)}>
                   <span className="grocery-check" />
                   <span className="grocery-label">{g.label}</span>

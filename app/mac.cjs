@@ -35,6 +35,9 @@ function createWindow() {
       // inside gets contextIsolation and nodeIntegration off, same as this
       // window, so a site it loads can't reach the household's files.
       webviewTag: true,
+      // A kitchen timer has to be able to make a sound with nobody touching
+      // the screen first; Chromium's default is to wait for a gesture.
+      autoplayPolicy: 'no-user-gesture-required',
     },
   });
 
