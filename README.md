@@ -4,6 +4,13 @@ A calendar, grocery list, chore board and photo frame for a touchscreen on a
 kitchen wall, with a phone app for everyone in the house. Runs on a Raspberry
 Pi. Installs as one file, starts on boot, and updates itself.
 
+**Install on the Pi:** open Terminal on the Pi, paste this line (Ctrl+Shift+V)
+and press Enter. It installs, restarts, and from then on the Pi updates itself.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ayansathiya/BajaBlast/main/setup/pi.sh | bash
+```
+
 ## Getting it onto the Pi
 
 Build the package (on any machine with Node):
