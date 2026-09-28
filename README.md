@@ -78,7 +78,7 @@ bash setup/pi-link.sh   # once: needs SSH on (Pi Configuration → Interfaces)
 npm run deploy          # builds here, sends it over the home network
 ```
 
-A change is on the wall in a few seconds instead of the two or three minutes
+A change is on the wall in a few seconds instead of the minute or so
 GitHub takes to build and test it. Only the app's code goes this way; push to
 GitHub as well, which is where the Pi keeps updating itself from.
 
@@ -304,7 +304,7 @@ npm run github     # once, ever
 ```
 
 After that, `git push` is the entire release process. GitHub builds it, and
-within half an hour the Pi has downloaded the new code and restarted itself.
+within about a minute the Pi has downloaded the new code and restarted itself.
 
 What's published is the *payload* — `dist/` and `app/`, a few hundred KB — not
 the package. `/opt/baja-blast` is owned by apt and left alone; the code that

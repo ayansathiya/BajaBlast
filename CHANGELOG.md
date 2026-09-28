@@ -9,6 +9,17 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-09-28 — Updates in about a minute
+
+- **The screen checks for updates every ten seconds** instead of every
+  forty-five, so a change reaches the wall about a minute after it's sent:
+  roughly forty seconds for GitHub to build and test it, then a few seconds
+  to arrive. Checks that find nothing new cost nothing, however often.
+- Fixed: the previous update (the Good Morning page and the rest below)
+  never reached the kitchen. One of its new checks only failed on GitHub,
+  where the real release number is filled in, so GitHub refused to publish
+  it. It goes out with this one.
+
 ## 2026-09-28 — Good morning, lights out at 11, and updates in seconds
 
 - **A Good Morning page.** When the screen wakes for the day it opens on
@@ -34,7 +45,7 @@ The format matters, because `app/changelog.cjs` parses it: a heading of
   the new version is running.
 - **Updates can come straight from the Mac, in seconds.** Once the Mac and
   the Pi are linked (`bash setup/pi-link.sh`, once), `npm run deploy` sends
-  a change over the home Wi-Fi without waiting two or three minutes for
+  a change over the home Wi-Fi without waiting a minute for
   GitHub to build it. GitHub still gets every change, and the Pi still
   updates itself from there.
 - **The iPhone app, from the Pi in one line.** The "reach it from anywhere"

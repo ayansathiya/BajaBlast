@@ -487,17 +487,17 @@ let notifyKiosk = () => {};
   How soon a push reaches the kitchen.
 
   This used to be half-hourly, which is a long time to stand in front of a
-  screen waiting for a fix you just made. It's forty-five seconds now, and
-  that's affordable because the updater asks conditionally: GitHub answers an
+  screen waiting for a fix you just made. It's ten seconds now, and that's
+  affordable because the updater asks conditionally: GitHub answers an
   unchanged release with 304 Not Modified, and 304s don't count against the
   rate limit. So the common case — nothing has changed — is free, however
   often we ask.
 
-  End to end, a push now reaches the wall in about three minutes: a minute or
-  two for GitHub to build and publish, forty-five seconds at worst before the
-  screen notices, and a few seconds to download 400KB and restart.
+  End to end, a push now reaches the wall in about a minute: forty seconds or
+  so for GitHub to build, test and publish, ten seconds at worst before the
+  screen notices, and a few seconds to download 400KB, restart and reload.
 */
-const UPDATE_CHECK_MS = 45 * 1000;
+const UPDATE_CHECK_MS = 10 * 1000;
 const UPDATE_FIRST_CHECK_MS = 45 * 1000; // let Wi-Fi come up after a cold boot
 // A run of failures means something is wrong — no network, GitHub down, rate
 // limited despite the conditional requests. Backing off turns a fast poll

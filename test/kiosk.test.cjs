@@ -280,6 +280,11 @@ function nightTests() {
 }
 
 const RECEIVE = path.join(ROOT, 'setup', 'pi-receive.sh');
+// The launcher only starts a build numbered above the one it shipped with,
+// and in CI that's the real release number, stamped before the tests run.
+const SHIPPED_REV = Number(JSON.parse(fs.readFileSync(path.join(ROOT, 'build.json'), 'utf8')).rev) || 0;
+const OLD_REV = SHIPPED_REV + 1;
+const NEW_REV = SHIPPED_REV + 2;
 
 function receiveTests() {
   // A payload as setup/deploy-pi.sh packs it, received into a data folder
@@ -300,16 +305,16 @@ function receiveTests() {
     const running = path.join(updates, 'v9');
     fs.mkdirSync(path.join(running, 'dist'), { recursive: true });
     fs.mkdirSync(path.join(running, 'app'), { recursive: true });
-    fs.writeFileSync(path.join(running, 'build.json'), JSON.stringify({ build: '2026-09-28-9', rev: 9 }));
+    fs.writeFileSync(path.join(running, 'build.json'), JSON.stringify({ build: '2026-09-28-9', rev: OLD_REV }));
     fs.writeFileSync(path.join(running, 'dist', 'index.html'), 'old');
     fs.writeFileSync(path.join(running, 'app', 'server.cjs'), '');
-    fs.writeFileSync(path.join(updates, 'active.json'), JSON.stringify({ dir: 'v9', rev: 9, blocked: [] }));
+    fs.writeFileSync(path.join(updates, 'active.json'), JSON.stringify({ dir: 'v9', rev: OLD_REV, blocked: [] }));
     for (const name of existing) fs.mkdirSync(path.join(updates, name));
 
     const src = path.join(dir, 'src');
     fs.mkdirSync(path.join(src, 'dist'), { recursive: true });
     fs.mkdirSync(path.join(src, 'app'), { recursive: true });
-    fs.writeFileSync(path.join(src, 'build.json'), JSON.stringify({ build: '2026-09-28-mac-abc123', rev: 10 }));
+    fs.writeFileSync(path.join(src, 'build.json'), JSON.stringify({ build: '2026-09-28-mac-abc123', rev: NEW_REV }));
     fs.writeFileSync(path.join(src, 'dist', 'index.html'), 'new');
     if (complete) fs.writeFileSync(path.join(src, 'app', 'server.cjs'), '');
     const tgz = path.join(dir, 'p.tgz');
@@ -337,7 +342,7 @@ function receiveTests() {
   {
     const r = run({ existing: ['mac-older', 'mac-oldest'] });
     check('it lands and becomes the active build', r.status === 0 && r.active.dir === 'mac-2026-09-28-mac-abc123', r.stderr);
-    check('the launcher would start it', r.chosen.rev === 10 && r.chosen.source === 'installed', JSON.stringify(r.chosen));
+    check('the launcher would start it', r.chosen.rev === NEW_REV && r.chosen.source === 'installed', JSON.stringify(r.chosen));
     check('the GitHub build it replaced is kept to roll back to', r.active.previous === 'v9' && r.left.includes('v9'));
     check('older Mac builds are tidied away', !r.left.includes('mac-older') && !r.left.includes('mac-oldest'));
     check('rollback bookkeeping is carried over', Array.isArray(r.active.blocked));

@@ -258,7 +258,7 @@ async function main() {
   /*
     Asking often, for free.
 
-    The screen checks every forty-five seconds now rather than every half
+    The screen checks every ten seconds now rather than every half
     hour, which is only affordable because an unchanged release answers 304
     and 304s don't count against GitHub's hourly limit. If the conditional
     requests ever stop happening, the polling becomes sixty-odd real API
