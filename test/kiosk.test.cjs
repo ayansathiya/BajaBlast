@@ -125,14 +125,22 @@ async function kioskTests() {
 
   console.log('\nA real browser window when the calendar asks');
   {
-    // The kiosk's Chromium stays open (sleeps) while the calendar asks for a
-    // window, as it would on the wall.
+    // The kiosk's Chromium stays open while the calendar asks for a window,
+    // as it would on the wall, until the test says it can close. Every wait
+    // is for the thing itself to happen, never a fixed sleep: a busy CI
+    // machine is slow in ways a timer can't predict.
     const dir = fs.mkdtempSync(path.join(tmp, 'w-'));
     const bin = path.join(dir, 'bin');
     const log = path.join(dir, 'calls');
     const data = path.join(dir, 'data');
+    const release = path.join(dir, 'release');
     fs.mkdirSync(data);
-    fakeBin(bin, 'chromium', `printf '%s\\n' "$@" >> "${log}"; echo --- >> "${log}"; case "$*" in *--kiosk*) sleep 4 ;; esac`);
+    fs.writeFileSync(log, '');
+    fakeBin(
+      bin,
+      'chromium',
+      `printf '%s\\n' "$@" >> "${log}"; echo --- >> "${log}"; case "$*" in *--kiosk*) while [ ! -e "${release}" ]; do sleep 0.1; done ;; esac`
+    );
     const confFile = path.join(dir, 'default');
     fs.writeFileSync(confFile, `KIOSK_URL=${url}\n`);
     const child = spawn('/bin/bash', [KIOSK], {
@@ -142,27 +150,46 @@ async function kioskTests() {
         BAJA_BLAST_DEFAULTS: confFile,
         BAJA_BLAST_DATA: data,
         BAJA_BLAST_KIOSK_ONCE: '1',
-        BAJA_BLAST_KIOSK_WAIT: '3',
+        BAJA_BLAST_KIOSK_WAIT: '10',
         BAJA_BLAST_WATCH_SECONDS: '0.2',
       },
       stdio: 'ignore',
     });
-    await new Promise((r) => setTimeout(r, 1200));
-    const alive = fs.existsSync(path.join(data, 'kiosk-alive'));
-    fs.writeFileSync(path.join(data, 'browser-open.json'), JSON.stringify({ url: 'https://www.allrecipes.com/' }));
-    await new Promise((r) => setTimeout(r, 1200));
-    fs.writeFileSync(path.join(data, 'browser-open.json'), JSON.stringify({ url: 'file:///etc/passwd' }));
-    await new Promise((r) => setTimeout(r, 1200));
     const exited = new Promise((r) => child.on('exit', r));
+
+    async function until(test, ms = 15000) {
+      const end = Date.now() + ms;
+      while (Date.now() < end) {
+        if (test()) return true;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return false;
+    }
+    const calls = () =>
+      fs
+        .readFileSync(log, 'utf8')
+        .split('---\n')
+        .filter((c) => c.trim())
+        .map((c) => c.trim().split('\n'));
+    const windows = () => calls().filter((a) => a.includes('--new-window'));
+    const request = path.join(data, 'browser-open.json');
+
+    const alive = await until(() => fs.existsSync(path.join(data, 'kiosk-alive')));
+    fs.writeFileSync(request, JSON.stringify({ url: 'https://www.allrecipes.com/' }));
+    await until(() => windows().length >= 1);
+    // Then something that isn't a web address, and wait for it to be used up.
+    fs.writeFileSync(request, JSON.stringify({ url: 'file:///etc/passwd' }));
+    const consumed = await until(() => !fs.existsSync(request));
+    fs.writeFileSync(release, '');
     await exited;
-    const calls = fs.readFileSync(log, 'utf8').split('---\n').filter(Boolean).map((c) => c.trim().split('\n'));
-    const windows = calls.filter((a) => a.includes('--new-window'));
+
+    const w = windows();
     check('it tells the calendar it is listening', alive);
-    check('it opens a real browser window for the address asked for', windows.length >= 1 && windows[0][windows[0].length - 1] === 'https://www.allrecipes.com/', JSON.stringify(calls));
-    check('in its own profile, apart from the kiosk', windows[0] && windows[0].some((x) => x.endsWith('.config/baja-blast-browser')));
-    check('with the Pi\'s on-screen keyboard allowed', windows[0] && windows[0].includes('--enable-wayland-ime'));
-    check('and never for anything that isn\'t a web address', windows.length === 1);
-    check('each request is used once', !fs.existsSync(path.join(data, 'browser-open.json')));
+    check('it opens a real browser window for the address asked for', w.length >= 1 && w[0][w[0].length - 1] === 'https://www.allrecipes.com/', JSON.stringify(calls()));
+    check('in its own profile, apart from the kiosk', w[0] && w[0].some((x) => x.endsWith('.config/baja-blast-browser')));
+    check('with the Pi\'s on-screen keyboard allowed', w[0] && w[0].includes('--enable-wayland-ime'));
+    check('and never for anything that isn\'t a web address', consumed && w.length === 1);
+    check('each request is used once', !fs.existsSync(request));
   }
 
   srv.close();
