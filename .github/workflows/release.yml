@@ -78,8 +78,16 @@ jobs:
       # every stick in the house takes the bad build and then can't be told
       # about the fix. These drive real tarballs through download, checksum
       # rejection, atomic swap, and the two-strikes rollback.
+      # A failing check is also written out as an annotation: those show on
+      # the run's public page, where the raw log needs a GitHub login — and
+      # "the tests failed" with no way to see which one is no help to anyone.
       - name: Test the update path
-        run: npm test
+        run: |
+          set -o pipefail
+          if ! npm test 2>&1 | tee test-output.log; then
+            grep -E "FAIL|Error|rror:" test-output.log | head -20 | sed 's/^/::error title=Test failed::/' || true
+            exit 1
+          fi
 
       # Fail loudly here rather than shipping a payload the bootstrap will
       # refuse to load. isUsablePayload() is the same check the kiosk runs.

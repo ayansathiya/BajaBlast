@@ -29,6 +29,9 @@ The format matters, because `app/changelog.cjs` parses it: a heading of
   heavy blur and see-through boxes were more than the Pi's graphics could
   redraw smoothly, and the brightness setting made the whole screen redraw
   with every frame. They're lighter now and look the same.
+- Behind the scenes: when an update fails GitHub's checks and can't be
+  sent to the kitchen, the reason is now shown on GitHub's public page, so
+  it can be fixed straight away instead of guessed at.
 
 ## 2026-09-28 — Updates in about a minute
 
