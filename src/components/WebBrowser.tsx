@@ -3,12 +3,9 @@ import { BakePick, Bookmark } from '../data/models';
 import { BakeState, bakeWhen, bakeWhenPhrase } from '../engine/bake';
 import { qrToSvg } from '../engine/qr';
 import { normalizeUrl } from '../engine/websearch';
-import { TouchKeyboard } from './TouchKeyboard';
 
 interface Props {
   home: string;
-  /** Wall panels with no keyboard get the on-screen one; nothing else does. */
-  onScreenKeyboard: boolean;
   startUrl?: string;
   bake: BakeState | null;
   onPickBake: (recipe: Partial<BakePick> & { title: string }, date?: string) => Promise<boolean>;
@@ -67,7 +64,6 @@ function hostOf(url: string): string {
 
 export function WebBrowser({
   home,
-  onScreenKeyboard,
   startUrl,
   bake,
   onPickBake,
@@ -81,7 +77,6 @@ export function WebBrowser({
   const [url, setUrl] = useState(first);
   // null when nobody is editing: the box then mirrors the live URL.
   const [typed, setTyped] = useState<string | null>(null);
-  const [keyboard, setKeyboard] = useState(false);
   const [title, setTitle] = useState('');
   const [blocked, setBlocked] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -103,7 +98,6 @@ export function WebBrowser({
     setBlocked(false);
     setStack((s) => [...s.slice(0, at + 1), target]);
     setAt((n) => n + 1);
-    setKeyboard(false);
     setTyped(null);
   }
 
@@ -227,17 +221,13 @@ export function WebBrowser({
             }
           }}
           placeholder="Search Google, or type an address"
+          data-kb="url"
           spellCheck={false}
           autoComplete="off"
           aria-label="Address"
         />
         {title && <span className="web-title" title={title}>{title}</span>}
 
-        {onScreenKeyboard && (
-          <button className="web-btn" onClick={() => setKeyboard((v) => !v)} aria-label="On-screen keyboard">
-            ⌨
-          </button>
-        )}
 
         <button
           className={`web-btn web-star ${saved ? 'on' : ''}`}
@@ -258,19 +248,6 @@ export function WebBrowser({
         </button>
       </div>
 
-      {keyboard && onScreenKeyboard && (
-        <div className="web-kb">
-          <div className="web-kb-field">{typed || 'Type an address, or something to search for'}</div>
-          <TouchKeyboard
-            value={typed ?? ''}
-            onChange={setTyped}
-            onSubmit={() => go(typed ?? '')}
-            onClose={() => setKeyboard(false)}
-            urlMode
-            submitLabel="Go"
-          />
-        </div>
-      )}
 
       {/*
         The saved list, always in reach.

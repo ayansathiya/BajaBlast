@@ -63,6 +63,7 @@ import { buildReminders } from './engine/kitchen';
 import { IdleTimers, RailTimers, TimerAlarm, TimerPanel } from './components/Timers';
 import { IdleReminders, NotesBoard, ReminderStrip, TonightCard, WeekAhead } from './components/DayExtras';
 import { GoodMorning } from './components/GoodMorning';
+import { ScreenKeyboard } from './components/ScreenKeyboard';
 import { dayKey, isMorning } from './engine/morning';
 
 // Which day the Good Morning page was last put away, so a tap keeps it away
@@ -106,7 +107,38 @@ export default function App() {
   // `null` means the browser is closed; a string (possibly empty) means it's
   // open, at that URL or at the configured home page.
   const [browserUrl, setBrowserUrl] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const recipeSettings = settings.recipes ?? DEFAULT_SETTINGS.recipes;
+
+  /*
+    Opening the browser.
+
+    On the Pi, a real Chromium window over the calendar: most big sites refuse
+    to be shown inside another page, so the in-page browser just says "refused
+    to connect" for them. The kiosk launcher opens the window (see
+    /api/browser/open). In the Mac app, and anywhere no launcher is listening,
+    it's the in-page browser as before.
+  */
+  async function openBrowser(url?: string) {
+    if (!/electron/i.test(navigator.userAgent)) {
+      try {
+        const res = await fetch('/api/browser/open', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: url || recipeSettings.browserHome }),
+        });
+        const result = await res.json();
+        if (result.ok) {
+          setNotice('Opening the browser — close its window to come back to the calendar');
+          window.setTimeout(() => setNotice(null), 6000);
+          return;
+        }
+      } catch {
+        // Fall through to the in-page browser.
+      }
+    }
+    setBrowserUrl(url ?? '');
+  }
   const { bake, pick: pickBake } = useBake(recipeSettings.enabled);
   const { bookmarks, addBookmark, removeBookmark } = useBookmarks(recipeSettings.browserEnabled);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -418,9 +450,17 @@ export default function App() {
         '--text-muted': tokens.textMuted,
         '--accent': tokens.accent,
         '--hairline': tokens.hairline,
-        filter: `brightness(${settings.display.brightness})`,
       }}
     >
+      {/*
+        Brightness is a black layer over everything, not a CSS filter on the
+        root. A filter there makes the Pi's graphics chip redraw the whole
+        screen for every frame of anything that moves — the ambient reel's
+        drift and crossfades — and that's what made it flicker and tear.
+      */}
+      {settings.display.brightness < 1 && (
+        <div className="screen-dimmer" style={{ opacity: Math.min(0.85, 1 - settings.display.brightness) }} aria-hidden />
+      )}
       <ClockDate now={now} clockStyle={settings.display.clockStyle} />
       <HeaderWeather
         weather={weather}
@@ -538,7 +578,7 @@ export default function App() {
           bake={bake}
           onPickBake={pickBake}
           onAddGrocery={(label) => groceryState.add(label)}
-          onOpenBrowser={(url) => setBrowserUrl(url ?? '')}
+          onOpenBrowser={(url) => openBrowser(url)}
           onClose={() => setRecipesOpen(false)}
           now={now}
         />
@@ -547,7 +587,6 @@ export default function App() {
       {browserUrl !== null && recipeSettings.browserEnabled && (
         <WebBrowser
           home={recipeSettings.browserHome}
-          onScreenKeyboard={recipeSettings.onScreenKeyboard}
           startUrl={browserUrl || undefined}
           bake={bake}
           onPickBake={pickBake}
@@ -635,7 +674,7 @@ export default function App() {
               ? [{ key: 'recipes', label: 'Recipes', icon: '🍴', onPick: () => setRecipesOpen(true) }]
               : []),
             ...(recipeSettings.browserEnabled
-              ? [{ key: 'browser', label: 'Browser', icon: '🌐', onPick: () => setBrowserUrl('') }]
+              ? [{ key: 'browser', label: 'Browser', icon: '🌐', onPick: () => openBrowser() }]
               : []),
             ...(settings.chores?.enabled !== false && choreState.state
               ? [{ key: 'chores', label: 'Chores', icon: '✓', onPick: () => setChoresOpen(true) }]
@@ -657,6 +696,11 @@ export default function App() {
           onRemoveGrocery={groceryState.remove}
         />
       )}
+
+      {notice && <div className="recipe-toast app-notice">{notice}</div>}
+
+      {/* Last, so it sits above every panel whose text box it's typing into. */}
+      <ScreenKeyboard always={recipeSettings.onScreenKeyboard} />
     </div>
   );
 }

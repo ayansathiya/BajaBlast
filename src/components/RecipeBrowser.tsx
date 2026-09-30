@@ -3,7 +3,6 @@ import { BakePick, Recipe, RecipeCard, RecipeCategory, RecipeSection, RecipeSett
 import { BakeState, bakeWhen, bakeWhenPhrase } from '../engine/bake';
 import { fetchRecipe, fetchSection, fetchSections, searchRecipes } from '../providers/recipesApi';
 import { googleRecipeSearch } from '../engine/websearch';
-import { TouchKeyboard } from './TouchKeyboard';
 
 interface Props {
   settings: RecipeSettings;
@@ -36,7 +35,6 @@ export function RecipeBrowser({ settings, bake, onPickBake, onAddGrocery, onOpen
   const [error, setError] = useState<string | null>(null);
 
   const [query, setQuery] = useState('');
-  const [keyboard, setKeyboard] = useState(false);
   const [searching, setSearching] = useState(false);
   const searchInput = useRef<HTMLInputElement | null>(null);
 
@@ -117,7 +115,8 @@ export function RecipeBrowser({ settings, bake, onPickBake, onAddGrocery, onOpen
   function runSearch() {
     const q = query.trim();
     if (q.length < 2) return;
-    setKeyboard(false);
+    // Put the keyboard away: the results are what they want to see now.
+    (document.activeElement as HTMLElement | null)?.blur();
     setSearching(true);
     setLoading(true);
     setError(null);
@@ -281,23 +280,8 @@ export function RecipeBrowser({ settings, bake, onPickBake, onAddGrocery, onOpen
               Search Google
             </button>
           )}
-          {/* Only on a wall panel that has no keyboard — see Settings. */}
-          {settings.onScreenKeyboard && (
-            <button className="btn-secondary" onClick={() => setKeyboard((v) => !v)} aria-label="On-screen keyboard">
-              ⌨
-            </button>
-          )}
         </div>
 
-        {keyboard && settings.onScreenKeyboard && (
-          <TouchKeyboard
-            value={query}
-            onChange={setQuery}
-            onSubmit={runSearch}
-            onClose={() => setKeyboard(false)}
-            submitLabel="Search"
-          />
-        )}
 
         <div className="recipe-tabs">
           {tabs.map((tab) => (

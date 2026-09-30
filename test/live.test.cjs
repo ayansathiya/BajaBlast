@@ -185,6 +185,34 @@ async function main() {
     check('wake is accepted', woke.status === 200, `${woke.status} ${woke.body.slice(0, 80)}`);
   }
 
+  console.log('\nOpening a real browser window on the Pi');
+  {
+    const bad = await post('/api/browser/open', { url: 'javascript:alert(1)' });
+    check('only web addresses', bad.status === 400);
+
+    const DATA = process.env.BAJA_BLAST_DATA;
+    const alive = DATA && path.join(DATA, 'kiosk-alive');
+    const request = DATA && path.join(DATA, 'browser-open.json');
+    if (alive) fs.rmSync(alive, { force: true });
+    const nobody = await post('/api/browser/open', { url: 'https://www.google.com/' });
+    check('with no kiosk launcher listening, it says so (and the page falls back)', nobody.status === 200 && JSON.parse(nobody.body).ok === false);
+
+    if (DATA) {
+      check('and leaves no request behind', !fs.existsSync(request));
+      fs.writeFileSync(alive, '');
+      const yes = await post('/api/browser/open', { url: 'https://www.allrecipes.com/' });
+      check('with the launcher listening, it asks for the window', yes.status === 200 && JSON.parse(yes.body).ok === true);
+      const req = JSON.parse(fs.readFileSync(request, 'utf8'));
+      check('for that address', req.url === 'https://www.allrecipes.com/');
+
+      const stale = new Date(Date.now() - 60_000);
+      fs.utimesSync(alive, stale, stale);
+      fs.rmSync(request, { force: true });
+      const gone = await post('/api/browser/open', { url: 'https://www.google.com/' });
+      check('a launcher that stopped a minute ago counts as gone', JSON.parse(gone.body).ok === false && !fs.existsSync(request));
+    }
+  }
+
   stream.close();
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);

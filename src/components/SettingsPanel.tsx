@@ -1439,8 +1439,8 @@ function RecipesManager({
       </Row>
 
       <Row
-        label="On-screen keyboard"
-        desc="Only for a wall panel with no keyboard of its own. Off means you type with yours."
+        label="On-screen keyboard, always"
+        desc="It comes up by itself on a touch screen whenever you tap a text box. On shows it even with a mouse."
       >
         <Toggle
           on={recipes.onScreenKeyboard}

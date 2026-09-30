@@ -41,7 +41,7 @@ export function IdleReel({ scenes }: Props) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 1.4, ease: 'easeInOut' }}
-          style={{ position: 'absolute', inset: 0 }}
+          style={{ position: 'absolute', inset: 0, willChange: 'opacity' }}
         >
           <div className={`idle-bg ${scene.background === 'photo' ? 'idle-bg-photo' : scene.background}`}>
             {scene.background === 'photo' && scene.imageUrl && (

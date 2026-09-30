@@ -9,6 +9,27 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-09-30 — A keyboard on the screen, a browser that works, and a smoother reel
+
+- **An on-screen keyboard for every text box.** Tap any box on the wall —
+  a timer's name, an event, a setting, a recipe search, a web address — and
+  a keyboard comes up along the bottom, with capitals, numbers and
+  punctuation. Tap elsewhere or press Hide and it goes away. It comes up by
+  itself on a touch screen and stays out of the way when a real keyboard is
+  plugged in. Settings → Recipes → "On-screen keyboard, always" shows it
+  even with a mouse.
+- **The browser opens every site now.** It used to say "refused to connect"
+  for most big sites — Google, Allrecipes, YouTube — because they won't be
+  shown inside another page. On the Pi, Browser now opens a real Chromium
+  window over the calendar, with tabs, an address bar and a back button;
+  close it and you're back on the calendar. The Pi's own on-screen keyboard
+  is allowed in it. (This part arrives with the Pi's next package update,
+  within about ten minutes of this one.)
+- **Ambient mode doesn't glitch.** The slideshow's moving background,
+  heavy blur and see-through boxes were more than the Pi's graphics could
+  redraw smoothly, and the brightness setting made the whole screen redraw
+  with every frame. They're lighter now and look the same.
+
 ## 2026-09-28 — Updates in about a minute
 
 - **The screen checks for updates every ten seconds** instead of every

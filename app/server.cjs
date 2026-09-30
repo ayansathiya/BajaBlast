@@ -1633,6 +1633,38 @@ function startServer(options = {}) {
       return send(res, 200, { build: BUILD, entries: changelog.entries() });
     }
 
+    /* ---------------- a real browser window on the Pi ---------------- */
+    //
+    // Most big sites refuse to be shown inside another page, so the in-page
+    // browser can't show them — Chromium just says "refused to connect". On
+    // the Pi the answer is a real Chromium window over the calendar, opened
+    // by the kiosk launcher (packaging/pi/kiosk): this service is sandboxed
+    // away from the desktop and can't open windows itself. The two talk
+    // through a file in the data folder, which both of them can write.
+    //
+    // { ok: false } means no launcher is listening (a Mac, a phone, an older
+    // package), and the caller falls back to the in-page browser.
+
+    if (url.pathname === '/api/browser/open' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const target = typeof body.url === 'string' ? body.url.trim() : '';
+      if (!/^https?:\/\/[^\s]+$/i.test(target) || target.length > 2000) {
+        return send(res, 400, { ok: false, error: 'not a web address' });
+      }
+      let listening = false;
+      try {
+        // The launcher touches this every couple of seconds while it runs.
+        listening = Date.now() - fs.statSync(path.join(DIR, 'kiosk-alive')).mtimeMs < 15_000;
+      } catch {
+        listening = false;
+      }
+      if (!listening) return send(res, 200, { ok: false, reason: 'no-launcher' });
+      const file = path.join(DIR, 'browser-open.json');
+      fs.writeFileSync(`${file}.tmp`, JSON.stringify({ url: target, at: new Date().toISOString() }));
+      fs.renameSync(`${file}.tmp`, file);
+      return send(res, 200, { ok: true });
+    }
+
     /* ---------------- bookmarks ---------------- */
     //
     // Shared, not per-browser: someone saves a page on the sofa and it's on

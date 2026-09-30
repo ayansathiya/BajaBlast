@@ -46,7 +46,12 @@ async function waitForIt() {
     stop();
     process.exit(1);
   }
-  const r = spawnSync('node', [path.join(ROOT, 'test', 'live.test.cjs')], { stdio: 'inherit' });
+    // The data folder goes along, for the checks that need to see what the
+  // server wrote there (the browser-window request, for one).
+  const r = spawnSync('node', [path.join(ROOT, 'test', 'live.test.cjs')], {
+    stdio: 'inherit',
+    env: { ...process.env, BAJA_BLAST_DATA: DATA },
+  });
   stop();
   fs.rmSync(DATA, { recursive: true, force: true });
   process.exit(r.status === null ? 1 : r.status);

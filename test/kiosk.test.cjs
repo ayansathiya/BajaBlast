@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const net = require('node:net');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const KIOSK = path.join(ROOT, 'packaging', 'pi', 'kiosk');
@@ -42,7 +42,7 @@ function fakeBin(dir, name, body) {
 // the machine running the tests can never be the one that answers.
 function basePath(bin) {
   const sys = fs.mkdtempSync(path.join(tmp, 'sys-'));
-  for (const tool of ['sh', 'bash', 'sed', 'rm', 'mkdir', 'seq', 'sleep', 'cat', 'tr', 'tail', 'grep', 'mktemp', 'chmod', 'node', 'echo', 'cut', 'date', 'gzip']) {
+  for (const tool of ['sh', 'bash', 'sed', 'rm', 'mkdir', 'seq', 'sleep', 'cat', 'tr', 'tail', 'grep', 'mktemp', 'chmod', 'node', 'echo', 'cut', 'date', 'gzip', 'touch']) {
     const found = spawnSync('/bin/sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim();
     if (found.startsWith('/')) fs.symlinkSync(found, path.join(sys, tool));
   }
@@ -121,6 +121,48 @@ async function kioskTests() {
   {
     const r = run({ prefs: '{"profile":{"exited_cleanly":false,"exit_type":"Crashed"}}' });
     check('a power cut at the wall doesn\'t leave a restore bar', r.prefsAfter === '{"profile":{"exited_cleanly":true,"exit_type":"Normal"}}', r.prefsAfter);
+  }
+
+  console.log('\nA real browser window when the calendar asks');
+  {
+    // The kiosk's Chromium stays open (sleeps) while the calendar asks for a
+    // window, as it would on the wall.
+    const dir = fs.mkdtempSync(path.join(tmp, 'w-'));
+    const bin = path.join(dir, 'bin');
+    const log = path.join(dir, 'calls');
+    const data = path.join(dir, 'data');
+    fs.mkdirSync(data);
+    fakeBin(bin, 'chromium', `printf '%s\\n' "$@" >> "${log}"; echo --- >> "${log}"; case "$*" in *--kiosk*) sleep 4 ;; esac`);
+    const confFile = path.join(dir, 'default');
+    fs.writeFileSync(confFile, `KIOSK_URL=${url}\n`);
+    const child = spawn('/bin/bash', [KIOSK], {
+      env: {
+        PATH: basePath(bin),
+        HOME: path.join(dir, 'home'),
+        BAJA_BLAST_DEFAULTS: confFile,
+        BAJA_BLAST_DATA: data,
+        BAJA_BLAST_KIOSK_ONCE: '1',
+        BAJA_BLAST_KIOSK_WAIT: '3',
+        BAJA_BLAST_WATCH_SECONDS: '0.2',
+      },
+      stdio: 'ignore',
+    });
+    await new Promise((r) => setTimeout(r, 1200));
+    const alive = fs.existsSync(path.join(data, 'kiosk-alive'));
+    fs.writeFileSync(path.join(data, 'browser-open.json'), JSON.stringify({ url: 'https://www.allrecipes.com/' }));
+    await new Promise((r) => setTimeout(r, 1200));
+    fs.writeFileSync(path.join(data, 'browser-open.json'), JSON.stringify({ url: 'file:///etc/passwd' }));
+    await new Promise((r) => setTimeout(r, 1200));
+    const exited = new Promise((r) => child.on('exit', r));
+    await exited;
+    const calls = fs.readFileSync(log, 'utf8').split('---\n').filter(Boolean).map((c) => c.trim().split('\n'));
+    const windows = calls.filter((a) => a.includes('--new-window'));
+    check('it tells the calendar it is listening', alive);
+    check('it opens a real browser window for the address asked for', windows.length >= 1 && windows[0][windows[0].length - 1] === 'https://www.allrecipes.com/', JSON.stringify(calls));
+    check('in its own profile, apart from the kiosk', windows[0] && windows[0].some((x) => x.endsWith('.config/baja-blast-browser')));
+    check('with the Pi\'s on-screen keyboard allowed', windows[0] && windows[0].includes('--enable-wayland-ime'));
+    check('and never for anything that isn\'t a web address', windows.length === 1);
+    check('each request is used once', !fs.existsSync(path.join(data, 'browser-open.json')));
   }
 
   srv.close();
