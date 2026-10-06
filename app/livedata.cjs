@@ -247,54 +247,69 @@ const NAME_HINTS = {
   'BTC-USD': 'Bitcoin',
 };
 
-async function yahooQuote(symbol) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`;
-  const res = await fetchWithTimeout(url, 8000);
-  if (!res.ok) throw new Error(`yahoo ${res.status}`);
-  const meta = (await res.json())?.chart?.result?.[0]?.meta;
-  if (!meta) throw new Error('yahoo shape');
+// Yahoo answers a plain client and turns away one dressed as a browser:
+// since early October 2026 the Chrome-like UA above gets 429 "Too Many
+// Requests" on every call, which left the ticker saying "Market data
+// unavailable" all day. Two hosts, because one is sometimes throttled when
+// the other isn't.
+const YAHOO_HOSTS = ['query1.finance.yahoo.com', 'query2.finance.yahoo.com'];
+const YAHOO_HEADERS = { 'User-Agent': 'Mozilla/5.0' };
+
+async function yahooJson(pathAndQuery) {
+  let lastErr;
+  for (const host of YAHOO_HOSTS) {
+    try {
+      const res = await fetchWithTimeout(`https://${host}${pathAndQuery}`, 8000, YAHOO_HEADERS);
+      if (!res.ok) throw new Error(`yahoo ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
+
+function quoteFrom(meta, symbol) {
+  if (!meta) return null;
   const price = meta.regularMarketPrice;
   const prev = meta.chartPreviousClose ?? meta.previousClose;
-  if (typeof price !== 'number' || typeof prev !== 'number' || prev === 0) throw new Error('yahoo values');
+  if (typeof price !== 'number' || typeof prev !== 'number' || prev === 0) return null;
+  const sym = (meta.symbol || symbol).toUpperCase();
   return {
-    symbol: symbol.toUpperCase(),
-    name: meta.shortName || NAME_HINTS[symbol.toUpperCase()] || symbol.toUpperCase(),
+    symbol: sym,
+    name: meta.shortName || NAME_HINTS[sym] || sym,
     price,
     changePct: ((price - prev) / prev) * 100,
   };
 }
 
-// Stooq: one CSV request for every symbol at once. US tickers get a ".us"
-// suffix there. Columns: Symbol,Date,Time,Open,High,Low,Close,Volume.
-async function stooqQuotes(symbols) {
-  const list = symbols.map((s) => `${s.toLowerCase().replace('-usd', '')}.us`).join(',');
-  const res = await fetchWithTimeout(`https://stooq.com/q/l/?s=${list}&f=sd2t2ohlcv&h&e=csv`, 8000);
-  if (!res.ok) throw new Error(`stooq ${res.status}`);
-  const lines = (await res.text()).trim().split('\n').slice(1);
-  const out = [];
-  for (const line of lines) {
-    const [sym, , , open, , , close] = line.split(',');
-    const o = Number(open);
-    const c = Number(close);
-    if (!isFinite(o) || !isFinite(c) || o === 0) continue;
-    const symbol = sym.replace(/\.us$/i, '').toUpperCase();
-    out.push({
-      symbol,
-      name: NAME_HINTS[symbol] || symbol,
-      price: c,
-      changePct: ((c - o) / o) * 100,
-    });
-  }
-  if (out.length === 0) throw new Error('stooq empty');
+async function yahooQuote(symbol) {
+  const data = await yahooJson(`/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`);
+  const quote = quoteFrom(data?.chart?.result?.[0]?.meta, symbol);
+  if (!quote) throw new Error('yahoo shape');
+  return quote;
+}
+
+// The fallback: every symbol in one request. (It used to be Stooq's CSV
+// download, which Stooq has since taken down.)
+async function yahooSpark(symbols) {
+  const data = await yahooJson(`/v7/finance/spark?symbols=${symbols.map(encodeURIComponent).join(',')}&range=1d&interval=1d`);
+  const out = (data?.spark?.result || [])
+    .map((r) => quoteFrom(r?.response?.[0]?.meta, r?.symbol || ''))
+    .filter(Boolean);
+  if (out.length === 0) throw new Error('spark empty');
   return out;
 }
 
 async function loadStocks(symbols) {
   const settled = await Promise.allSettled(symbols.map(yahooQuote));
   const ok = settled.filter((r) => r.status === 'fulfilled').map((r) => r.value);
-  if (ok.length > 0) return ok;
-  // Yahoo blocked or offline — try the CSV fallback before giving up.
-  return stooqQuotes(symbols);
+  if (ok.length === symbols.length) return ok;
+  // Some or all refused — one request for the lot before giving up.
+  const spark = await yahooSpark(symbols).catch(() => []);
+  const merged = new Map([...spark, ...ok].map((q) => [q.symbol, q]));
+  if (merged.size === 0) throw new Error('no market data');
+  return [...merged.values()];
 }
 
 const stockCaches = new Map();

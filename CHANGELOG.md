@@ -9,6 +9,18 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-06 — Share prices along the bottom again
+
+- **"Trending" shows prices again.** Yahoo, where the prices come from,
+  started turning the calendar away as "too many requests" because of how
+  it introduced itself, and the backup source had shut down, so the ticker
+  said "Market data unavailable" even with a working connection. Both are
+  fixed: the main source answers again, and if it ever refuses, a second
+  way of asking fetches every price in one go.
+- If weather, headlines and prices all say unavailable at once, the Pi
+  itself isn't reaching the internet — no update can fix that from here,
+  because updates need the internet too.
+
 ## 2026-10-05 — Baja listens for real, a Thirukkural a day, and a YouTube button
 
 - **Baja actually works now.** It used to listen through the browser's own
