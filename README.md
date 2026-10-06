@@ -250,11 +250,43 @@ pins whatever page you're looking at as the week's bake — so a recipe from a
 blog or a grandmother's site works the same as one from the built-in list.
 
 On the Mac it's Electron's `<webview>`: a real browser tab, sandboxed, with no
-access to the household's files. On the Pi it's an iframe, which can only show
-sites that allow being embedded — many recipe sites do, most large sites don't.
-When one refuses, the panel says so and shows a QR code to finish on a phone.
-It would have been easy to strip the header with a proxy; that overrides a
+access to the household's files. On the Pi it's a real Chromium window over
+the calendar, with its own profile, opened by a small helper in the desktop
+session (`baja-blast-kiosk --watch`); close it and the calendar is underneath.
+The ▶ button beside the corner menu opens YouTube in it directly. Where no
+helper is running, it falls back to an iframe, which can only show sites that
+allow being embedded; when one refuses, the panel says so and shows a QR code
+to finish on a phone. Stripping the header with a proxy would override a
 site's explicit instruction not to be framed, which isn't ours to override.
+
+## Baja, the voice assistant
+
+Say "Baja" and a question ("Baja, what's next?"), or "Baja", a pause, and the
+question — or tap the microphone button in the bottom corner and just ask.
+Switch it on in Settings → Baja with a USB microphone plugged into the Pi.
+
+It listens on the Pi itself, with [Vosk](https://alphacephei.com/vosk/), and
+answers in [Piper](https://github.com/rhasspy/piper)'s voice (espeak-ng if
+Piper won't run). Nothing is recorded and no audio leaves the house. The
+browser's own speech recognition can't be used: Chromium sends audio to
+Google with a key only Google's Chrome builds carry, so on a Pi it fails
+silently. The first time Baja is switched on it sets itself up in
+`/var/lib/baja-blast/voice` — a Python environment and about 100MB of model
+and voice, a few minutes — and never again.
+
+"Baja" isn't an English word, so an ordinary recogniser hears "badger" or
+"roger". A second recogniser that only knows Baja and its usual mishearings
+picks it out, and it only counts after a pause, so "pass the butter" doesn't
+wake it. Timers, the grocery list, what's next, the weather and today's kural
+are answered on the spot; anything else goes to Claude (with an API key) or a
+local Ollama model.
+
+## A Thirukkural a day
+
+Beside the date, small: one kural a day, in order from Kural 1 on 5 October
+2026, in Tamil, transliterated, and in English, and larger on the Good Morning
+page. Settings → Display switches it off. The text is from
+[tk120404/thirukkural](https://github.com/tk120404/thirukkural) (Apache-2.0).
 
 ## Electricity
 

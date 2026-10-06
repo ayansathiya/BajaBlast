@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS: HouseholdSettings = {
     highContrast: false,
     clockStyle: 'digital',
     schedule: { enabled: true, on: '06:00', off: '23:00', wakeOnTouch: true, hdmiCec: false },
+    kural: true,
   },
   ambient: {
     idleTimeoutSeconds: 150,
@@ -103,4 +104,5 @@ export const DEFAULT_SETTINGS: HouseholdSettings = {
   voiceEnabled: false,
   bajaApiKey: '',
   bajaLocalModel: 'llama3.2',
+  bajaMicDevice: 'default',
 };

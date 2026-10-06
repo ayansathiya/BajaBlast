@@ -1,8 +1,11 @@
+import { ReactNode } from 'react';
 import { DisplaySettings } from '../data/models';
 
 interface Props {
   now: Date;
   clockStyle: DisplaySettings['clockStyle'];
+  /** Today's Thirukkural, set just above the date. */
+  kural?: ReactNode;
 }
 
 function formatHM(d: Date): { hm: string; ampm: string } {
@@ -13,7 +16,7 @@ function formatHM(d: Date): { hm: string; ampm: string } {
   return { hm: `${h}:${m}`, ampm };
 }
 
-export function ClockDate({ now, clockStyle }: Props) {
+export function ClockDate({ now, clockStyle, kural }: Props) {
   const { hm, ampm } = formatHM(now);
   const seconds = now.getSeconds().toString().padStart(2, '0');
   const dateLine = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
@@ -25,7 +28,8 @@ export function ClockDate({ now, clockStyle }: Props) {
         {clockStyle === 'digital-seconds' && <span className="seconds">:{seconds}</span>}
         <span style={{ fontSize: '0.28em', marginLeft: '0.2em', color: 'var(--text-muted)' }}>{ampm}</span>
       </div>
-      <div className="date-block">
+      <div className={`date-block ${kural ? 'with-kural' : ''}`}>
+        {kural}
         <div className="date-line">{dateLine}</div>
       </div>
     </div>

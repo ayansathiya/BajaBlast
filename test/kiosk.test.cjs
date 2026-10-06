@@ -42,7 +42,7 @@ function fakeBin(dir, name, body) {
 // the machine running the tests can never be the one that answers.
 function basePath(bin) {
   const sys = fs.mkdtempSync(path.join(tmp, 'sys-'));
-  for (const tool of ['sh', 'bash', 'sed', 'rm', 'mkdir', 'seq', 'sleep', 'cat', 'tr', 'tail', 'grep', 'mktemp', 'chmod', 'node', 'echo', 'cut', 'date', 'gzip', 'touch']) {
+  for (const tool of ['sh', 'bash', 'sed', 'rm', 'mkdir', 'seq', 'sleep', 'cat', 'tr', 'tail', 'grep', 'mktemp', 'chmod', 'node', 'echo', 'cut', 'date', 'gzip', 'touch', 'flock', 'stat', 'readlink']) {
     const found = spawnSync('/bin/sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim();
     if (found.startsWith('/')) fs.symlinkSync(found, path.join(sys, tool));
   }
@@ -190,6 +190,75 @@ async function kioskTests() {
     check('with the Pi\'s on-screen keyboard allowed', w[0] && w[0].includes('--enable-wayland-ime'));
     check('and never for anything that isn\'t a web address', consumed && w.length === 1);
     check('each request is used once', !fs.existsSync(request));
+  }
+
+  console.log('\nThe browser window helper on its own, as an update starts it');
+  {
+    // The package starts `baja-blast-kiosk --watch` in a session that's
+    // already running, so Browser works straight after the update instead of
+    // after the next restart. It mustn't need the kiosk, and there must only
+    // ever be one, however many times it's started.
+    const dir = fs.mkdtempSync(path.join(tmp, 'x-'));
+    const bin = path.join(dir, 'bin');
+    const log = path.join(dir, 'calls');
+    const data = path.join(dir, 'data');
+    fs.mkdirSync(data);
+    fs.writeFileSync(log, '');
+    fakeBin(bin, 'chromium', `printf '%s\\n' "$@" >> "${log}"; echo --- >> "${log}"`);
+    const env = {
+      PATH: basePath(bin),
+      HOME: path.join(dir, 'home'),
+      BAJA_BLAST_DEFAULTS: path.join(dir, 'none'),
+      BAJA_BLAST_DATA: data,
+      BAJA_BLAST_WATCH_SECONDS: '0.2',
+    };
+    // A copy, so the test can "update" it underneath the running helper.
+    const script = path.join(dir, 'baja-blast-kiosk');
+    fs.copyFileSync(KIOSK, script);
+    const first = spawn('/bin/bash', [script, '--watch'], { env, stdio: 'ignore' });
+    const until = async (test, ms = 15000) => {
+      const end = Date.now() + ms;
+      while (Date.now() < end) {
+        if (test()) return true;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return false;
+    };
+    const alive = await until(() => fs.existsSync(path.join(data, 'kiosk-alive')));
+    fs.writeFileSync(path.join(data, 'browser-open.json'), JSON.stringify({ url: 'https://www.youtube.com/' }));
+    const opened = await until(() => fs.readFileSync(log, 'utf8').includes('https://www.youtube.com/'));
+    check('it listens without the kiosk', alive);
+    check('and opens the window asked for', opened);
+
+    const hasFlock = spawnSync('sh', ['-c', 'command -v flock'], { env }).status === 0;
+    if (hasFlock) {
+      const second = spawnSync('/bin/bash', [script, '--watch'], { env, timeout: 10000 });
+      check('a second one bows out, so a tap never opens two windows', second.status === 0 && first.exitCode === null);
+    }
+
+    // An update replaces the file. The helper picks the new one up by
+    // itself — it used to keep running the old copy until the Pi restarted.
+    const marker = path.join(dir, 'new-version-ran');
+    const updated = fs
+      .readFileSync(KIOSK, 'utf8')
+      .replace('browser_watch() {', `browser_watch() {\n  touch "${marker}"`);
+    fs.writeFileSync(`${script}.new`, updated);
+    const later = new Date(Date.now() + 5000);
+    fs.utimesSync(`${script}.new`, later, later);
+    fs.renameSync(`${script}.new`, script);
+    const statWorks = spawnSync('sh', ['-c', `stat -c %Y "${script}"`], { env }).status === 0;
+    if (statWorks) {
+      check('an update to the helper takes over without a restart', await until(() => fs.existsSync(marker)));
+      fs.writeFileSync(log, '');
+      fs.writeFileSync(path.join(data, 'browser-open.json'), JSON.stringify({ url: 'https://www.allrecipes.com/' }));
+      check('and still opens windows', await until(() => fs.readFileSync(log, 'utf8').includes('allrecipes')));
+      if (hasFlock) {
+        const third = spawnSync('/bin/bash', [script, '--watch'], { env, timeout: 10000 });
+        check('still the only one', third.status === 0 && first.exitCode === null);
+      }
+    }
+    first.kill();
+    await new Promise((r) => (first.exitCode !== null ? r() : first.on('exit', r)));
   }
 
   srv.close();

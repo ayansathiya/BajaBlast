@@ -176,8 +176,8 @@ Version: $VERSION
 Section: utils
 Priority: optional
 Architecture: all
-Depends: nodejs (>= 18), curl
-Recommends: chromium | chromium-browser, wlopm | x11-xserver-utils
+Depends: nodejs (>= 18), curl, python3, python3-venv, alsa-utils
+Recommends: chromium | chromium-browser, wlopm | x11-xserver-utils, espeak-ng, fonts-noto-core
 Suggests: baja-blast-standalone, v4l-utils
 Maintainer: Baja Blast <noreply@example.com>
 Installed-Size: $INSTALLED_KB
@@ -234,6 +234,25 @@ case "$1" in
       systemctl enable --now baja-blast-upgrade.timer || true
       # Does nothing except on a Pi 5, and only at the screen's off time.
       systemctl enable --now baja-blast-night.timer || true
+    fi
+
+    # The browser-window helper (baja-blast-kiosk --watch) normally starts with
+    # the desktop. A desktop that's already up — every update — gets it now,
+    # so Browser and YouTube work straight away rather than after the next
+    # restart. It needs the session's display, so it borrows the running
+    # kiosk's; no kiosk running means no desktop to open windows on, and
+    # login will start it. systemd-run puts it outside this script's own
+    # service, which would otherwise take it down when the upgrade finishes.
+    KPID="$(pgrep -u "$DESKTOP_USER" -f '/usr/bin/baja-blast-kiosk' 2>/dev/null | head -n 1 || true)"
+    if [ -n "$KPID" ] && [ -r "/proc/$KPID/environ" ] && command -v systemd-run >/dev/null 2>&1; then
+      SETENV=""
+      for v in WAYLAND_DISPLAY DISPLAY XDG_RUNTIME_DIR XAUTHORITY DBUS_SESSION_BUS_ADDRESS HOME; do
+        val="$(tr '\0' '\n' < "/proc/$KPID/environ" | sed -n "s/^$v=//p" | head -n 1)"
+        [ -n "$val" ] && SETENV="$SETENV --setenv=$v=$val"
+      done
+      # shellcheck disable=SC2086
+      systemd-run --quiet --collect --uid="$DESKTOP_USER" --gid="$DESKTOP_GROUP" $SETENV \
+        /usr/bin/baja-blast-kiosk --watch >/dev/null 2>&1 || true
     fi
 
     # Come back to the calendar after a power cut or the overnight power-off

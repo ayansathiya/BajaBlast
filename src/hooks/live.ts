@@ -24,6 +24,32 @@ let pageBuild: string | null = null;
 
 const listeners = new Set<() => void>();
 
+/** What Baja's ears on the server report (app/baja_listen.py, app/voice.cjs). */
+export interface VoiceEvent {
+  type: 'wake' | 'listening' | 'partial' | 'heard' | 'timeout' | 'status';
+  text?: string;
+  status?: VoiceStatus;
+}
+
+export interface VoiceStatus {
+  state: 'off' | 'installing' | 'starting' | 'listening' | 'error';
+  step: string | null;
+  error: string | null;
+  lastHeard: string | null;
+  lastHeardAt: string | null;
+  tts: 'piper' | 'espeak' | null;
+}
+
+const voiceListeners = new Set<(msg: VoiceEvent) => void>();
+
+/** Hear what Baja hears. Returns the unsubscribe. */
+export function onVoice(listener: (msg: VoiceEvent) => void): () => void {
+  voiceListeners.add(listener);
+  return () => {
+    voiceListeners.delete(listener);
+  };
+}
+
 function emit() {
   for (const listener of listeners) listener();
 }
@@ -70,6 +96,16 @@ export function startLive(): void {
       if (!build) return;
       if (pageBuild === null) pageBuild = build;
       else if (build !== pageBuild) window.location.reload();
+    });
+
+    es.addEventListener('voice', (ev) => {
+      let msg: VoiceEvent;
+      try {
+        msg = JSON.parse((ev as MessageEvent).data);
+      } catch {
+        return;
+      }
+      for (const listener of voiceListeners) listener(msg);
     });
 
     es.addEventListener('change', () => {

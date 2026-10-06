@@ -186,6 +186,8 @@ export interface DisplaySettings {
    * a sixth of what the screen does.
    */
   schedule: DisplaySchedule;
+  /** A Thirukkural a day beside the date. */
+  kural?: boolean;
 }
 
 export interface AmbientSettings {
@@ -454,6 +456,8 @@ export interface HouseholdSettings {
   voiceEnabled: boolean;
   bajaApiKey?: string;
   bajaLocalModel?: string;
+  /** The microphone Baja listens on, as an ALSA device name. */
+  bajaMicDevice?: string;
 }
 
 /** A single beat within the idle "Today Reel." */

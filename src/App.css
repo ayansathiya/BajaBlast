@@ -103,10 +103,11 @@
   align-items: center;
   gap: clamp(20px, 3vw, 56px);
   padding-top: 14px;
-  /* The two corner buttons float over this row's right end. Without this the
+  /* The three corner buttons (Baja, YouTube, the menu) float over this row's
+     right end. Without this the
      last headline slides underneath them and is read as a rendering fault
      rather than as a button sitting on top of text. */
-  padding-right: 144px;
+  padding-right: 276px;
   border-top: 1px solid var(--hairline);
   min-width: 0;
 }
@@ -1495,53 +1496,166 @@
   letter-spacing: 0.02em;
 }
 
-/* ---------- Baja voice assistant indicator ---------- */
-.baja-indicator {
-  position: absolute;
-  /* Sits in the strip of padding below the ticker bar, not on top of it. */
-  bottom: clamp(12px, 1.4vw, 20px);
-  right: clamp(28px, 4vw, 72px);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted);
-  background: var(--bg-elevated);
-  border: 1px solid var(--hairline);
-  padding: 8px 14px;
-  border-radius: 20px;
-  z-index: 40;
-  transition: color 0.3s ease, border-color 0.3s ease;
-  max-width: 280px;
-}
-
-.baja-indicator.listening-for-question,
-.baja-indicator.thinking,
-.baja-indicator.speaking {
-  color: var(--text);
-  border-color: var(--accent);
-}
-
-.baja-label {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.baja-dot {
-  width: 7px;
-  height: 7px;
+/* ---------- Baja voice assistant ---------- */
+/* Its own round button, third from the corner: [Baja] [YouTube] [menu].
+   It used to be a pill at the same spot as the menu button and covered it. */
+.baja-mic {
+  position: fixed;
+  right: calc(clamp(28px, 4vw, 64px) + 132px);
+  bottom: 22px;
+  z-index: 15;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: var(--text-muted);
-  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.14));
+  color: var(--text-muted, #7a7a7a);
+  opacity: 0.75;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.18s ease, color 0.18s ease, transform 0.12s ease;
 }
 
-.baja-indicator.listening-for-question .baja-dot,
-.baja-indicator.thinking .baja-dot,
-.baja-indicator.speaking .baja-dot {
-  background: var(--accent);
+.baja-mic:active {
+  transform: scale(0.92);
+}
+
+/* Not listening yet (setting up, or something's wrong): dimmer, so it reads
+   as "not now" rather than as broken. */
+.baja-mic.installing,
+.baja-mic.starting,
+.baja-mic.error,
+.baja-mic.off {
+  opacity: 0.4;
+}
+
+.baja-mic.listening-for-question,
+.baja-mic.thinking,
+.baja-mic.speaking {
+  opacity: 1;
+  color: var(--accent);
+  border-color: var(--accent);
   animation: pulse 1.2s ease-in-out infinite;
+}
+
+/* What Baja heard and what it's saying. Above everything, the idle reel
+   included: an answer nobody can see is an answer to nobody. */
+.baja-bubble {
+  position: fixed;
+  right: clamp(28px, 4vw, 64px);
+  bottom: 92px;
+  z-index: 70;
+  max-width: min(460px, calc(100vw - 32px));
+  padding: 14px 18px;
+  background: var(--bg-elevated, #151515);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  animation: menu-in 0.14s ease-out;
+}
+
+.baja-bubble-name {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* ---------- Thirukkural of the day ---------- */
+/* Beside the clock, above the date: the date stays where it was, at the
+   clock's foot, and the kural fills the space over it that was empty. */
+.date-block.with-kural {
+  align-self: flex-end;
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.kural {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.kural-header {
+  max-width: 560px;
+  margin-bottom: 4px;
+}
+
+.kural-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.kural-num {
+  color: var(--accent);
+  margin-left: 4px;
+}
+
+.kural-tamil {
+  font-family: 'Noto Sans Tamil', 'Noto Serif Tamil', 'Lohit Tamil', 'Tamil Sangam MN', 'Tamil MN', var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.kural-translit {
+  font-style: italic;
+  font-size: 12px;
+  margin-top: 2px;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.kural-meaning {
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.85;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.kural-morning {
+  margin: 18px 0 4px;
+  padding: 14px 18px;
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elevated);
+  border-radius: 6px;
+  font-size: 15px;
+}
+
+.kural-morning .kural-tamil {
+  font-size: 19px;
+}
+
+.kural-morning .kural-translit {
+  font-size: 14px;
+}
+
+.kural-morning .kural-meaning {
+  font-size: 16px;
+  -webkit-line-clamp: unset;
+}
+
+@media (max-width: 900px) {
+  .kural-header {
+    display: none;
+  }
 }
 
 /* ---------- idle reel ---------- */
@@ -2259,6 +2373,11 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  gap: 10px;
+}
+
+.kiosk-corner-row {
+  display: flex;
   gap: 10px;
 }
 

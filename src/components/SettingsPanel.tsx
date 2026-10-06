@@ -5,6 +5,7 @@ import { EventEditor } from './EventEditor';
 import { calendarProvider as calendarProviderRef } from '../providers';
 import { formatClock } from '../engine/intelligence';
 import { useMusic } from '../hooks/useMusic';
+import { VoiceStatus, onVoice } from '../hooks/live';
 import { qrToSvg } from '../engine/qr';
 import { collapseSeries, describeRecurrence } from '../engine/recurrence';
 
@@ -59,6 +60,68 @@ const inputStyle: CSSProperties = {
   width: '100%',
   fontWeight: 500,
 };
+
+/**
+ * What Baja's ears on the Pi are doing, live: setting up (and which step),
+ * listening, or why not. Plus the last thing it heard, which is the quickest
+ * way to tell "the microphone works but it misheard" from "it hears nothing".
+ */
+function BajaStatus() {
+  const [status, setStatus] = useState<VoiceStatus | null>(null);
+  useEffect(() => {
+    let live = true;
+    const read = () =>
+      fetch('/api/voice/status')
+        .then((r) => r.json())
+        .then((s) => live && setStatus(s))
+        .catch(() => undefined);
+    read();
+    const unsubscribe = onVoice((msg) => {
+      if (msg.type === 'status' && msg.status) setStatus(msg.status);
+    });
+    const poll = window.setInterval(read, 3000);
+    return () => {
+      live = false;
+      unsubscribe();
+      window.clearInterval(poll);
+    };
+  }, []);
+  if (!status) return null;
+  const line =
+    status.state === 'listening'
+      ? 'Listening.'
+      : status.state === 'installing'
+        ? status.step || 'Setting up…'
+        : status.state === 'starting'
+          ? 'Starting…'
+          : status.state === 'error'
+            ? status.error
+            : 'Off.';
+  return (
+    <div className="settings-row-desc" style={{ marginTop: 10, lineHeight: 1.6 }}>
+      <strong style={{ color: status.state === 'error' ? 'var(--warn, #ff5c72)' : 'var(--accent)' }}>{line}</strong>
+      {status.lastHeard && (
+        <>
+          <br />
+          Last heard: “{status.lastHeard}”
+        </>
+      )}
+      {status.state === 'listening' && (
+        <>
+          <br />
+          Voice: {status.tts === 'piper' ? 'natural (Piper)' : status.tts === 'espeak' ? 'basic (espeak)' : 'none — answers are shown, not spoken'}
+        </>
+      )}
+      {status.state === 'error' && (
+        <div style={{ marginTop: 8 }}>
+          <button className="btn-secondary" onClick={() => fetch('/api/voice/retry', { method: 'POST' })}>
+            Try again
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
@@ -1647,6 +1710,9 @@ export function SettingsPanel({
                   <option value="light">Light</option>
                 </select>
               </Row>
+              <Row label="Thirukkural of the day" desc="One kural a day beside the date, in Tamil, transliterated, and in English">
+                <Toggle on={settings.display.kural !== false} onClick={() => patch('display', { ...settings.display, kural: settings.display.kural === false })} />
+              </Row>
               <Row label="Clock seconds" desc="Show a ticking seconds readout">
                 <Toggle
                   on={settings.display.clockStyle === 'digital-seconds'}
@@ -1761,9 +1827,25 @@ export function SettingsPanel({
           {section === 'Baja' && (
             <>
               <h2>Baja</h2>
-              <Row label="Enable Baja" desc='Listens continuously for "Baja" — not Siri, see note below'>
+              <Row label="Enable Baja" desc='Listens for "Baja" through the microphone on the Pi'>
                 <Toggle on={settings.voiceEnabled} onClick={() => patch('voiceEnabled', !settings.voiceEnabled)} />
               </Row>
+              {settings.voiceEnabled && <BajaStatus />}
+              <div style={{ marginTop: 18 }}>
+                <div className="field-label">Microphone</div>
+                <input
+                  style={inputStyle}
+                  value={settings.bajaMicDevice || 'default'}
+                  onChange={(e) => patch('bajaMicDevice', e.target.value.trim() || 'default')}
+                  placeholder="default"
+                />
+                <div className="settings-row-desc" style={{ marginTop: 8 }}>
+                  "default" is whatever the Pi uses for sound input — a USB
+                  microphone plugged in is usually it. If Baja hears nothing,
+                  run <code>arecord -L</code> on the Pi and put the name of the
+                  microphone here (e.g. <code>plughw:CARD=Device,DEV=0</code>).
+                </div>
+              </div>
               <div style={{ marginTop: 18 }}>
                 <div className="field-label">Anthropic API key (paid, best quality)</div>
                 <input
@@ -1790,31 +1872,33 @@ export function SettingsPanel({
                 <div className="settings-row-desc" style={{ marginTop: 8 }}>
                   If no Anthropic key is set above, Baja automatically tries
                   this model through <a href="https://ollama.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>Ollama</a>{' '}
-                  running locally on this Mac mini — completely free, no
-                  internet needed for the answer itself, nothing sent
+                  running on the same machine — completely free, nothing sent
                   anywhere. Install Ollama, then run{' '}
                   <code style={{ background: 'var(--bg)', padding: '1px 5px', borderRadius: 3 }}>ollama pull llama3.2</code>{' '}
-                  once in Terminal. Small models (1B–3B) run fine on any
-                  Mac mini from the last few years.
+                  once. Small models (1B–3B) suit a Pi 5.
                 </div>
               </div>
               <div className="voice-note" style={{ marginTop: 20 }}>
-                Baja is <strong>not</strong> Apple's Siri — there's no public
-                API that lets a third-party app plug into Siri's brain. Baja
-                is a real, working alternative built on your browser/Electron's
-                own continuous speech recognition, which typically runs
-                through the OS/browser's speech service rather than fully
-                on-device, so listening itself still needs an internet
-                connection even when the answering part is free and local.
+                Say <strong>"Baja"</strong> near the screen, either with your
+                question in the same breath ("Baja, what's next?") or just the
+                name, a pause, and then the question. Or tap the microphone
+                button in the bottom corner and just ask. Say "Baja" at the
+                start, after a pause — mid-sentence it's ignored, so talking
+                about a badger won't set it off.
                 <br /><br />
-                Say <strong>"Baja"</strong> anywhere near the kiosk, either
-                with your question in the same breath ("Baja, what's next?")
-                or just the name — it'll say "Yes?" and listen for a moment.
+                Listening happens entirely on the Pi: the speech recogniser
+                (Vosk) and the voice (Piper) run there, nothing is recorded,
+                and no audio leaves the house. The first time it's switched
+                on it downloads about 100MB and sets itself up, which takes a
+                few minutes.
+                <br /><br />
                 A few things it always handles instantly, no model needed:
                 <ul style={{ margin: '10px 0 10px 18px', padding: 0, lineHeight: 1.7 }}>
+                  <li>"Set a timer for 10 minutes"</li>
                   <li>"Add [item] to the grocery list"</li>
                   <li>"What's next?"</li>
                   <li>"What's the weather?"</li>
+                  <li>"What's today's kural?"</li>
                 </ul>
                 Anything else is answered by whichever of the two options
                 above is configured, with today's schedule and grocery list

@@ -33,10 +33,10 @@ kiosk_off() {
   return 1
 }
 
+SELF="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+DATA="${BAJA_BLAST_DATA:-/var/lib/baja-blast}"
+
 read_conf
-if kiosk_off; then
-  exit 0
-fi
 
 BROWSER=""
 for b in chromium chromium-browser; do
@@ -47,6 +47,74 @@ if [ -z "$BROWSER" ]; then
   echo "$MSG" >&2
   command -v notify-send >/dev/null 2>&1 && notify-send "Baja Blast" "$MSG"
   exit 1
+fi
+
+# A real browser window, when the calendar asks for one.
+#
+# Most big sites won't be shown inside another page, so the calendar's own
+# browser can't open them. It asks for a proper Chromium window instead, by
+# leaving a file in the data folder (/api/browser/open in app/server.cjs) —
+# the calendar's service is sandboxed away from the desktop and can't open
+# windows itself; this script runs in the desktop session and can. The window
+# has tabs, an address bar and a back button, every site works in it, and
+# closing it leaves the calendar underneath. Its own profile, so it keeps its
+# own logins and history. --enable-wayland-ime lets the Pi's own on-screen
+# keyboard come up in it.
+#
+# kiosk-alive is how the calendar knows someone is listening; without it the
+# calendar falls back to its in-page browser rather than asking into a void.
+#
+# It runs as its own process (`baja-blast-kiosk --watch`), one at a time, so
+# the package can start it in a session that's already running: it used to
+# start only at login, so after the update that added it nothing was
+# listening until the Pi happened to restart, and Browser quietly fell back
+# to the in-page one that YouTube and most big sites refuse to load in. It
+# also restarts itself when an update replaces this file, for the same reason.
+browser_watch() {
+  local req="$DATA/browser-open.json" url stamp
+  stamp="$(stat -c %Y "$SELF" 2>/dev/null || echo 0)"
+  while true; do
+    touch "$DATA/kiosk-alive" 2>/dev/null
+    if [ -f "$req" ]; then
+      url="$(node -e '
+        try {
+          const u = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).url;
+          if (/^https?:\/\/\S+$/i.test(u)) console.log(u);
+        } catch {}
+      ' "$req" 2>/dev/null)"
+      rm -f "$req"
+      if [ -n "$url" ]; then
+        "$BROWSER" \
+          --user-data-dir="${HOME}/.config/baja-blast-browser" \
+          --no-first-run \
+          --ozone-platform-hint=auto \
+          --enable-wayland-ime \
+          --start-maximized \
+          --new-window "$url" >/dev/null 2>&1 &
+      fi
+    fi
+    if [ "$(stat -c %Y "$SELF" 2>/dev/null || echo 0)" != "$stamp" ]; then
+      exec /bin/bash "$SELF" --watch
+    fi
+    sleep "${BAJA_BLAST_WATCH_SECONDS:-1}"
+  done
+}
+
+if [ "${1:-}" = "--watch" ]; then
+  [ -d "$DATA" ] && [ -w "$DATA" ] || exit 0
+  # One watcher, however many times it's asked to start. The lock is on a
+  # descriptor the exec above keeps open, so a restart holds it throughout.
+  if command -v flock >/dev/null 2>&1 && [ -z "${BAJA_BLAST_WATCH_LOCKED:-}" ]; then
+    exec 9>"$DATA/.browser-watch.lock"
+    flock -n 9 || exit 0
+    export BAJA_BLAST_WATCH_LOCKED=1
+  fi
+  browser_watch
+  exit 0
+fi
+
+if kiosk_off; then
+  exit 0
 fi
 
 # Wait for the calendar to answer before pointing a browser at it, so a cold
@@ -71,51 +139,10 @@ if [ -n "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ] && command -v unclutte
   unclutter --timeout 3 >/dev/null 2>&1 &
 fi
 
-# A real browser window, when the calendar asks for one.
-#
-# Most big sites won't be shown inside another page, so the calendar's own
-# browser can't open them. It asks for a proper Chromium window instead, by
-# leaving a file in the data folder (/api/browser/open in app/server.cjs) —
-# the calendar's service is sandboxed away from the desktop and can't open
-# windows itself; this script runs in the desktop session and can. The window
-# has tabs, an address bar and a back button, every site works in it, and
-# closing it leaves the calendar underneath. Its own profile, so it keeps its
-# own logins and history. --enable-wayland-ime lets the Pi's own on-screen
-# keyboard come up in it.
-#
-# kiosk-alive is how the calendar knows someone is listening; without it the
-# calendar falls back to its in-page browser rather than asking into a void.
-DATA="${BAJA_BLAST_DATA:-/var/lib/baja-blast}"
-browser_watch() {
-  local req="$DATA/browser-open.json" url
-  while true; do
-    touch "$DATA/kiosk-alive" 2>/dev/null
-    if [ -f "$req" ]; then
-      url="$(node -e '
-        try {
-          const u = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).url;
-          if (/^https?:\/\/\S+$/i.test(u)) console.log(u);
-        } catch {}
-      ' "$req" 2>/dev/null)"
-      rm -f "$req"
-      if [ -n "$url" ]; then
-        "$BROWSER" \
-          --user-data-dir="${HOME}/.config/baja-blast-browser" \
-          --no-first-run \
-          --ozone-platform-hint=auto \
-          --enable-wayland-ime \
-          --start-maximized \
-          --new-window "$url" >/dev/null 2>&1 &
-      fi
-    fi
-    sleep "${BAJA_BLAST_WATCH_SECONDS:-1}"
-  done
-}
-if [ -d "$DATA" ] && [ -w "$DATA" ]; then
-  browser_watch &
-  WATCHER=$!
-  trap 'kill "$WATCHER" 2>/dev/null' EXIT
-fi
+/bin/bash "$SELF" --watch &
+# Left running when the kiosk restarts Chromium or exits, deliberately — it's
+# one per session either way. Only a one-shot run (the tests) tidies it up.
+[ -n "${BAJA_BLAST_KIOSK_ONCE:-}" ] && trap 'kill $! 2>/dev/null' EXIT
 
 while true; do
   read_conf

@@ -100,6 +100,18 @@ function post(pathname, body) {
   });
 }
 
+function get(pathname) {
+  return new Promise((resolve, reject) => {
+    http
+      .get(`${BASE}${pathname}`, (res) => {
+        let out = '';
+        res.on('data', (d) => (out += d));
+        res.on('end', () => resolve({ status: res.statusCode, body: out }));
+      })
+      .on('error', reject);
+  });
+}
+
 async function main() {
   console.log('\nThe stream opens');
   const stream = await openStream();
@@ -211,6 +223,27 @@ async function main() {
       const gone = await post('/api/browser/open', { url: 'https://www.google.com/' });
       check('a launcher that stopped a minute ago counts as gone', JSON.parse(gone.body).ok === false && !fs.existsSync(request));
     }
+  }
+
+  console.log('\nA Thirukkural a day');
+  {
+    const first = JSON.parse((await get('/api/kural?day=2026-10-05')).body);
+    check('the first day is Kural 1', first.n === 1 && first.tamil.length === 2 && first.transliteration.length === 2 && /letter A/.test(first.meaning));
+    const next = JSON.parse((await get('/api/kural?day=2026-10-06')).body);
+    check('the next day, the next one', next.n === 2);
+    const round = JSON.parse((await get('/api/kural?day=2030-05-30')).body);
+    check('after all 1,330 it starts again', round.n >= 1 && round.n <= 1330);
+    const last = JSON.parse((await get('/api/kural?n=1330')).body);
+    check('every one of them is there, in Tamil and English', last.n === 1330 && last.tamil[0] && last.meaning && last.book.startsWith('Inbam'));
+    check('a bad day is refused', (await get('/api/kural?day=yesterday')).status === 400);
+  }
+
+  console.log('\nBaja, switched off');
+  {
+    const status = JSON.parse((await get('/api/voice/status')).body);
+    check('it says it is off, rather than pretending to listen', status.state === 'off');
+    const said = await post('/api/voice/command', { word: 'listen' });
+    check('a tap with nothing listening is a no, not an error', JSON.parse(said.body).ok === false);
   }
 
   stream.close();

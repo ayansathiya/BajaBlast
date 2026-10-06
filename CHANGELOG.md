@@ -9,6 +9,37 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-05 — Baja listens for real, a Thirukkural a day, and a YouTube button
+
+- **Baja actually works now.** It used to listen through the browser's own
+  speech recognition, which on the Pi does nothing at all — Chromium sends
+  the sound to Google, and only Google's own Chrome has the key for that —
+  so Baja was a label on the screen, microphone or not. Now the Pi listens
+  itself, with speech software that runs on the Pi: nothing recorded,
+  nothing sent anywhere. Say "Baja, what's next?", or "Baja", a pause, and
+  your question — or tap the new microphone button in the corner and just
+  ask. It answers out loud in a natural voice. The first time it's switched
+  on (Settings → Baja) it downloads about 100MB and sets itself up, which
+  takes a few minutes; Settings → Baja shows how far along it is, and the
+  last thing it heard, so you can tell whether the microphone is working.
+- **A Thirukkural every day.** Beside the date, small: today's kural in
+  Tamil, transliterated, and what it means in English. One a day, in order,
+  starting from Kural 1 today. It's on the Good Morning page too, larger,
+  and "Baja, what's today's kural?" reads the meaning aloud. Settings →
+  Display turns it off.
+- **A YouTube button.** Bottom right, next to the menu: one tap opens
+  YouTube in the full browser window.
+- **Baja no longer sits on top of the menu button.** The corner is now three
+  separate buttons side by side: Baja's microphone, YouTube, and the menu.
+- **Browser works straight after an update.** The full browser window is
+  opened by a small helper on the Pi's desktop that only started when the
+  Pi did, so after the update that added it nothing was listening until the
+  Pi next restarted — and Browser fell back to the in-page one that YouTube
+  and most big sites refuse to load in. Updates now start the helper
+  themselves, and it keeps itself up to date. If it still isn't running,
+  tapping Browser says so instead of failing quietly. (This part arrives
+  with the Pi's next package update, within about ten minutes.)
+
 ## 2026-09-30 — A keyboard on the screen, a browser that works, and a smoother reel
 
 - **An on-screen keyboard for every text box.** Tap any box on the wall —

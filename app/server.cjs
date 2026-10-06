@@ -24,6 +24,8 @@ const bake = require('./bake.cjs');
 const changelog = require('./changelog.cjs');
 const bookmarks = require('./bookmarks.cjs');
 const kitchen = require('./kitchen.cjs');
+const kural = require('./kural.cjs');
+const voice = require('./voice.cjs');
 
 const PORT = 8787;
 
@@ -130,6 +132,8 @@ function saveStore(store) {
   // one place that has to announce it. One call, and the wall screen and every
   // phone in the house know within a few milliseconds.
   queueBroadcast('store');
+  // Baja switched on or off, or a different microphone picked.
+  voice.configure(withDefaults(store.settings));
   fs.mkdirSync(DIR, { recursive: true });
   const json = JSON.stringify(store, null, 2);
   const tmp = `${DATA_FILE}.tmp`;
@@ -259,6 +263,28 @@ function broadcast(payload) {
     }
   }
 }
+
+/**
+ * Baja's ears (app/voice.cjs) report here: "Baja" heard, a question, a status
+ * change. Its own event type, not "change" — nothing in the store moved, and
+ * every hook re-reading the calendar because someone said "Baja" would be
+ * waste. Hearing Baja's name lights a sleeping screen, since the answer is
+ * going to appear on it.
+ */
+function broadcastVoice(msg) {
+  if (msg.type === 'wake' || msg.type === 'heard' || msg.type === 'listening') {
+    if (typeof wakeDisplay === 'function') wakeDisplay(10);
+  }
+  const frame = `event: voice\ndata: ${JSON.stringify(msg)}\n\n`;
+  for (const res of liveClients) {
+    try {
+      res.write(frame);
+    } catch {
+      liveClients.delete(res);
+    }
+  }
+}
+voice.onEvent(broadcastVoice);
 
 /** Wake the kitchen display. Called when a phone changes something worth looking at. */
 function nudgeKiosk(view) {
@@ -994,6 +1020,29 @@ function startServer(options = {}) {
       return send(res, 200, store.settings);
     }
 
+    // Baja's ears and voice on this machine (app/voice.cjs).
+    if (url.pathname === '/api/voice/status' && req.method === 'GET') {
+      return send(res, 200, voice.status());
+    }
+    if (url.pathname === '/api/voice/command' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      return send(res, 200, { ok: voice.command(String(body.word || '')) });
+    }
+    if (url.pathname === '/api/voice/retry' && req.method === 'POST') {
+      voice.retry();
+      return send(res, 200, voice.status());
+    }
+    if (url.pathname === '/api/voice/say' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const wav = await voice.say(body.text).catch((err) => {
+        console.warn('[baja-blast] Baja could not speak:', err.message);
+        return null;
+      });
+      if (!wav) return send(res, 404, { error: 'no voice on this machine' });
+      res.writeHead(200, { 'Content-Type': 'audio/wav', 'Content-Length': wav.length, 'Cache-Control': 'no-store' });
+      return res.end(wav);
+    }
+
     // Baja voice assistant proxy — keeps any API key on this local server
     // instead of shipping it to every device that opens /mobile. The kiosk
     // sends { question, context }; this forwards to Claude if an Anthropic
@@ -1006,6 +1055,8 @@ function startServer(options = {}) {
         "You are Baja, a calm, concise voice assistant embedded in a kitchen calendar kiosk. " +
         "Answer in 1-3 short spoken sentences — this gets read aloud, not displayed as text. " +
         "Use the household context you're given (today's schedule, grocery list, weather) when relevant. " +
+        "The question was heard through a microphone by speech recognition, so a word may be misheard — " +
+        "if it reads oddly, answer what they most likely said. " +
         "If asked something with no connection to the household, just answer normally and briefly.";
 
       if (apiKey) {
@@ -1629,6 +1680,16 @@ function startServer(options = {}) {
 
     // What changed, and when. Read from CHANGELOG.md at the root of the
     // payload, so an update ships its own release notes.
+    // Today's Thirukkural. The day comes from the screen asking, not from
+    // this machine's clock, so the wall and a phone agree on "today" even in
+    // the minutes either side of midnight.
+    if (url.pathname === '/api/kural' && req.method === 'GET') {
+      const n = Number(url.searchParams.get('n'));
+      const today = n ? kural.byNumber(n) : kural.forDay(url.searchParams.get('day'));
+      if (!today) return send(res, 400, { error: 'day=YYYY-MM-DD or n=1..1330' });
+      return send(res, 200, today);
+    }
+
     if (url.pathname === '/api/changelog' && req.method === 'GET') {
       return send(res, 200, { build: BUILD, entries: changelog.entries() });
     }
@@ -1958,6 +2019,7 @@ function startServer(options = {}) {
     scheduleUpdates();
     scheduleDisplay();
     scheduleTimerWakes();
+    voice.configure(withDefaults(store.settings));
   });
 
   return server;

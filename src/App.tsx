@@ -64,6 +64,7 @@ import { IdleTimers, RailTimers, TimerAlarm, TimerPanel } from './components/Tim
 import { IdleReminders, NotesBoard, ReminderStrip, TonightCard, WeekAhead } from './components/DayExtras';
 import { GoodMorning } from './components/GoodMorning';
 import { ScreenKeyboard } from './components/ScreenKeyboard';
+import { DailyKural, useDailyKural } from './components/DailyKural';
 import { dayKey, isMorning } from './engine/morning';
 
 // Which day the Good Morning page was last put away, so a tap keeps it away
@@ -132,6 +133,13 @@ export default function App() {
           setNotice('Opening the browser — close its window to come back to the calendar');
           window.setTimeout(() => setNotice(null), 6000);
           return;
+        }
+        // On the Pi, nothing listening means the window helper isn't running
+        // yet. Say so: the in-page browser below can't show YouTube or most
+        // big sites, and "refused to connect" alone explains nothing.
+        if (result.reason === 'no-launcher' && /linux/i.test(navigator.userAgent) && !/android/i.test(navigator.userAgent)) {
+          setNotice("The full browser isn't running yet — restart the Pi once and it will be. Until then, many sites won't open here.");
+          window.setTimeout(() => setNotice(null), 9000);
         }
       } catch {
         // Fall through to the in-page browser.
@@ -419,6 +427,9 @@ export default function App() {
     [upcomingWithBake, weather, settings.ambient, minuteBucket, news, groceryState.items, photos, musicState.state?.nowPlaying?.title]
   );
 
+  const kural = useDailyKural(now, settings.display.kural !== false);
+  const kuralLine = kural ? `Thirukkural ${kural.n}. ${kural.meaning}` : undefined;
+
   const weatherLine = weather ? `It's ${Math.round(weather.now.tempF)} degrees and ${weather.now.condition.toLowerCase()}.` : undefined;
 
   // Compact context string for Baja's LLM fallback — today's schedule +
@@ -461,7 +472,7 @@ export default function App() {
       {settings.display.brightness < 1 && (
         <div className="screen-dimmer" style={{ opacity: Math.min(0.85, 1 - settings.display.brightness) }} aria-hidden />
       )}
-      <ClockDate now={now} clockStyle={settings.display.clockStyle} />
+      <ClockDate now={now} clockStyle={settings.display.clockStyle} kural={kural && <DailyKural kural={kural} />} />
       <HeaderWeather
         weather={weather}
         status={weatherStatus}
@@ -617,6 +628,7 @@ export default function App() {
           people={settings.people}
           news={news}
           showNews={settings.ambient.showNews}
+          kural={kural}
           onClose={closeMorning}
         />
       )}
@@ -647,6 +659,7 @@ export default function App() {
         onStartTimer={(seconds, label) => startTimer(seconds, label)}
         whatsNextLines={whatsNextLines}
         weatherLine={weatherLine}
+        kuralLine={kuralLine}
         householdContext={householdContext}
       />
 
@@ -667,6 +680,19 @@ export default function App() {
           open={menuOpen}
           onToggle={() => setMenuOpen((v) => !v)}
           onClose={() => setMenuOpen(false)}
+          quick={[
+            {
+              key: 'youtube',
+              label: 'YouTube',
+              onPick: () => openBrowser('https://www.youtube.com/'),
+              icon: (
+                <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+                  <rect x="2" y="5" width="20" height="14" rx="4" fill="currentColor" />
+                  <path d="M10 9l5 3-5 3z" fill="var(--bg)" />
+                </svg>
+              ),
+            },
+          ]}
           entries={[
             { key: 'morning', label: 'Good morning', icon: '☀', onPick: () => setMorningOpen(true) },
             { key: 'timers', label: 'Timers', icon: '⏱', onPick: () => setTimerPanelOpen(true) },

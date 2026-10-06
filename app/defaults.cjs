@@ -41,6 +41,8 @@ const DEFAULT_SETTINGS = {
       // calendar unless someone chose that. The TV-box profile turns it on.
       hdmiCec: false,
     },
+    // A Thirukkural a day, small, beside the date.
+    kural: true,
   },
   ambient: {
     idleTimeoutSeconds: 150,
@@ -136,6 +138,8 @@ const DEFAULT_SETTINGS = {
   voiceEnabled: false,
   bajaApiKey: '',
   bajaLocalModel: 'llama3.2',
+  // Which microphone Baja listens on (an ALSA name; arecord -L lists them).
+  bajaMicDevice: 'default',
 };
 
 function isPlainObject(v) {

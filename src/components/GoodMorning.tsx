@@ -1,6 +1,7 @@
 import { CalendarEvent, ChoreState, MealDay, NewsHeadline, Person, WeatherSnapshot, eventPeople } from '../data/models';
 import { formatClock } from '../engine/intelligence';
 import { greeting, morningWeather, upcomingBirthdays, whenLabel } from '../engine/morning';
+import { DailyKural, Kural } from './DailyKural';
 
 interface Props {
   now: Date;
@@ -13,6 +14,7 @@ interface Props {
   people: Person[];
   news: NewsHeadline[];
   showNews: boolean;
+  kural?: Kural | null;
   onClose: () => void;
 }
 
@@ -33,7 +35,7 @@ const ICON: Record<WeatherSnapshot['now']['icon'], string> = {
  * when to leave for it, who has which chores, and whose birthday is coming.
  * One tap anywhere and it's the ordinary calendar.
  */
-export function GoodMorning({ now, weather, todayEvents, upcoming, tonight, chores, people, news, showNews, onClose }: Props) {
+export function GoodMorning({ now, weather, todayEvents, upcoming, tonight, chores, people, news, showNews, kural, onClose }: Props) {
   const w = morningWeather(weather, now);
   const events = todayEvents
     .filter((e) => Date.parse(e.end) > now.getTime())
@@ -67,6 +69,8 @@ export function GoodMorning({ now, weather, todayEvents, upcoming, tonight, chor
             Start the day →
           </button>
         </header>
+
+        <DailyKural kural={kural ?? null} variant="morning" />
 
         <div className="morning-grid">
           <section className="morning-card morning-weather">
