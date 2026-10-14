@@ -65,6 +65,8 @@ import { IdleReminders, NotesBoard, ReminderStrip, TonightCard, WeekAhead } from
 import { GoodMorning } from './components/GoodMorning';
 import { ScreenKeyboard } from './components/ScreenKeyboard';
 import { DailyKural, useDailyKural } from './components/DailyKural';
+import { LightsPanel } from './components/LightsPanel';
+import { useLights } from './hooks/useLights';
 import { dayKey, isMorning } from './engine/morning';
 
 // Which day the Good Morning page was last put away, so a tap keeps it away
@@ -151,6 +153,8 @@ export default function App() {
   const { bookmarks, addBookmark, removeBookmark } = useBookmarks(recipeSettings.browserEnabled);
   const [menuOpen, setMenuOpen] = useState(false);
   const [timerPanelOpen, setTimerPanelOpen] = useState(false);
+  const [lightsOpen, setLightsOpen] = useState(false);
+  const { state: lightsState } = useLights(false);
   const [morningOpen, setMorningOpen] = useState(false);
   const [morningDismissed, setMorningDismissed] = useState<string | null>(readDismissed);
   const { timers, skewMs, start: startTimer, act: actOnTimer } = useTimers();
@@ -186,7 +190,7 @@ export default function App() {
   // Rolls the display over at midnight and recovers after the Mac wakes.
   // Paused while a panel is open so a reload can't interrupt someone
   // mid-edit, or wipe the board out from under a kid ticking off chores.
-  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen || morningOpen;
+  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen || morningOpen || lightsOpen;
   useDailyReload(!panelOpen);
   const isIdle = useIdleTimer(settings.ambient.idleTimeoutSeconds, settings.ambient.enabled && !panelOpen, remote);
 
@@ -224,7 +228,7 @@ export default function App() {
   // day, and goes away at ten or when someone taps it — whichever is first.
   // Checked once a minute; nothing else on screen is disturbed to show it.
   const morningNow = isMorning(now, settings.display.schedule?.on);
-  const otherPanelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || timerPanelOpen;
+  const otherPanelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || timerPanelOpen || lightsOpen;
   const today = dayKey(now);
   useEffect(() => {
     if (morningNow && morningDismissed !== today && !otherPanelOpen) setMorningOpen(true);
@@ -268,6 +272,7 @@ export default function App() {
         if (menuOpen) setMenuOpen(false);
         else if (morningOpen) closeMorning();
         else if (timerPanelOpen) setTimerPanelOpen(false);
+        else if (lightsOpen) setLightsOpen(false);
         else if (browserUrl !== null) setBrowserUrl(null);
         else if (recipesOpen) setRecipesOpen(false);
         else if (choresOpen) setChoresOpen(false);
@@ -277,7 +282,7 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [browserUrl, recipesOpen, choresOpen, menuOpen, timerPanelOpen, morningOpen, morningNow, today]);
+  }, [browserUrl, recipesOpen, choresOpen, menuOpen, timerPanelOpen, morningOpen, morningNow, today, lightsOpen]);
 
   // Accessibility settings reflected as body classes (global.css hooks into these).
   useEffect(() => {
@@ -633,6 +638,8 @@ export default function App() {
         />
       )}
 
+      {lightsOpen && <LightsPanel onClose={() => setLightsOpen(false)} />}
+
       {timerPanelOpen && (
         <TimerPanel
           timers={timers}
@@ -661,6 +668,7 @@ export default function App() {
         weatherLine={weatherLine}
         kuralLine={kuralLine}
         householdContext={householdContext}
+        lights={lightsState ? { moods: lightsState.scenes.map((sc) => sc.name), bulbs: lightsState.bulbs } : undefined}
       />
 
       {/*
@@ -675,7 +683,7 @@ export default function App() {
         enough to hit reliably with a thumb, which is the part that matters.
       */}
 
-      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !timerPanelOpen && !morningOpen && !isIdle && (
+      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !timerPanelOpen && !morningOpen && !lightsOpen && !isIdle && (
         <KioskMenu
           open={menuOpen}
           onToggle={() => setMenuOpen((v) => !v)}
@@ -696,6 +704,7 @@ export default function App() {
           entries={[
             { key: 'morning', label: 'Good morning', icon: '☀', onPick: () => setMorningOpen(true) },
             { key: 'timers', label: 'Timers', icon: '⏱', onPick: () => setTimerPanelOpen(true) },
+            { key: 'lights', label: 'Lights', icon: '💡', onPick: () => setLightsOpen(true) },
             ...(recipeSettings.enabled
               ? [{ key: 'recipes', label: 'Recipes', icon: '🍴', onPick: () => setRecipesOpen(true) }]
               : []),

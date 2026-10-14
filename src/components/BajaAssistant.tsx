@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { parseTimerRequest } from '../engine/kitchen';
 import { VoiceStatus, onVoice } from '../hooks/live';
+import { parseLightCommand } from '../engine/lights';
 
 interface Props {
   enabled: boolean;
@@ -11,6 +12,8 @@ interface Props {
   /** Today's Thirukkural, in English, for "Baja, what's today's kural?" */
   kuralLine?: string;
   householdContext: string; // compact text summary of today's schedule + grocery, for LLM fallback
+  /** The WiZ lights and saved moods, for "Baja, set the TV mood". */
+  lights?: { moods: string[]; bulbs: { mac: string; name: string }[] };
 }
 
 type BajaState = 'idle' | 'listening-for-question' | 'thinking' | 'speaking';
@@ -87,7 +90,7 @@ async function speak(text: string): Promise<void> {
  * Claude through the local server's /api/ask proxy, with a compact summary
  * of today's schedule and the grocery list so it can answer about the house.
  */
-export function BajaAssistant({ enabled, onAddGrocery, onStartTimer, whatsNextLines, weatherLine, kuralLine, householdContext }: Props) {
+export function BajaAssistant({ enabled, onAddGrocery, onStartTimer, whatsNextLines, weatherLine, kuralLine, householdContext, lights }: Props) {
   const [state, setState] = useState<BajaState>('idle');
   const [caption, setCaption] = useState<string | null>(null);
   const [voice, setVoice] = useState<VoiceStatus | null>(null);
@@ -96,8 +99,8 @@ export function BajaAssistant({ enabled, onAddGrocery, onStartTimer, whatsNextLi
 
   // Refs, not dependencies: the parent passes fresh values every second, and
   // the subscription below should live as long as Baja is switched on.
-  const latest = useRef({ onAddGrocery, onStartTimer, whatsNextLines, weatherLine, kuralLine, householdContext });
-  latest.current = { onAddGrocery, onStartTimer, whatsNextLines, weatherLine, kuralLine, householdContext };
+  const latest = useRef({ onAddGrocery, onStartTimer, whatsNextLines, weatherLine, kuralLine, householdContext, lights });
+  latest.current = { onAddGrocery, onStartTimer, whatsNextLines, weatherLine, kuralLine, householdContext, lights };
 
   function settle(afterMs: number) {
     if (clearTimer.current) window.clearTimeout(clearTimer.current);
@@ -118,7 +121,7 @@ export function BajaAssistant({ enabled, onAddGrocery, onStartTimer, whatsNextLi
   async function handleQuery(question: string) {
     const q = question.trim().toLowerCase();
     if (!q) return;
-    const { onAddGrocery, onStartTimer, whatsNextLines, weatherLine, kuralLine, householdContext } = latest.current;
+    const { onAddGrocery, onStartTimer, whatsNextLines, weatherLine, kuralLine, householdContext, lights } = latest.current;
 
     // Timers first: "set a timer for 10 minutes" is the most-said sentence
     // in any kitchen with a voice assistant in it.
@@ -126,6 +129,30 @@ export function BajaAssistant({ enabled, onAddGrocery, onStartTimer, whatsNextLi
     if (timerAsk && onStartTimer) {
       onStartTimer(timerAsk.seconds, timerAsk.label);
       return answer(`Timer set${timerAsk.label ? ` for ${timerAsk.label}` : ''}.`);
+    }
+
+    // The lights: a mood by name, or on / off / dim / a colour.
+    if (lights && lights.bulbs.length > 0) {
+      const cmd = parseLightCommand(q, lights.moods, lights.bulbs.map((b) => b.name));
+      if (cmd) {
+        const unreachable = "I couldn't reach the lights. Is their wall switch on?";
+        try {
+          if (cmd.kind === 'scene') {
+            const r = await (await post('/api/lights/scene', { name: cmd.name })).json();
+            return answer(r.reached ? `${cmd.name} mood.` : unreachable);
+          }
+          const target = cmd.target === 'all' ? 'all' : lights.bulbs.filter((b) => cmd.names.includes(b.name)).map((b) => b.mac);
+          const r = await (await post('/api/lights/set', { target, ...cmd.change })).json();
+          if (!r.reached) return answer(unreachable);
+          const which = cmd.target === 'all' ? 'Lights' : cmd.names.join(' and ');
+          const c = cmd.change;
+          return answer(
+            c.on === false ? `${which} off.` : c.dimming != null && !c.color && !c.temp ? `${which} at ${c.dimming} percent.` : `${which} on.`
+          );
+        } catch {
+          return answer(unreachable);
+        }
+      }
     }
 
     const addMatch = q.match(/add (.+?) to (the )?(grocery|shopping) list/);

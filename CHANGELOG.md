@@ -9,6 +9,23 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-14 — The lights, and "Baja, set the TV mood"
+
+- **The WiZ lights are on the wall now.** Menu → Lights shows every WiZ
+  bulb in the house with a switch, brightness and warmth for each, and
+  moods along the top: TV (all off), Bright, Dinner and Night to start
+  with. Tap a light's name to rename it ("Couch lamp").
+- **Your own moods.** Set the lights how you want them — in the panel or the
+  WiZ app — type a name like "TV" and press Save. Saving under a name that
+  already exists replaces it, which is how to change what TV does.
+- **Baja does it by voice.** "Baja, set the TV mood", "Baja, turn off the
+  lights", "turn on the couch lamp", "dim the lights to 30 percent", "make
+  the lights warm", "turn the lights blue".
+- The Pi talks to the bulbs directly over the Wi-Fi: no account, and it
+  works with the internet down. Two things it needs: the wall switch for
+  the bulbs left on (a bulb with no power can't hear anyone), and "Allow
+  local communication" switched on in the WiZ app.
+
 ## 2026-10-14 — Baja can answer anything, for free, with Groq
 
 - **A free way for Baja to answer questions.** Timers, the grocery list,

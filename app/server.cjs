@@ -26,6 +26,7 @@ const bookmarks = require('./bookmarks.cjs');
 const kitchen = require('./kitchen.cjs');
 const kural = require('./kural.cjs');
 const voice = require('./voice.cjs');
+const lights = require('./lights.cjs');
 
 const PORT = 8787;
 
@@ -262,6 +263,97 @@ function broadcast(payload) {
       liveClients.delete(res);
     }
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Lights (WiZ, on the home Wi-Fi — see app/lights.cjs)
+ * ------------------------------------------------------------------ *
+ *
+ * store.lights = { bulbs: [{ mac, ip, name, roomId, model }], scenes: [...] }
+ *
+ * A mood (scene) is either the same setting for every bulb (`all`) or a
+ * setting per bulb (`per`, keyed by MAC) — the second is what "save how the
+ * lights are now as a mood" makes. The four it starts with are the first
+ * kind, so they keep working when a bulb is added.
+ */
+const STARTER_MOODS = [
+  { id: 'tv', name: 'TV', all: { on: false } },
+  { id: 'bright', name: 'Bright', all: { on: true, dimming: 100, temp: 4000 } },
+  { id: 'dinner', name: 'Dinner', all: { on: true, dimming: 60, temp: 2700 } },
+  { id: 'night', name: 'Night', all: { on: true, dimming: 10, temp: 2200 } },
+];
+
+function lightsStore() {
+  if (!store.lights || typeof store.lights !== 'object') store.lights = { bulbs: [], scenes: [] };
+  store.lights.bulbs = Array.isArray(store.lights.bulbs) ? store.lights.bulbs : [];
+  store.lights.scenes = Array.isArray(store.lights.scenes) ? store.lights.scenes : [];
+  return store.lights;
+}
+
+let lastScanAt = 0;
+let scanning = null;
+
+/** Look for bulbs and fold them in: new ones named, moved ones re-addressed. */
+function findBulbs() {
+  if (scanning) return scanning;
+  scanning = (async () => {
+    try {
+      const found = await lights.scan();
+      lastScanAt = Date.now();
+      const state = lightsStore();
+      let changed = false;
+      for (const f of found) {
+        const known = state.bulbs.find((b) => b.mac === f.mac);
+        if (known) {
+          if (known.ip !== f.ip) {
+            known.ip = f.ip;
+            changed = true;
+          }
+        } else {
+          state.bulbs.push({ ...f, name: `Light ${state.bulbs.length + 1}` });
+          changed = true;
+        }
+      }
+      if (state.bulbs.length && state.scenes.length === 0) {
+        state.scenes = STARTER_MOODS.map((m) => ({ ...m }));
+        changed = true;
+      }
+      if (changed) saveStore(store);
+      return found;
+    } finally {
+      scanning = null;
+    }
+  })();
+  return scanning;
+}
+
+/** Set one bulb; if its address has gone quiet, look for it again once. */
+async function setBulb(bulb, change) {
+  if (await lights.set(bulb.ip, change)) return true;
+  if (Date.now() - lastScanAt > 30_000) {
+    await findBulbs();
+    const moved = lightsStore().bulbs.find((b) => b.mac === bulb.mac);
+    if (moved && moved.ip !== bulb.ip) return lights.set(moved.ip, change);
+  }
+  return false;
+}
+
+function pickBulbs(target) {
+  const all = lightsStore().bulbs;
+  if (!target || target === 'all') return all;
+  const wanted = Array.isArray(target) ? target : [target];
+  return all.filter((b) => wanted.includes(b.mac));
+}
+
+async function lightsSnapshot() {
+  const state = lightsStore();
+  const bulbs = await Promise.all(
+    state.bulbs.map(async (b) => {
+      const pilot = await lights.status(b.ip);
+      return { mac: b.mac, name: b.name, ip: b.ip, online: !!pilot, ...lights.changeFrom(pilot) };
+    })
+  );
+  return { bulbs, scenes: state.scenes.map(({ id, name }) => ({ id, name })), scanning: !!scanning };
 }
 
 /* Groq, for Baja's answers. See /api/ask. */
@@ -1086,6 +1178,87 @@ function startServer(options = {}) {
       store.settings = withDefaults(body);
       saveStore(store);
       return send(res, 200, store.settings);
+    }
+
+    /* ---------------- lights ---------------- */
+
+    if (url.pathname === '/api/lights' && req.method === 'GET') {
+      // The first look finds the bulbs by itself; after that, Find lights.
+      if (lightsStore().bulbs.length === 0 && !lastScanAt) await findBulbs();
+      return send(res, 200, await lightsSnapshot());
+    }
+
+    if (url.pathname === '/api/lights/scan' && req.method === 'POST') {
+      await findBulbs();
+      return send(res, 200, await lightsSnapshot());
+    }
+
+    // { target: 'all' | mac | [mac], on?, dimming?, temp?, color? }
+    if (url.pathname === '/api/lights/set' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const targets = pickBulbs(body.target);
+      if (targets.length === 0) return send(res, 404, { ok: false, error: 'no lights found' });
+      const change = { on: body.on, dimming: body.dimming, temp: body.temp, color: body.color };
+      const results = await Promise.all(targets.map((b) => setBulb(b, change)));
+      return send(res, 200, { ok: results.some(Boolean), reached: results.filter(Boolean).length, of: targets.length });
+    }
+
+    if (url.pathname === '/api/lights/rename' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const bulb = lightsStore().bulbs.find((b) => b.mac === body.mac);
+      const name = typeof body.name === 'string' ? body.name.trim().slice(0, 40) : '';
+      if (!bulb || !name) return send(res, 400, { ok: false });
+      bulb.name = name;
+      saveStore(store);
+      return send(res, 200, { ok: true });
+    }
+
+    // Apply a mood: { id } or { name }.
+    if (url.pathname === '/api/lights/scene' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const want = String(body.name || '').trim().toLowerCase();
+      const scene = lightsStore().scenes.find((sc) => sc.id === body.id || (want && sc.name.toLowerCase() === want));
+      if (!scene) return send(res, 404, { ok: false, error: 'no such mood' });
+      const bulbs = lightsStore().bulbs;
+      const results = await Promise.all(
+        bulbs.map((b) => {
+          const change = scene.per ? scene.per[b.mac] : scene.all;
+          return change ? setBulb(b, change) : Promise.resolve(true);
+        })
+      );
+      return send(res, 200, { ok: results.some(Boolean), name: scene.name, reached: results.filter(Boolean).length, of: bulbs.length });
+    }
+
+    // Save how the lights are right now as a mood: { name }. Same name
+    // replaces it, which is how "TV" gets changed.
+    if (url.pathname === '/api/lights/scenes' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const name = typeof body.name === 'string' ? body.name.trim().slice(0, 30) : '';
+      if (!name) return send(res, 400, { ok: false, error: 'a mood needs a name' });
+      const state = lightsStore();
+      const per = {};
+      for (const b of state.bulbs) {
+        const pilot = await lights.status(b.ip);
+        if (pilot) per[b.mac] = lights.changeFrom(pilot);
+      }
+      if (Object.keys(per).length === 0) return send(res, 409, { ok: false, error: 'no lights answered' });
+      const existing = state.scenes.find((sc) => sc.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        existing.per = per;
+        delete existing.all;
+      } else {
+        state.scenes.push({ id: crypto.randomUUID(), name, per });
+      }
+      saveStore(store);
+      return send(res, 200, { ok: true });
+    }
+
+    const sceneDelete = url.pathname.match(/^\/api\/lights\/scenes\/([^/]+)$/);
+    if (sceneDelete && req.method === 'DELETE') {
+      const state = lightsStore();
+      state.scenes = state.scenes.filter((sc) => sc.id !== decodeURIComponent(sceneDelete[1]));
+      saveStore(store);
+      return send(res, 200, { ok: true });
     }
 
     // Baja's ears and voice on this machine (app/voice.cjs).

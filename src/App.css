@@ -4228,3 +4228,199 @@ body.reduced-motion .timer-alarm { animation: none; }
   z-index: 200;
   font-size: 16px;
 }
+
+/* ---------- lights (WiZ) ---------- */
+.lights-panel {
+  width: min(820px, 100%);
+}
+
+.lights-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 18px 0 10px;
+}
+
+.lights-empty {
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.lights-empty strong {
+  color: var(--text);
+}
+
+.lights-moods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lights-mood {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.lights-mood > button,
+button.lights-mood {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 17px;
+  font-weight: 700;
+  padding: 14px 20px;
+  cursor: pointer;
+  min-height: 52px;
+}
+
+button.lights-mood {
+  border: 1px solid var(--hairline);
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.lights-mood:hover,
+button.lights-mood:hover {
+  border-color: var(--accent);
+}
+
+.lights-mood .lights-mood-x {
+  font-size: 12px;
+  padding: 0 12px;
+  color: var(--text-muted);
+  border-left: 1px solid var(--hairline);
+}
+
+.lights-save {
+  margin-top: 12px;
+}
+
+.lights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lights-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) 1fr 1fr 76px;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+}
+
+.lights-row.offline {
+  opacity: 0.5;
+}
+
+.lights-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lights-name small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.lights-name input {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.lights-rename {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+}
+
+.lights-rename span {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.lights-row input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+  height: 32px;
+}
+
+/* Warm to cool, so the slider says what it does without a label. */
+.lights-warmth {
+  accent-color: #f5c27a !important;
+}
+
+.lights-switch {
+  min-height: 44px;
+  border-radius: 22px;
+  border: 1px solid var(--hairline);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.lights-switch.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+.lights-btn {
+  margin-top: 14px;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: none;
+  color: var(--accent);
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.lights-btn.subtle {
+  border-color: var(--hairline);
+  color: var(--text-muted);
+}
+
+.lights-note {
+  margin-top: 14px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .lights-row {
+    grid-template-columns: 1fr 76px;
+  }
+  .lights-row input[type='range'] {
+    grid-column: 1 / -1;
+  }
+}

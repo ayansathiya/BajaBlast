@@ -281,6 +281,17 @@ wake it. Timers, the grocery list, what's next, the weather and today's kural
 are answered on the spot; anything else goes to Claude (with an API key) or a
 local Ollama model.
 
+## Lights
+
+WiZ bulbs, controlled from the Pi over the Wi-Fi (`app/lights.cjs`): WiZ's
+local UDP protocol on port 38899, the same one its app uses with "Allow
+local communication" on. No account and no cloud, so it works with the
+internet down. Bulbs are found by scanning the Pi's own network, known by
+MAC (addresses change), and named on the wall. Moods are either one setting
+for every bulb or a snapshot of each bulb, saved from the Lights panel.
+Baja's light commands are parsed in `src/engine/lights.ts`, tested against
+what the Pi's recogniser actually writes down ("lamb" for lamp, "t v").
+
 ## A Thirukkural a day
 
 Beside the date, small: one kural a day, in order from Kural 1 on 5 October
