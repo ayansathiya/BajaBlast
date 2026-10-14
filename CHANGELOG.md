@@ -20,6 +20,9 @@ The format matters, because `app/changelog.cjs` parses it: a heading of
   Anthropic one is used.
 - If a key is set but turned down (mistyped, or deleted on the website),
   Baja now says so, instead of asking for a key that's already there.
+- Fixed: with a good Groq key Baja still said it had no key. Groq had
+  retired the models Baja asked for. It now asks Groq which ones the key
+  can use and picks the best, so the next retirement won't break it.
 
 ## 2026-10-06 — Share prices along the bottom again
 

@@ -264,6 +264,74 @@ function broadcast(payload) {
   }
 }
 
+/* Groq, for Baja's answers. See /api/ask. */
+
+// Best first. Anything else the key can use comes after these.
+const GROQ_PREFERRED = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+// Models that think before answering: told to think briefly and keep the
+// thinking to themselves, or a spoken answer takes ten seconds to start.
+const GROQ_REASONING = /gpt-oss|qwen3|deepseek-r1/i;
+let groqModelCache = null; // { key, at, models }
+
+async function groqModels(key) {
+  if (groqModelCache && groqModelCache.key === key && Date.now() - groqModelCache.at < 6 * 3600_000) {
+    return groqModelCache.models;
+  }
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return GROQ_PREFERRED;
+    const ids = ((await res.json())?.data || [])
+      .map((m) => m.id)
+      .filter((id) => typeof id === 'string' && !/guard|whisper|tts|orpheus|playai|distil|compound/i.test(id));
+    const models = [...GROQ_PREFERRED.filter((id) => ids.includes(id)), ...ids.filter((id) => !GROQ_PREFERRED.includes(id))];
+    groqModelCache = { key, at: Date.now(), models: models.length ? models : GROQ_PREFERRED };
+    return groqModelCache.models;
+  } catch {
+    return GROQ_PREFERRED;
+  }
+}
+
+async function groqAsk(key, model, system, user) {
+  const request = async (extra) => {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      signal: AbortSignal.timeout(15000),
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model,
+        max_tokens: 400,
+        ...extra,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    return { status: res.status, text: spoken(data?.choices?.[0]?.message?.content) };
+  };
+  if (GROQ_REASONING.test(model)) {
+    const first = await request({ reasoning_effort: 'low', include_reasoning: false });
+    // If Groq stops accepting those settings, ask plainly instead.
+    if (first.text || first.status !== 400) return first;
+  }
+  return request({});
+}
+
+/** Text that reads aloud cleanly: no non-breaking spaces or hyphens, no markdown. */
+function spoken(text) {
+  if (typeof text !== 'string') return null;
+  const clean = text
+    .replace(/[\u00a0\u2007\u202f]/g, ' ')
+    .replace(/[\u2010\u2011]/g, '-')
+    .replace(/[*_#`]+/g, '')
+    .trim();
+  return clean || null;
+}
+
 /**
  * Baja's ears (app/voice.cjs) report here: "Baja" heard, a question, a status
  * change. Its own event type, not "change" — nothing in the store moved, and
@@ -1092,38 +1160,22 @@ function startServer(options = {}) {
         }
       }
 
-      // Free, online: Groq (groq.com). A free key, no card, and fast — it
-      // runs open models like Llama. Tried after Anthropic, before Ollama.
-      // Groq retires model names now and then, so if the first is gone the
-      // next is tried rather than Baja going quiet.
+      // Free, online: Groq (groq.com). A free key, no card, and fast.
+      // Tried after Anthropic, before Ollama. Groq retires models often —
+      // the two Llamas this first asked for were gone within days — so it
+      // asks Groq which models this key can use and picks from those.
       const groqKey = (store.settings?.bajaGroqKey || '').trim();
       if (groqKey) {
-        for (const model of ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']) {
+        for (const model of (await groqModels(groqKey)).slice(0, 2)) {
           try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 15000);
-            const upstream = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-              method: 'POST',
-              signal: controller.signal,
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
-              body: JSON.stringify({
-                model,
-                max_tokens: 300,
-                messages: [
-                  { role: 'system', content: systemPrompt },
-                  { role: 'user', content: `Household context:\n${body.context || '(none)'}\n\nQuestion: ${body.question}` },
-                ],
-              }),
-            });
-            clearTimeout(timeout);
-            const data = await upstream.json().catch(() => null);
-            const text = data?.choices?.[0]?.message?.content;
-            if (text) return send(res, 200, { answer: text.trim(), source: 'groq' });
+            const result = await groqAsk(groqKey, model, systemPrompt, `Household context:\n${body.context || '(none)'}\n\nQuestion: ${body.question}`);
+            if (result.text) return send(res, 200, { answer: result.text, source: 'groq' });
             // A wrong key won't be right for the next model either.
-            if (upstream.status === 401) {
+            if (result.status === 401) {
               rejected = 'Groq';
               break;
             }
+            if (result.status === 404) groqModelCache = null; // retired since we last asked
           } catch {
             // Timed out or offline; try the next model, then Ollama.
           }
