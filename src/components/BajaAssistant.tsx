@@ -144,6 +144,9 @@ export function BajaAssistant({ enabled, onAddGrocery, onStartTimer, whatsNextLi
       const res = await post('/api/ask', { question: q, context: householdContext });
       const data = await res.json();
       if (data.answer) return answer(data.answer);
+      if (data.error === 'bad-key') {
+        return answer(`${data.provider} turned down the key in settings under Baja. It may have been mistyped — try pasting it again.`);
+      }
       if (data.error === 'no-assistant') {
         return answer("I don't have a way to answer that yet. Add an API key or set up a free local model in settings under Baja.");
       }

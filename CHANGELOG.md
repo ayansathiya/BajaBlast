@@ -18,6 +18,8 @@ The format matters, because `app/changelog.cjs` parses it: a heading of
   (console.groq.com — no card). Paste it in Settings → Baja, or more easily
   from a phone, in the phone app under Baja. If both keys are set, the
   Anthropic one is used.
+- If a key is set but turned down (mistyped, or deleted on the website),
+  Baja now says so, instead of asking for a key that's already there.
 
 ## 2026-10-06 — Share prices along the bottom again
 

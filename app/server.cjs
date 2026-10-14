@@ -1059,6 +1059,11 @@ function startServer(options = {}) {
         "if it reads oddly, answer what they most likely said. " +
         "If asked something with no connection to the household, just answer normally and briefly.";
 
+      // A key that's set but turned down is a different problem from no key
+      // at all, and Baja should say which — "add a key" to someone who just
+      // added one sends them looking in the wrong place.
+      let rejected = null;
+
       if (apiKey) {
         try {
           const upstream = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1080,6 +1085,7 @@ function startServer(options = {}) {
           const data = await upstream.json();
           const text = data?.content?.find((b) => b.type === 'text')?.text;
           if (text) return send(res, 200, { answer: text, source: 'anthropic' });
+          if (upstream.status === 401) rejected = 'Anthropic';
           // fall through to Ollama if Anthropic returned something unusable
         } catch {
           // fall through to Ollama attempt below
@@ -1114,7 +1120,10 @@ function startServer(options = {}) {
             const text = data?.choices?.[0]?.message?.content;
             if (text) return send(res, 200, { answer: text.trim(), source: 'groq' });
             // A wrong key won't be right for the next model either.
-            if (upstream.status === 401) break;
+            if (upstream.status === 401) {
+              rejected = 'Groq';
+              break;
+            }
           } catch {
             // Timed out or offline; try the next model, then Ollama.
           }
@@ -1150,6 +1159,7 @@ function startServer(options = {}) {
         if (text) return send(res, 200, { answer: text, source: 'ollama' });
         throw new Error('ollama-empty');
       } catch {
+        if (rejected) return send(res, 400, { error: 'bad-key', provider: rejected });
         return send(res, 400, { error: 'no-assistant' });
       }
     }
