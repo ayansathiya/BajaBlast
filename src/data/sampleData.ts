@@ -103,6 +103,7 @@ export const DEFAULT_SETTINGS: HouseholdSettings = {
   },
   voiceEnabled: false,
   bajaApiKey: '',
+  bajaGroqKey: '',
   bajaLocalModel: 'llama3.2',
   bajaMicDevice: 'default',
 };

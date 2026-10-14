@@ -588,9 +588,14 @@
         <div class="setting-desc" style="margin-top:8px">Stored only on this local server, never sent anywhere except directly to Anthropic when Baja needs to answer a question. Usage-based — roughly a fraction of a cent per question.</div>
       </div>
       <div style="margin-top:20px">
+        <div class="field-label">Or: Groq API key (free)</div>
+        <input id="bajaGroqKey" type="password" placeholder="gsk_… (optional)" onchange="saveBajaGroqKey()" />
+        <div class="setting-desc" style="margin-top:8px">Free, no card: sign up at <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" style="color:var(--accent)">console.groq.com</a>, create a key and paste it here. Used when there's no Anthropic key.</div>
+      </div>
+      <div style="margin-top:20px">
         <div class="field-label">Or: free local model name (via Ollama)</div>
         <input id="bajaModel" placeholder="llama3.2" onchange="saveBajaModel()" />
-        <div class="setting-desc" style="margin-top:8px">If no Anthropic key is set above, Baja automatically tries this model through <a href="https://ollama.com" target="_blank" rel="noreferrer" style="color:var(--accent)">Ollama</a> running locally on this Mac mini — completely free, no internet needed for the answer itself, nothing sent anywhere. Install Ollama, then run <code>ollama pull llama3.2</code> once in Terminal. Small models (1B–3B) run fine on any Mac mini from the last few years.</div>
+        <div class="setting-desc" style="margin-top:8px">If neither key is set above, Baja automatically tries this model through <a href="https://ollama.com" target="_blank" rel="noreferrer" style="color:var(--accent)">Ollama</a> running locally on this Mac mini — completely free, no internet needed for the answer itself, nothing sent anywhere. Install Ollama, then run <code>ollama pull llama3.2</code> once in Terminal. Small models (1B–3B) run fine on any Mac mini from the last few years.</div>
       </div>
       <div class="note" style="margin-top:20px">
         Baja is <strong>not</strong> Apple's Siri — there's no public API that lets a third-party app plug into Siri's brain. Baja is a real, working alternative built on your browser/Electron's own continuous speech recognition, which typically runs through the OS/browser's speech service rather than fully on-device, so listening itself still needs an internet connection even when the answering part is free and local.
@@ -1023,9 +1028,11 @@
       settings.voiceEnabled = !settings.voiceEnabled; saveSettings(); renderBaja();
     })));
     document.getElementById('bajaKey').value = settings.bajaApiKey || '';
+    document.getElementById('bajaGroqKey').value = settings.bajaGroqKey || '';
     document.getElementById('bajaModel').value = settings.bajaLocalModel || '';
   }
 
+  function saveBajaGroqKey() { settings.bajaGroqKey = document.getElementById('bajaGroqKey').value.trim(); saveSettings(); toast('Saved'); }
   function saveBajaKey() { settings.bajaApiKey = document.getElementById('bajaKey').value; saveSettings(); toast('Saved'); }
   function saveBajaModel() { settings.bajaLocalModel = document.getElementById('bajaModel').value; saveSettings(); toast('Saved'); }
 

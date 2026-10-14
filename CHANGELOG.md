@@ -9,6 +9,16 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-14 — Baja can answer anything, for free, with Groq
+
+- **A free way for Baja to answer questions.** Timers, the grocery list,
+  what's next and the weather never needed anything, but other questions
+  ("how long do I boil an egg?") needed a paid Anthropic key or a model
+  installed on the Pi. Now there's a third choice: a free key from Groq
+  (console.groq.com — no card). Paste it in Settings → Baja, or more easily
+  from a phone, in the phone app under Baja. If both keys are set, the
+  Anthropic one is used.
+
 ## 2026-10-06 — Share prices along the bottom again
 
 - **"Trending" shows prices again.** Yahoo, where the prices come from,

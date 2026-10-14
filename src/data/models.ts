@@ -455,6 +455,8 @@ export interface HouseholdSettings {
   recipes: RecipeSettings;
   voiceEnabled: boolean;
   bajaApiKey?: string;
+  /** Groq (groq.com) key: free, used when there's no Anthropic key. */
+  bajaGroqKey?: string;
   bajaLocalModel?: string;
   /** The microphone Baja listens on, as an ALSA device name. */
   bajaMicDevice?: string;

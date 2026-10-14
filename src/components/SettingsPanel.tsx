@@ -1862,6 +1862,21 @@ export function SettingsPanel({
                 </div>
               </div>
               <div style={{ marginTop: 20 }}>
+                <div className="field-label">Or: Groq API key (free)</div>
+                <input
+                  style={inputStyle}
+                  type="password"
+                  value={settings.bajaGroqKey || ''}
+                  onChange={(e) => patch('bajaGroqKey', e.target.value.trim())}
+                  placeholder="gsk_… (optional)"
+                />
+                <div className="settings-row-desc" style={{ marginTop: 8 }}>
+                  Free, no card: sign up at console.groq.com, then API Keys →
+                  Create. Used when there's no Anthropic key. Easier to paste
+                  from a phone — the same box is in the phone app under Baja.
+                </div>
+              </div>
+              <div style={{ marginTop: 20 }}>
                 <div className="field-label">Or: free local model name (via Ollama)</div>
                 <input
                   style={inputStyle}
@@ -1870,7 +1885,7 @@ export function SettingsPanel({
                   placeholder="llama3.2"
                 />
                 <div className="settings-row-desc" style={{ marginTop: 8 }}>
-                  If no Anthropic key is set above, Baja automatically tries
+                  If neither key is set above, Baja automatically tries
                   this model through <a href="https://ollama.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>Ollama</a>{' '}
                   running on the same machine — completely free, nothing sent
                   anywhere. Install Ollama, then run{' '}

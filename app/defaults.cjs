@@ -137,6 +137,8 @@ const DEFAULT_SETTINGS = {
   },
   voiceEnabled: false,
   bajaApiKey: '',
+  // Groq (groq.com): a free key, used when there's no Anthropic one.
+  bajaGroqKey: '',
   bajaLocalModel: 'llama3.2',
   // Which microphone Baja listens on (an ALSA name; arecord -L lists them).
   bajaMicDevice: 'default',

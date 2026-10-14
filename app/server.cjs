@@ -1086,6 +1086,41 @@ function startServer(options = {}) {
         }
       }
 
+      // Free, online: Groq (groq.com). A free key, no card, and fast — it
+      // runs open models like Llama. Tried after Anthropic, before Ollama.
+      // Groq retires model names now and then, so if the first is gone the
+      // next is tried rather than Baja going quiet.
+      const groqKey = (store.settings?.bajaGroqKey || '').trim();
+      if (groqKey) {
+        for (const model of ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']) {
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 15000);
+            const upstream = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              signal: controller.signal,
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
+              body: JSON.stringify({
+                model,
+                max_tokens: 300,
+                messages: [
+                  { role: 'system', content: systemPrompt },
+                  { role: 'user', content: `Household context:\n${body.context || '(none)'}\n\nQuestion: ${body.question}` },
+                ],
+              }),
+            });
+            clearTimeout(timeout);
+            const data = await upstream.json().catch(() => null);
+            const text = data?.choices?.[0]?.message?.content;
+            if (text) return send(res, 200, { answer: text.trim(), source: 'groq' });
+            // A wrong key won't be right for the next model either.
+            if (upstream.status === 401) break;
+          } catch {
+            // Timed out or offline; try the next model, then Ollama.
+          }
+        }
+      }
+
       // Free path: try a local Ollama install. No key, no cost, no cloud —
       // but only works if Ollama is installed and the model is pulled
       // (`ollama pull llama3.2`, or whatever model name is set in Baja
