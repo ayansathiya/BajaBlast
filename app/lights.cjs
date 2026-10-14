@@ -18,6 +18,7 @@
  */
 const dgram = require('node:dgram');
 const os = require('node:os');
+const crypto = require('node:crypto');
 
 const PORT = Number(process.env.BAJA_BLAST_WIZ_PORT) || 38899;
 
@@ -69,7 +70,7 @@ function transmit(ip, message) {
 }
 
 /** One request, a couple of tries (it's UDP), resolves with the reply or null. */
-async function request(ip, method, params = {}, { timeout = 700, tries = 3 } = {}) {
+async function request(ip, method, params = {}, { timeout = 700, tries = 3, sign = null } = {}) {
   for (let i = 0; i < tries; i += 1) {
     const reply = await new Promise((resolve) => {
       const key = `${ip}|${method}`;
@@ -83,7 +84,7 @@ async function request(ip, method, params = {}, { timeout = 700, tries = 3 } = {
         resolve(msg);
       };
       waiting.set(key, [...(waiting.get(key) || []), done]);
-      transmit(ip, { method, params }).catch(() => {});
+      transmit(ip, sign ? signed(method, params, sign) : { method, params }).catch(() => {});
     });
     if (reply) return reply;
   }
@@ -170,9 +171,50 @@ function pilotFor(change) {
   return p;
 }
 
+/*
+ * Signed commands.
+ *
+ * Newer WiZ firmware (1.34 and later) has a setting in the WiZ app, under
+ * Settings → Security: "Allow all controls" or "Only verified controls". On
+ * the second, a bulb still answers "what are you doing?" but turns down any
+ * change that isn't signed with the home's key ("Invalid params", -32602) —
+ * which is exactly how it looks when the lights can be seen but not switched.
+ *
+ * The key is the home's `udp_signing_key` (32 hex characters), from the WiZ
+ * app: Home settings → Integrations → Local integrations. With it, a change
+ * carries a timestamp and an HMAC-SHA256 of its parameters, and goes through
+ * either way. Without it, "Allow all controls" is what's needed.
+ */
+let signingKey = null;
+
+function setSigningKey(hex) {
+  const clean = String(hex || '').trim().toLowerCase();
+  signingKey = /^[0-9a-f]{32}$/.test(clean) ? Buffer.from(clean, 'hex') : null;
+}
+
+function signed(method, params, key) {
+  const withTs = { ...params, sigTs: Math.floor(Date.now() / 1000) };
+  const hmac = crypto.createHmac('sha256', key).update(JSON.stringify(withTs)).digest('base64');
+  return { method, env: 'pro', params: withTs, hmac };
+}
+
+// Why the last change didn't happen, when a bulb answered but said no.
+let lastRefusal = null;
+
 async function set(ip, change) {
-  const reply = await request(ip, 'setPilot', pilotFor(change), { timeout: 700, tries: 3 });
-  return !!reply?.result?.success;
+  const params = pilotFor(change);
+  let reply = await request(ip, 'setPilot', params, { timeout: 700, tries: 3, sign: signingKey });
+  if (reply?.result?.success) return true;
+  // A key that's wrong (or a bulb that wants one we don't have).
+  if (reply?.error) {
+    lastRefusal = signingKey ? 'bad-key' : 'verified-only';
+    // A key set but the bulb is on "Allow all controls" anyway: plain works.
+    if (signingKey) {
+      reply = await request(ip, 'setPilot', params, { timeout: 700, tries: 2 });
+      if (reply?.result?.success) return true;
+    }
+  }
+  return false;
 }
 
 /** What a bulb is doing now, in the same shape `set` takes — for saving moods. */
@@ -184,4 +226,4 @@ function changeFrom(pilot) {
   return c;
 }
 
-module.exports = { scan, status, set, changeFrom, pilotFor };
+module.exports = { scan, status, set, changeFrom, pilotFor, setSigningKey, signed, refusal: () => lastRefusal, clearRefusal: () => { lastRefusal = null; } };

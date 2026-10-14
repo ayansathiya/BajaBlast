@@ -9,6 +9,19 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-14 — Lights that can be seen but not switched
+
+- **Why the lights said "couldn't reach".** Newer WiZ bulbs have a security
+  setting in the WiZ app (Settings → Security): on "Only verified controls"
+  they answer the calendar but turn down every change. Baja and the Lights
+  panel now say exactly that, and how to fix it, instead of blaming the
+  wall switch.
+- Two ways to fix it: choose **Allow all controls** in the WiZ app, or keep
+  the stricter setting and paste the home's WiZ key (WiZ app → Home
+  settings → Integrations → Local integrations → `udp_signing_key`) into
+  the box at the bottom of the Lights panel. With the key, every change is
+  signed and goes through either way.
+
 ## 2026-10-14 — The lights, and "Baja, set the TV mood"
 
 - **The WiZ lights are on the wall now.** Menu → Lights shows every WiZ

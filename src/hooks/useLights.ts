@@ -53,7 +53,7 @@ export function useLights(watch = false) {
     async (target: 'all' | string[], change: LightChange) => {
       const result = await post('/api/lights/set', { target, ...change }).catch(() => ({ ok: false, reached: 0 }));
       refresh();
-      return result as { ok: boolean; reached: number; of: number };
+      return result as { ok: boolean; reached: number; of: number; refused?: string | null };
     },
     [refresh]
   );
@@ -62,7 +62,7 @@ export function useLights(watch = false) {
     async (name: string) => {
       const result = await post('/api/lights/scene', { name }).catch(() => ({ ok: false, reached: 0 }));
       refresh();
-      return result as { ok: boolean; reached: number; of: number; name?: string };
+      return result as { ok: boolean; reached: number; of: number; name?: string; refused?: string | null };
     },
     [refresh]
   );

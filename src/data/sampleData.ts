@@ -104,6 +104,7 @@ export const DEFAULT_SETTINGS: HouseholdSettings = {
   voiceEnabled: false,
   bajaApiKey: '',
   bajaGroqKey: '',
+  wizSigningKey: '',
   bajaLocalModel: 'llama3.2',
   bajaMicDevice: 'default',
 };

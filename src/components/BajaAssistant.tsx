@@ -135,15 +135,21 @@ export function BajaAssistant({ enabled, onAddGrocery, onStartTimer, whatsNextLi
     if (lights && lights.bulbs.length > 0) {
       const cmd = parseLightCommand(q, lights.moods, lights.bulbs.map((b) => b.name));
       if (cmd) {
-        const unreachable = "I couldn't reach the lights. Is their wall switch on?";
+        const unreachableFor = (r: { refused?: string | null }) =>
+          r.refused === 'verified-only'
+            ? 'The WiZ app is blocking changes from here. In the WiZ app, open Settings, then Security, and choose Allow all controls.'
+            : r.refused === 'bad-key'
+              ? "The lights turned down the WiZ key in the Lights panel. It may be mistyped."
+              : "I couldn't reach the lights. Is their wall switch on?";
+        const unreachable = unreachableFor({});
         try {
           if (cmd.kind === 'scene') {
             const r = await (await post('/api/lights/scene', { name: cmd.name })).json();
-            return answer(r.reached ? `${cmd.name} mood.` : unreachable);
+            return answer(r.reached ? `${cmd.name} mood.` : unreachableFor(r));
           }
           const target = cmd.target === 'all' ? 'all' : lights.bulbs.filter((b) => cmd.names.includes(b.name)).map((b) => b.mac);
           const r = await (await post('/api/lights/set', { target, ...cmd.change })).json();
-          if (!r.reached) return answer(unreachable);
+          if (!r.reached) return answer(unreachableFor(r));
           const which = cmd.target === 'all' ? 'Lights' : cmd.names.join(' and ');
           const c = cmd.change;
           return answer(

@@ -638,7 +638,13 @@ export default function App() {
         />
       )}
 
-      {lightsOpen && <LightsPanel onClose={() => setLightsOpen(false)} />}
+      {lightsOpen && (
+        <LightsPanel
+          onClose={() => setLightsOpen(false)}
+          signingKey={settings.wizSigningKey || ''}
+          onSigningKey={(key) => updateSettings({ ...settings, wizSigningKey: key })}
+        />
+      )}
 
       {timerPanelOpen && (
         <TimerPanel

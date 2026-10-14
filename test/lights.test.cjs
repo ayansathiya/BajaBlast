@@ -10,6 +10,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const dgram = require('node:dgram');
+const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -34,7 +35,7 @@ function check(name, ok, detail = '') {
 }
 
 /** A WiZ bulb, as far as the network can tell. */
-function fakeBulb(ip, mac, { silent = false } = {}) {
+function fakeBulb(ip, mac, { silent = false, key = null } = {}) {
   const bulb = { mac, pilot: { mac, state: true, dimming: 80, temp: 3000, r: 0, g: 0, b: 0, sceneId: 0 }, told: [] };
   const sock = dgram.createSocket('udp4');
   sock.on('message', (buf, rinfo) => {
@@ -43,7 +44,18 @@ function fakeBulb(ip, mac, { silent = false } = {}) {
     let result;
     if (msg.method === 'getPilot') result = { ...bulb.pilot };
     else if (msg.method === 'getSystemConfig') result = { mac, roomId: 7, moduleName: 'ESP01_SHRGB1C_31' };
-    else if (msg.method === 'setPilot') {
+    else if (msg.method === 'setPilot' && bulb.key) {
+      // "Only verified controls": the params, with sigTs, signed with the home key.
+      const { params } = msg;
+      const expected = crypto.createHmac('sha256', Buffer.from(bulb.key, 'hex')).update(JSON.stringify(params)).digest('base64');
+      if (!params.sigTs) result = undefined, msg.error = { code: -32602, message: 'Invalid params' };
+      else if (msg.hmac !== expected) result = undefined, msg.error = { code: -32605, message: 'Invalid signature' };
+      if (msg.error) {
+        sock.send(JSON.stringify({ method: 'setPilot', env: 'pro', error: msg.error }), rinfo.port, rinfo.address);
+        return;
+      }
+    }
+    if (msg.method === 'setPilot') {
       bulb.told.push(msg.params);
       const p = msg.params;
       bulb.pilot = { ...bulb.pilot, state: p.state };
@@ -55,6 +67,7 @@ function fakeBulb(ip, mac, { silent = false } = {}) {
     sock.send(JSON.stringify({ method: msg.method, env: 'pro', result }), rinfo.port, rinfo.address);
   });
   bulb.silent = silent;
+  bulb.key = key;
   bulb.ready = new Promise((r) => sock.bind(PORT, ip, r));
   bulb.close = () => sock.close();
   return bulb;
@@ -85,6 +98,36 @@ async function main() {
   const reached = await lights.set('127.0.0.1', { on: false });
   check('a bulb with no power is a no, quickly — not a hang', reached === false && Date.now() - t0 < 4000, `${Date.now() - t0}ms`);
   lamp.close();
+
+  console.log('\nA bulb on "Only verified controls"');
+  {
+    const KEY = '00112233445566778899aabbccddeeff';
+    const strict = fakeBulb('127.0.0.1', 'cc4085bbbbbb', { key: KEY });
+    await strict.ready;
+    lights.setSigningKey('');
+    lights.clearRefusal();
+    const plain = await lights.set('127.0.0.1', { on: false });
+    check('without the key, the change is turned down', plain === false && strict.pilot.state === true);
+    check('…and the reason is known, not "can\'t reach it"', lights.refusal() === 'verified-only');
+    lights.setSigningKey(KEY.toUpperCase());
+    lights.clearRefusal();
+    check('with the home key, it goes through', (await lights.set('127.0.0.1', { on: false })) && strict.pilot.state === false);
+    lights.setSigningKey('ffeeddccbbaa99887766554433221100');
+    lights.clearRefusal();
+    check('a wrong key is told apart from no key', (await lights.set('127.0.0.1', { on: true })) === false && lights.refusal() === 'bad-key');
+    lights.setSigningKey('');
+    strict.close();
+
+    // The reference this was built from (pywizlight #213), in Python: the
+    // same message must come out byte for byte.
+    const msg = lights.signed('setPilot', { state: true, dimming: 40 }, Buffer.from(KEY, 'hex'));
+    const py = require('node:child_process').spawnSync('python3', ['-c', `
+import hmac, hashlib, base64, json
+params = {"state": True, "dimming": 40, "sigTs": ${msg.params.sigTs}}
+mac = hmac.new(bytes.fromhex("${KEY}"), json.dumps(params, separators=(",", ":")).encode(), hashlib.sha256).digest()
+print(base64.b64encode(mac).decode())`], { encoding: 'utf8' });
+    if (py.status === 0) check('the signature matches the Python reference', py.stdout.trim() === msg.hmac, `${py.stdout.trim()} vs ${msg.hmac}`);
+  }
 
   console.log('\nWhat Baja makes of it');
   const moods = ['TV', 'Bright', 'Dinner', 'Night'];

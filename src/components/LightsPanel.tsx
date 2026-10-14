@@ -7,7 +7,10 @@ import { useLights } from '../hooks/useLights';
  * now under a name — set them the way you like for TV, save it as "TV", and
  * "Baja, set the TV mood" does that from then on.
  */
-export function LightsPanel({ onClose }: { onClose: () => void }) {
+const BLOCKED = 'The WiZ app is blocking changes. In the WiZ app: Settings → Security → choose “Allow all controls”. (Or paste your WiZ key below.)';
+const BAD_KEY = 'The lights turned down the WiZ key below — check it, or clear it if WiZ is on “Allow all controls”.';
+
+export function LightsPanel({ onClose, signingKey, onSigningKey }: { onClose: () => void; signingKey: string; onSigningKey: (key: string) => void }) {
   const { state, set, scene, scan, saveScene, rename, removeScene, refresh } = useLights(true);
   const [moodName, setMoodName] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
@@ -16,7 +19,13 @@ export function LightsPanel({ onClose }: { onClose: () => void }) {
 
   function say(text: string) {
     setNote(text);
-    window.setTimeout(() => setNote(null), 5000);
+    window.setTimeout(() => setNote(null), 9000);
+  }
+
+  // Every change goes through here, so a refusal is explained wherever it came from.
+  async function change(target: 'all' | string[], c: Parameters<typeof set>[1]) {
+    const r = await set(target, c);
+    if (!r.reached) say(r.refused === 'verified-only' ? BLOCKED : r.refused === 'bad-key' ? BAD_KEY : "Couldn't reach the light — is its wall switch on?");
   }
 
   const bulbs = state?.bulbs ?? [];
@@ -56,7 +65,7 @@ export function LightsPanel({ onClose }: { onClose: () => void }) {
                   <button
                     onClick={async () => {
                       const r = await scene(s.name);
-                      say(r.reached ? `${s.name} mood` : "Couldn't reach the lights — is their wall switch on?");
+                      say(r.reached ? `${s.name} mood` : r.refused === 'verified-only' ? BLOCKED : r.refused === 'bad-key' ? BAD_KEY : "Couldn't reach the lights — is their wall switch on?");
                     }}
                   >
                     {s.name}
@@ -66,10 +75,10 @@ export function LightsPanel({ onClose }: { onClose: () => void }) {
                   </button>
                 </span>
               ))}
-              <button className="lights-mood all-off" onClick={() => set('all', { on: false })}>
+              <button className="lights-mood all-off" onClick={() => change('all', { on: false })}>
                 All off
               </button>
-              <button className="lights-mood all-on" onClick={() => set('all', { on: true, dimming: 100 })}>
+              <button className="lights-mood all-on" onClick={() => change('all', { on: true, dimming: 100 })}>
                 All on
               </button>
             </div>
@@ -129,7 +138,7 @@ export function LightsPanel({ onClose }: { onClose: () => void }) {
                     step={5}
                     disabled={!b.online}
                     label={`${b.name} brightness`}
-                    onSend={(v) => set([b.mac], { on: true, dimming: v })}
+                    onSend={(v) => change([b.mac], { on: true, dimming: v })}
                   />
                   <Slider
                     className="lights-warmth"
@@ -139,12 +148,12 @@ export function LightsPanel({ onClose }: { onClose: () => void }) {
                     step={100}
                     disabled={!b.online}
                     label={`${b.name} warmth`}
-                    onSend={(v) => set([b.mac], { on: true, temp: v, dimming: b.dimming })}
+                    onSend={(v) => change([b.mac], { on: true, temp: v, dimming: b.dimming })}
                   />
                   <button
                     className={`lights-switch ${b.on ? 'on' : ''}`}
                     disabled={!b.online}
-                    onClick={() => set([b.mac], { on: !b.on })}
+                    onClick={() => change([b.mac], { on: !b.on })}
                     aria-label={`${b.name} ${b.on ? 'off' : 'on'}`}
                   >
                     {b.on ? 'On' : 'Off'}
@@ -155,6 +164,21 @@ export function LightsPanel({ onClose }: { onClose: () => void }) {
             <button className="lights-btn subtle" onClick={scan} disabled={state!.scanning}>
               {state!.scanning ? 'Looking…' : 'Find new lights'}
             </button>
+            <details className="lights-key">
+              <summary>WiZ key (only for “Only verified controls”)</summary>
+              <p>
+                If the WiZ app is set to <strong>Only verified controls</strong>, the lights only take changes signed with
+                your home's key. In the WiZ app: Home settings → Integrations → Local integrations, and copy the
+                <code> udp_signing_key</code> (32 letters and numbers) here. On “Allow all controls”, leave this empty.
+              </p>
+              <input
+                className="timer-panel-name"
+                placeholder="udp_signing_key"
+                defaultValue={signingKey}
+                maxLength={64}
+                onBlur={(e) => onSigningKey(e.target.value.trim())}
+              />
+            </details>
           </>
         )}
         {note && <div className="lights-note">{note}</div>}

@@ -457,6 +457,8 @@ export interface HouseholdSettings {
   bajaApiKey?: string;
   /** Groq (groq.com) key: free, used when there's no Anthropic key. */
   bajaGroqKey?: string;
+  /** WiZ home's udp_signing_key (32 hex), for bulbs on "Only verified controls". */
+  wizSigningKey?: string;
   bajaLocalModel?: string;
   /** The microphone Baja listens on, as an ALSA device name. */
   bajaMicDevice?: string;

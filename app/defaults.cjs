@@ -139,6 +139,8 @@ const DEFAULT_SETTINGS = {
   bajaApiKey: '',
   // Groq (groq.com): a free key, used when there's no Anthropic one.
   bajaGroqKey: '',
+  // The WiZ home's udp_signing_key, only needed on "Only verified controls".
+  wizSigningKey: '',
   bajaLocalModel: 'llama3.2',
   // Which microphone Baja listens on (an ALSA name; arecord -L lists them).
   bajaMicDevice: 'default',

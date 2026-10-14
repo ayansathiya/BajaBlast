@@ -135,6 +135,7 @@ function saveStore(store) {
   queueBroadcast('store');
   // Baja switched on or off, or a different microphone picked.
   voice.configure(withDefaults(store.settings));
+  lights.setSigningKey(store.settings?.wizSigningKey);
   fs.mkdirSync(DIR, { recursive: true });
   const json = JSON.stringify(store, null, 2);
   const tmp = `${DATA_FILE}.tmp`;
@@ -330,6 +331,8 @@ function findBulbs() {
 /** Set one bulb; if its address has gone quiet, look for it again once. */
 async function setBulb(bulb, change) {
   if (await lights.set(bulb.ip, change)) return true;
+  // It answered and said no: looking for it elsewhere won't change its mind.
+  if (lights.refusal()) return false;
   if (Date.now() - lastScanAt > 30_000) {
     await findBulbs();
     const moved = lightsStore().bulbs.find((b) => b.mac === bulb.mac);
@@ -1199,8 +1202,9 @@ function startServer(options = {}) {
       const targets = pickBulbs(body.target);
       if (targets.length === 0) return send(res, 404, { ok: false, error: 'no lights found' });
       const change = { on: body.on, dimming: body.dimming, temp: body.temp, color: body.color };
+      lights.clearRefusal();
       const results = await Promise.all(targets.map((b) => setBulb(b, change)));
-      return send(res, 200, { ok: results.some(Boolean), reached: results.filter(Boolean).length, of: targets.length });
+      return send(res, 200, { ok: results.some(Boolean), reached: results.filter(Boolean).length, of: targets.length, refused: lights.refusal() });
     }
 
     if (url.pathname === '/api/lights/rename' && req.method === 'POST') {
@@ -1220,13 +1224,14 @@ function startServer(options = {}) {
       const scene = lightsStore().scenes.find((sc) => sc.id === body.id || (want && sc.name.toLowerCase() === want));
       if (!scene) return send(res, 404, { ok: false, error: 'no such mood' });
       const bulbs = lightsStore().bulbs;
+      lights.clearRefusal();
       const results = await Promise.all(
         bulbs.map((b) => {
           const change = scene.per ? scene.per[b.mac] : scene.all;
           return change ? setBulb(b, change) : Promise.resolve(true);
         })
       );
-      return send(res, 200, { ok: results.some(Boolean), name: scene.name, reached: results.filter(Boolean).length, of: bulbs.length });
+      return send(res, 200, { ok: results.some(Boolean), name: scene.name, reached: results.filter(Boolean).length, of: bulbs.length, refused: lights.refusal() });
     }
 
     // Save how the lights are right now as a mood: { name }. Same name
@@ -2290,6 +2295,7 @@ function startServer(options = {}) {
     scheduleDisplay();
     scheduleTimerWakes();
     voice.configure(withDefaults(store.settings));
+    lights.setSigningKey(store.settings?.wizSigningKey);
   });
 
   return server;

@@ -4424,3 +4424,20 @@ button.lights-mood:hover {
     grid-column: 1 / -1;
   }
 }
+
+.lights-key {
+  margin-top: 18px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.lights-key summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.lights-key strong,
+.lights-key code {
+  color: var(--text);
+}
