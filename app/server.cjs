@@ -24,6 +24,8 @@ const bake = require('./bake.cjs');
 const changelog = require('./changelog.cjs');
 const bookmarks = require('./bookmarks.cjs');
 const kitchen = require('./kitchen.cjs');
+const reminders = require('./reminders.cjs');
+const scan = require('./scan.cjs');
 const kural = require('./kural.cjs');
 const voice = require('./voice.cjs');
 const lights = require('./lights.cjs');
@@ -66,7 +68,7 @@ const PREV_FILE = path.join(DIR, 'store.prev.json');
 const MAX_BACKUPS = 30;
 
 function emptyStore() {
-  return { events: [], grocery: [], settings: null, photos: [], spotify: null, auth: null, completions: [], bake: { picks: {} }, bookmarks: [], timers: [], meals: {}, notes: [] };
+  return { events: [], grocery: [], settings: null, photos: [], spotify: null, auth: null, completions: [], bake: { picks: {} }, bookmarks: [], timers: [], meals: {}, notes: [], reminders: [] };
 }
 
 function normalizeStore(data) {
@@ -827,6 +829,23 @@ function scheduleTimerWakes() {
     if (h.unref) h.unref();
     timerWakeHandles.push(h);
   }
+}
+
+// A reminder's time arriving lights the screen, the way a timer does, so
+// "bins out at 8pm" is seen at 8pm and not whenever someone walks past.
+let reminderWakeHandle = null;
+function scheduleReminderWake() {
+  if (reminderWakeHandle) clearTimeout(reminderWakeHandle);
+  reminderWakeHandle = null;
+  const next = reminders.nextDue(store.reminders);
+  if (!next) return;
+  const delay = Math.min(next - Date.now(), 2 ** 31 - 1);
+  reminderWakeHandle = setTimeout(() => {
+    wakeDisplay(30);
+    queueBroadcast('reminders');
+    scheduleReminderWake();
+  }, Math.max(0, delay));
+  if (reminderWakeHandle.unref) reminderWakeHandle.unref();
 }
 
 function scheduleDisplay() {
@@ -2022,6 +2041,53 @@ function startServer(options = {}) {
       return send(res, 200, { lines: text.trim() ? text.trim().split('\n').slice(-60) : [] });
     }
 
+    /* ---------------- reminders ---------------- */
+
+    if (url.pathname === '/api/reminders' && req.method === 'GET') {
+      return send(res, 200, reminders.sorted(store.reminders));
+    }
+
+    // { text, due?, personId?, source? }
+    if (url.pathname === '/api/reminders' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const result = reminders.add(store.reminders, body);
+      if (result.error) return send(res, 400, { error: result.error });
+      store.reminders = result.list;
+      saveStore(store);
+      scheduleReminderWake();
+      return send(res, 201, result.reminder);
+    }
+
+    const reminderId = url.pathname.match(/^\/api\/reminders\/([^/]+)$/);
+    if (reminderId && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const result = reminders.update(store.reminders, decodeURIComponent(reminderId[1]), body);
+      if (result.error) return send(res, 404, { error: result.error });
+      store.reminders = result.list;
+      saveStore(store);
+      scheduleReminderWake();
+      return send(res, 200, result.reminder);
+    }
+    if (reminderId && req.method === 'DELETE') {
+      store.reminders = reminders.remove(store.reminders, decodeURIComponent(reminderId[1]));
+      saveStore(store);
+      scheduleReminderWake();
+      return send(res, 200, { ok: true });
+    }
+
+    /* ---------------- reading a photo ---------------- */
+
+    // { image: "data:image/jpeg;base64,..." } → what's in it, to tick and
+    // add. Adds nothing itself — see app/scan.cjs.
+    if (url.pathname === '/api/scan' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const settings = store.settings || {};
+      const groqKey = String(settings.bajaGroqKey || '').trim();
+      const models = groqKey && !settings.bajaApiKey ? await groqModels(groqKey) : [];
+      const result = await scan.read(body.image, settings, models).catch((err) => ({ error: err.message }));
+      return send(res, result.error ? 422 : 200, result);
+    }
+
     /* ---------------- bookmarks ---------------- */
     //
     // Shared, not per-browser: someone saves a page on the sofa and it's on
@@ -2338,6 +2404,7 @@ function startServer(options = {}) {
     scheduleUpdates();
     scheduleDisplay();
     scheduleTimerWakes();
+    scheduleReminderWake();
     voice.configure(withDefaults(store.settings));
     lights.setSigningKey(store.settings?.wizSigningKey);
   });

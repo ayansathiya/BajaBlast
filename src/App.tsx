@@ -63,6 +63,9 @@ import { Hero } from './components/home/Hero';
 import { DayList } from './components/home/DayList';
 import { Dock } from './components/home/Dock';
 import { GroceryPanel } from './components/home/GroceryPanel';
+import { RemindersPanel } from './components/home/RemindersPanel';
+import { ScanPanel } from './components/home/ScanPanel';
+import { useReminders } from './hooks/useReminders';
 import { BrowserStart, openOnWall, wallBrowserReady } from './components/home/BrowserStart';
 import { ScreenKeyboard } from './components/ScreenKeyboard';
 import { DailyKural, useDailyKural } from './components/DailyKural';
@@ -149,7 +152,10 @@ export default function App() {
   const [timerPanelOpen, setTimerPanelOpen] = useState(false);
   const [groceryOpen, setGroceryOpen] = useState(false);
   const [lightsOpen, setLightsOpen] = useState(false);
-  const { state: lightsState } = useLights(false);
+  const { state: lightsState, set: setLights } = useLights(false);
+  const [remindersOpen, setRemindersOpen] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
+  const remindersState = useReminders();
   const [morningOpen, setMorningOpen] = useState(false);
   const [morningDismissed, setMorningDismissed] = useState<string | null>(readDismissed);
   const { timers, skewMs, start: startTimer, act: actOnTimer } = useTimers();
@@ -185,7 +191,7 @@ export default function App() {
   // Rolls the display over at midnight and recovers after the Mac wakes.
   // Paused while a panel is open so a reload can't interrupt someone
   // mid-edit, or wipe the board out from under a kid ticking off chores.
-  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen || morningOpen || lightsOpen || groceryOpen || browserStartOpen;
+  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen || morningOpen || lightsOpen || groceryOpen || browserStartOpen || remindersOpen || scanOpen;
   useDailyReload(!panelOpen);
   const isIdle = useIdleTimer(settings.ambient.idleTimeoutSeconds, settings.ambient.enabled && !panelOpen, remote);
 
@@ -269,6 +275,8 @@ export default function App() {
         else if (timerPanelOpen) setTimerPanelOpen(false);
         else if (lightsOpen) setLightsOpen(false);
         else if (browserStartOpen) setBrowserStartOpen(false);
+        else if (remindersOpen) setRemindersOpen(false);
+        else if (scanOpen) setScanOpen(false);
         else if (groceryOpen) setGroceryOpen(false);
         else if (browserUrl !== null) setBrowserUrl(null);
         else if (recipesOpen) setRecipesOpen(false);
@@ -279,7 +287,7 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [browserUrl, recipesOpen, choresOpen, menuOpen, timerPanelOpen, morningOpen, morningNow, today, lightsOpen, browserStartOpen, groceryOpen]);
+  }, [browserUrl, recipesOpen, choresOpen, menuOpen, timerPanelOpen, morningOpen, morningNow, today, lightsOpen, browserStartOpen, groceryOpen, remindersOpen, scanOpen]);
 
   // Accessibility settings reflected as body classes (global.css hooks into these).
   useEffect(() => {
@@ -502,7 +510,15 @@ export default function App() {
         {/* Chores have their place in the strip along the bottom; up here
             is only for what needs doing about the calendar — leaving,
             starting. */}
-        <ReminderStrip reminders={reminders.filter((r) => !r.key.startsWith('chores-'))} />
+        <ReminderStrip
+          reminders={[
+            // A reminder whose time has come leads, in coral, until it's ticked.
+            ...remindersState.items
+              .filter((r) => !r.done && r.due && Date.parse(r.due) <= now.getTime())
+              .map((r) => ({ key: `rem-${r.id}`, text: r.text, level: 'now' as const })),
+            ...reminders.filter((r) => !r.key.startsWith('chores-')),
+          ]}
+        />
 
         {/* Crossfade rather than a hard cut — the switch reads as the same
             calendar rearranging itself, not as a different screen. */}
@@ -560,6 +576,18 @@ export default function App() {
         onOpenRecipes={() => setRecipesOpen(true)}
         onOpenTimers={() => setTimerPanelOpen(true)}
         onMusic={musicState.command}
+        reminders={remindersState.items}
+        lights={
+          lightsState && lightsState.bulbs.length
+            ? { on: lightsState.bulbs.filter((b) => b.online && b.on).length, total: lightsState.bulbs.length }
+            : null
+        }
+        onOpenReminders={() => setRemindersOpen(true)}
+        onToggleLights={() => {
+          const anyOn = !!lightsState?.bulbs.some((b) => b.online && b.on);
+          setLights('all', { on: !anyOn });
+        }}
+        onOpenLights={() => setLightsOpen(true)}
       />
 
       <TickerBar
@@ -649,6 +677,19 @@ export default function App() {
         />
       )}
 
+      {remindersOpen && (
+        <RemindersPanel
+          items={remindersState.items}
+          now={now}
+          onAdd={remindersState.add}
+          onToggle={remindersState.toggle}
+          onRemove={remindersState.remove}
+          onClose={() => setRemindersOpen(false)}
+        />
+      )}
+
+      {scanOpen && <ScanPanel onClose={() => setScanOpen(false)} />}
+
       {groceryOpen && (
         <GroceryPanel
           items={groceryState.items}
@@ -701,7 +742,7 @@ export default function App() {
         enough to hit reliably with a thumb, which is the part that matters.
       */}
 
-      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !timerPanelOpen && !morningOpen && !lightsOpen && !browserStartOpen && !groceryOpen && !isIdle && (
+      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !timerPanelOpen && !morningOpen && !lightsOpen && !browserStartOpen && !groceryOpen && !remindersOpen && !scanOpen && !isIdle && (
         <KioskMenu
           open={menuOpen}
           onToggle={() => setMenuOpen((v) => !v)}
@@ -722,7 +763,8 @@ export default function App() {
           entries={[
             { key: 'morning', label: 'Good morning', icon: <Icon name="sun" />, onPick: () => setMorningOpen(true) },
             { key: 'timers', label: 'Timers', icon: <Icon name="timer" />, onPick: () => setTimerPanelOpen(true) },
-            { key: 'lights', label: 'Lights', icon: <Icon name="bulb" />, onPick: () => setLightsOpen(true) },
+            { key: 'reminders', label: 'Reminders', icon: <Icon name="bell" />, onPick: () => setRemindersOpen(true) },
+            { key: 'scan', label: 'Scan a photo', icon: <Icon name="camera" />, onPick: () => setScanOpen(true) },
             ...(recipeSettings.enabled
               ? [{ key: 'recipes', label: 'Recipes', icon: <Icon name="utensils" />, onPick: () => setRecipesOpen(true) }]
               : []),

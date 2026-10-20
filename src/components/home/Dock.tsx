@@ -2,6 +2,8 @@ import { ChoreState, GroceryItem, KitchenTimer, MealDay, NowPlaying, Person } fr
 import { BakeState, bakeWhen } from '../../engine/bake';
 import { formatCountdown, isRinging, sortTimers, timerRemaining } from '../../engine/kitchen';
 import { Icon } from '../Icon';
+import { ReminderItem } from '../../hooks/useReminders';
+import { showWhen } from '../../engine/when';
 
 interface Props {
   now: Date;
@@ -13,11 +15,17 @@ interface Props {
   bake: BakeState | null;
   timers: KitchenTimer[];
   music: NowPlaying | null;
+  reminders: ReminderItem[];
+  /** null when there are no lights to show. */
+  lights: { on: number; total: number } | null;
   onOpenChores: () => void;
   onOpenGrocery: () => void;
   onOpenRecipes: () => void;
   onOpenTimers: () => void;
   onMusic: (action: 'play' | 'pause') => void;
+  onOpenReminders: () => void;
+  onToggleLights: () => void;
+  onOpenLights: () => void;
 }
 
 /**
@@ -38,11 +46,16 @@ export function Dock({
   bake,
   timers,
   music,
+  reminders,
+  lights,
   onOpenChores,
   onOpenGrocery,
   onOpenRecipes,
   onOpenTimers,
   onMusic,
+  onOpenReminders,
+  onToggleLights,
+  onOpenLights,
 }: Props) {
   const tiles: JSX.Element[] = [];
 
@@ -59,6 +72,24 @@ export function Dock({
       </button>
     );
   }
+
+  // Reminders: what's due now leads; otherwise the next one coming.
+  const open = reminders.filter((r) => !r.done);
+  const dueNow = open.filter((r) => r.due && Date.parse(r.due) <= now.getTime());
+  const nextUp = open.filter((r) => r.due && Date.parse(r.due) > now.getTime())[0];
+  tiles.push(
+    <button className={`dock-tile ${dueNow.length ? 'dock-due' : ''}`} key="reminders" onClick={onOpenReminders}>
+      <span className="dock-label">
+        <Icon name="bell" size={15} /> Reminders
+      </span>
+      <span className={`dock-value ${open.length ? '' : 'empty'}`}>
+        {dueNow.length ? dueNow[0].text : nextUp ? nextUp.text : open.length ? `${open.length} to do` : 'None'}
+      </span>
+      <span className="dock-sub">
+        {dueNow.length > 1 ? `and ${dueNow.length - 1} more now` : dueNow.length ? 'Now' : nextUp?.due ? showWhen(nextUp.due, now) : 'Tap to add one'}
+      </span>
+    </button>
+  );
 
   const meal = tonight?.meal ?? null;
   tiles.push(
@@ -114,6 +145,24 @@ export function Dock({
         <span className={`dock-value ${pick ? '' : 'empty'}`}>{pick ? pick.title : 'Pick a recipe'}</span>
         <span className="dock-sub">{bakeWhen(bake.next.date, bake.dayName, now)}</span>
       </button>
+    );
+  }
+
+  // The lights, one tap: all off if any are on, all on if none are.
+  if (lights && lights.total > 0) {
+    tiles.push(
+      <div className="dock-tile dock-lights" key="lights">
+        <span className="dock-label">
+          <Icon name="bulb" size={15} /> Lights
+        </span>
+        <button className={`dock-switch ${lights.on ? 'on' : ''}`} onClick={onToggleLights}>
+          <Icon name="power" size={18} />
+          {lights.on ? `${lights.on === lights.total ? 'All' : lights.on} on` : 'Off'}
+        </button>
+        <button className="dock-link" onClick={onOpenLights}>
+          Moods &amp; dimming
+        </button>
+      </div>
     );
   }
 

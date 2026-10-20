@@ -192,6 +192,22 @@
   .remote-views button:first-child { border-radius:8px 0 0 8px; margin-left:0; }
   .remote-views button:last-child { border-radius:0 8px 8px 0; }
   .remote-views button:active { color:#000; background:var(--accent); border-color:var(--accent); }
+
+  /* Scan and reminders */
+  .scan-hint { color: var(--muted, #8a8a8a); line-height: 1.5; margin: 0 0 16px; }
+  .scan-pick { display: block; text-align: center; cursor: pointer; }
+  .scan-status { margin: 14px 0; font-weight: 600; }
+  .scan-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid rgba(128,128,128,0.2); }
+  .scan-row input { width: 22px; height: 22px; margin-top: 2px; flex: none; }
+  .scan-row b { display: block; font-weight: 600; }
+  .scan-row small { display: block; color: var(--muted, #8a8a8a); margin-top: 2px; }
+  .rem { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(128,128,128,0.2); }
+  .rem-tick { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid currentColor; background: none; color: inherit; flex: none; }
+  .rem.done .rem-tick { background: currentColor; }
+  .rem.done .rem-text { text-decoration: line-through; opacity: 0.5; }
+  .rem-body { flex: 1; min-width: 0; }
+  .rem-when { font-size: 13px; opacity: 0.6; }
+  .rem.due .rem-when { color: #ff6b5b; opacity: 1; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -209,6 +225,8 @@
 
   <div class="tabs" id="tabs">
     <button class="tab active" data-panel="calendar">Calendar</button>
+    <button class="tab" data-panel="scan">Scan</button>
+    <button class="tab" data-panel="reminders">Reminders</button>
     <button class="tab" data-panel="timers">Timers</button>
     <button class="tab" data-panel="meals">Meals</button>
     <button class="tab" data-panel="notes">Notes</button>
@@ -394,6 +412,30 @@
     </div>
 
     <!-- NOTES -->
+    <div id="scan" class="panel">
+      <h2>Scan a photo</h2>
+      <p class="scan-hint">Take a photo of anything with dates or a list on it — a school newsletter, an invitation, a practice schedule, the shopping list on the fridge. What's in it comes up here to tick; only what you tick is added.</p>
+      <label class="submit scan-pick">
+        Take or choose a photo
+        <input type="file" id="scanFile" accept="image/*" capture="environment" hidden onchange="scanPhoto(this)" />
+      </label>
+      <div id="scanStatus" class="scan-status"></div>
+      <div id="scanResult"></div>
+    </div>
+
+    <div id="reminders" class="panel">
+      <h2>Reminders</h2>
+      <div class="field">
+        <input id="remText" maxlength="140" placeholder="Remind us to…" onkeydown="if(event.key==='Enter')addReminder()" />
+      </div>
+      <div class="field">
+        <label class="fl">When (optional)</label>
+        <input id="remWhen" type="datetime-local" />
+      </div>
+      <button class="submit" onclick="addReminder()">Add reminder</button>
+      <div id="remList" style="margin-top:22px"></div>
+    </div>
+
     <div id="notes" class="panel">
       <h2>Notes on the wall</h2>
       <div class="field">
@@ -756,6 +798,7 @@
       if (t.dataset.panel === 'timers') loadTimers();
       if (t.dataset.panel === 'meals') loadMeals();
       if (t.dataset.panel === 'notes') loadNotes();
+      if (t.dataset.panel === 'reminders') loadReminders();
     });
   });
 
@@ -1499,6 +1542,146 @@
       document.querySelectorAll('#noteLasts button').forEach(function (x) { x.classList.toggle('on', x === b); });
     });
   });
+
+  /* ---------------- reminders ---------------- */
+
+  async function loadReminders() {
+    try {
+      var res = await fetch('/api/reminders', { cache: 'no-store' });
+      if (!res.ok) return;
+      var list = await res.json();
+      var host = document.getElementById('remList');
+      if (!list.length) { host.innerHTML = '<div class="empty">Nothing to remember.</div>'; return; }
+      host.innerHTML = list.map(function (r) {
+        var when = r.due ? new Date(r.due).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Anytime';
+        var due = !r.done && r.due && Date.parse(r.due) <= Date.now();
+        return '<div class="rem' + (r.done ? ' done' : '') + (due ? ' due' : '') + '">' +
+          '<button class="rem-tick" onclick="tickReminder(\'' + esc(r.id) + '\',' + (!r.done) + ')">' + (r.done ? '✓' : '') + '</button>' +
+          '<div class="rem-body"><div class="rem-text">' + esc(r.text) + '</div><div class="rem-when">' + esc(due ? 'Now' : when) + '</div></div>' +
+          '<button class="del" onclick="deleteReminder(\'' + esc(r.id) + '\')">Delete</button></div>';
+      }).join('');
+    } catch (e) { /* offline */ }
+  }
+
+  async function addReminder() {
+    var text = document.getElementById('remText').value.trim();
+    if (!text) { toast('Write what to remember'); return; }
+    var when = document.getElementById('remWhen').value;
+    var res = await fetch('/api/reminders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text, due: when ? new Date(when).toISOString() : null }),
+    });
+    if (!res.ok) { toast('Could not add it'); return; }
+    document.getElementById('remText').value = '';
+    document.getElementById('remWhen').value = '';
+    toast('Added');
+    loadReminders();
+  }
+
+  async function tickReminder(id, done) {
+    await fetch('/api/reminders/' + encodeURIComponent(id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ done: done }) });
+    loadReminders();
+  }
+
+  async function deleteReminder(id) {
+    await fetch('/api/reminders/' + encodeURIComponent(id), { method: 'DELETE' });
+    loadReminders();
+  }
+
+  /* ---------------- scan a photo ---------------- */
+
+  var scanFound = null;
+
+  // A phone photo is 4-12MB; the words in it read just as well at 1600px,
+  // and that's under half a megabyte to send.
+  function shrinkPhoto(file) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(img.src);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  async function scanPhoto(input) {
+    var file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    var status = document.getElementById('scanStatus');
+    var out = document.getElementById('scanResult');
+    out.innerHTML = '';
+    status.textContent = 'Reading the photo…';
+    try {
+      var image = await shrinkPhoto(file);
+      var res = await fetch('/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: image }) });
+      var data = await res.json();
+      if (!res.ok || data.error) { status.textContent = data.error || 'Could not read it.'; return; }
+      scanFound = data.result;
+      var n = scanFound.events.length + scanFound.grocery.length + scanFound.reminders.length;
+      status.textContent = n ? 'Found ' + n + '. Untick anything that\'s wrong.' : 'Nothing to add in that one.';
+      paintScan();
+    } catch (e) {
+      status.textContent = 'Could not read it — is the phone on the home Wi-Fi?';
+    }
+  }
+
+  function when(date, time) {
+    if (!date) return 'Anytime';
+    var d = new Date(date + 'T' + (time || '00:00') + ':00');
+    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + (time ? ' · ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '');
+  }
+
+  function paintScan() {
+    var f = scanFound;
+    var html = '';
+    function row(kind, i, title, sub) {
+      return '<label class="scan-row"><input type="checkbox" checked data-kind="' + kind + '" data-i="' + i + '"><span><b>' + esc(title) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></label>';
+    }
+    if (f.events.length) html += '<h3>Calendar</h3>' + f.events.map(function (e, i) { return row('events', i, e.title, when(e.date, e.start) + (e.location ? ' · ' + e.location : '')); }).join('');
+    if (f.grocery.length) html += '<h3>Grocery list</h3>' + f.grocery.map(function (g, i) { return row('grocery', i, g, ''); }).join('');
+    if (f.reminders.length) html += '<h3>Reminders</h3>' + f.reminders.map(function (r, i) { return row('reminders', i, r.text, when(r.date, r.time)); }).join('');
+    if (html) html += '<button class="submit" style="margin-top:18px" onclick="addScanned()">Add ticked</button>';
+    document.getElementById('scanResult').innerHTML = html;
+  }
+
+  async function addScanned() {
+    var ticked = Array.prototype.slice.call(document.querySelectorAll('#scanResult input:checked'));
+    var added = 0;
+    for (var k = 0; k < ticked.length; k++) {
+      var kind = ticked[k].dataset.kind;
+      var item = scanFound[kind][Number(ticked[k].dataset.i)];
+      var path = null;
+      var body = null;
+      if (kind === 'events') {
+        var start = item.start ? new Date(item.date + 'T' + item.start + ':00') : new Date(item.date + 'T00:00:00');
+        var end = item.end ? new Date(item.date + 'T' + item.end + ':00') : new Date(start.getTime() + (item.start ? 3600e3 : 86400e3));
+        path = '/api/events';
+        body = { title: item.title, start: start.toISOString(), end: end.toISOString(), allDay: !item.start, calendarId: 'household', category: 'other', personIds: [], importance: 2 };
+        if (item.location) body.location = { label: item.location };
+      } else if (kind === 'grocery') {
+        path = '/api/grocery';
+        body = { label: item };
+      } else {
+        path = '/api/reminders';
+        body = { text: item.text, due: item.date ? new Date(item.date + 'T' + (item.time || '09:00') + ':00').toISOString() : null, source: 'photo' };
+      }
+      var res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(function () { return { ok: false }; });
+      if (res.ok) added++;
+    }
+    document.getElementById('scanResult').innerHTML = '';
+    document.getElementById('scanStatus').textContent = added ? 'Added ' + added + ' — they\'re on the wall.' : 'Nothing was added.';
+    toast(added ? 'Added ' + added : 'Nothing added');
+    scanFound = null;
+  }
 
   async function loadNotes() {
     paintNoteFrom();

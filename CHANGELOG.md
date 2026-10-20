@@ -9,6 +9,20 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-20 — Reminders, reading photos, and the lights on the home screen
+
+- **Reminders.** A new Reminders panel (corner menu, or the strip along the
+  bottom) and a Reminders tab on the phone. Give one a time ("tonight 8pm",
+  "fri 8am") or none. When its time comes the screen lights up and it sits
+  at the top of the calendar in coral until it's ticked off.
+- **Scan a photo.** On the phone's new Scan tab, photograph a school
+  newsletter, an invitation or a shopping list: the events, groceries and
+  reminders in it come up as a list to tick, and only what you tick is
+  added. On the wall, Scan a photo shows a code to open it. Needs the free
+  Groq key (or an Anthropic key) in Settings → Baja.
+- **The lights are on the home screen.** One tap in the strip along the
+  bottom turns them all off (or on); "Moods & dimming" opens the rest.
+
 ## 2026-10-20 — The browser lives inside the calendar now
 
 - **Browser never leaves the app.** Before, it closed the calendar and

@@ -72,5 +72,18 @@ same('reads back what the editor shows ("Tue, Oct 20, 2026")', parseDate('Tue, O
 const { showDate } = require(OUT);
 same('and shows dates that way', showDate('2026-10-23'), 'Fri, Oct 23, 2026');
 
+console.log('\nOne box for a reminder (still Tuesday 20 October, 5pm)');
+const { parseWhen } = require(OUT);
+const w = (t) => JSON.stringify(parseWhen(t, now));
+same('"tomorrow 5pm"', w('tomorrow 5pm'), JSON.stringify({ date: '2026-10-21', time: '17:00' }));
+same('"fri 8am"', w('fri 8am'), JSON.stringify({ date: '2026-10-23', time: '08:00' }));
+same('"oct 25 at 9:30"', w('oct 25 at 9:30'), JSON.stringify({ date: '2026-10-25', time: '09:30' }));
+same('"5 pm tomorrow"', w('5 pm tomorrow'), JSON.stringify({ date: '2026-10-21', time: '17:00' }));
+same('"8pm" later today', w('8pm'), JSON.stringify({ date: '2026-10-20', time: '20:00' }));
+same('"8am" already passed today means tomorrow', w('8am'), JSON.stringify({ date: '2026-10-21', time: '08:00' }));
+same('"fri" alone: that day, no time', w('fri'), JSON.stringify({ date: '2026-10-23', time: null }));
+same('empty: no time at all', w(''), JSON.stringify({ date: null, time: null }));
+same('words it can\'t read', w('when the cows come home'), 'null');
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

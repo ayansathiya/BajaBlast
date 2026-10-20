@@ -1047,3 +1047,198 @@ div.dock-tile {
   color: var(--text-faint);
   max-width: 70ch;
 }
+
+/* ---------- the strip: reminders and lights ---------- */
+
+.dock-tile.dock-due .dock-label,
+.dock-tile.dock-due .dock-sub {
+  color: var(--urgent);
+}
+
+.dock-lights {
+  gap: 8px;
+}
+
+.dock-switch {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dock-switch.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.dock-link {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--font);
+  font-size: 15px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-decoration-color: var(--hairline);
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+/* ---------- reminders ---------- */
+
+.rem-panel {
+  width: min(680px, 100%);
+}
+
+.rem-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1, 8px);
+  margin-bottom: var(--s3, 24px);
+}
+
+.rem-add-row {
+  display: flex;
+  gap: var(--s1, 8px);
+}
+
+.rem-add-row .btn-primary {
+  min-width: 96px;
+}
+
+.rem-lists {
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.rem-lists ul {
+  list-style: none;
+  margin: 0 0 var(--s3, 24px);
+  padding: 0;
+}
+
+.rem-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-faint);
+  margin-bottom: 4px;
+}
+
+.rem-label.urgent {
+  color: var(--urgent);
+}
+
+.rem-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2, 16px);
+  min-height: 60px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.rem-check {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 999px;
+  border: 1.5px solid var(--text-faint);
+  background: none;
+  color: var(--accent-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.rem-row.done .rem-check {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.rem-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.rem-row.done .rem-text {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+.rem-when {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.rem-x {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.rem-empty {
+  padding: var(--s2, 16px) 0 var(--s3, 24px);
+  color: var(--text-muted);
+}
+
+/* ---------- scan a photo ---------- */
+
+.scan-panel {
+  width: min(760px, 100%);
+}
+
+.scan-body {
+  display: flex;
+  gap: var(--s4, 32px);
+  align-items: center;
+}
+
+.scan-qr {
+  flex: none;
+  background: #fff;
+  padding: 12px;
+  border-radius: 14px;
+  line-height: 0;
+}
+
+.scan-qr.empty {
+  width: 244px;
+  height: 244px;
+}
+
+.scan-text p {
+  margin: 0 0 var(--s2, 16px);
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.scan-text .scan-url {
+  font-size: 14px;
+  color: var(--text-faint);
+  word-break: break-all;
+}

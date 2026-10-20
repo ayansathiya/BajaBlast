@@ -143,3 +143,60 @@ export function showDate(iso: string): string {
   // Fixed to US English so what's shown is always something parseDate reads.
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+/**
+ * A date and a time in one box, for reminders: "tomorrow 5pm", "fri 8am",
+ * "oct 25 9:30", "5pm" (today), "fri" (that day, no time). Empty means no
+ * time at all. Null when it can't be read.
+ *
+ * A time that has already passed today, with no date given, means the same
+ * time tomorrow — "8am" typed at 9pm is tomorrow morning.
+ */
+export function parseWhen(input: string, now: Date = new Date()): { date: string | null; time: string | null } | null {
+  const text = input.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\bat\b/g, '').replace(/\s+/g, ' ').trim();
+  if (!text) return { date: null, time: null };
+
+  const today = isoDate(now);
+  const timeOnly = parseTime(text);
+  if (timeOnly) {
+    const [h, m] = timeOnly.split(':').map(Number);
+    const passed = h * 60 + m <= now.getHours() * 60 + now.getMinutes();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    return { date: passed ? isoDate(tomorrow) : today, time: timeOnly };
+  }
+  const dateOnly = parseDate(text, now);
+  if (dateOnly) return { date: dateOnly, time: null };
+
+  // A time at the end — one word ("5pm") or two ("5 pm").
+  const words = text.split(' ');
+  for (const take of [2, 1]) {
+    if (words.length <= take) continue;
+    const time = parseTime(words.slice(-take).join(' '));
+    const date = parseDate(words.slice(0, -take).join(' '), now);
+    if (time && date) return { date, time };
+  }
+  // Or at the start: "5pm tomorrow".
+  for (const take of [2, 1]) {
+    if (words.length <= take) continue;
+    const time = parseTime(words.slice(0, take).join(' '));
+    const date = parseDate(words.slice(take).join(' '), now);
+    if (time && date) return { date, time };
+  }
+  return null;
+}
+
+/** "Today, 5:00 PM", "Fri, Oct 23", "Tomorrow" — for showing a reminder's time. */
+export function showWhen(iso: string, now: Date = new Date()): string {
+  const d = new Date(iso);
+  const today = isoDate(now);
+  const tomorrow = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+  const key = isoDate(d);
+  const day =
+    key === today
+      ? 'Today'
+      : key === tomorrow
+        ? 'Tomorrow'
+        : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
+  return hasTime ? `${day}, ${showTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)}` : day;
+}

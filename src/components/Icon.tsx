@@ -32,7 +32,10 @@ export type IconName =
   | 'pause'
   | 'prev'
   | 'next'
-  | 'history';
+  | 'history'
+  | 'bell'
+  | 'camera'
+  | 'power';
 
 const PATHS: Record<IconName, JSX.Element> = {
   sun: (
@@ -118,6 +121,24 @@ const PATHS: Record<IconName, JSX.Element> = {
   pause: <path d="M8 5v14M16 5v14" strokeWidth="3" />,
   prev: <path d="M18 5v14L8 12zM6 5v14" fill="currentColor" />,
   next: <path d="M6 5v14l10-7zM18 5v14" fill="currentColor" />,
+  bell: (
+    <>
+      <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z" />
+      <path d="M10 20.5a2 2 0 0 0 4 0" />
+    </>
+  ),
+  camera: (
+    <>
+      <path d="M3.5 8.5a2 2 0 0 1 2-2h2.2l1.6-2h5.4l1.6 2h2.2a2 2 0 0 1 2 2v9.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" />
+      <circle cx="12" cy="13" r="3.8" />
+    </>
+  ),
+  power: (
+    <>
+      <path d="M12 3v8" />
+      <path d="M6.6 6.6a7.5 7.5 0 1 0 10.8 0" />
+    </>
+  ),
   history: (
     <>
       <path d="M3.5 12a8.5 8.5 0 1 0 2.5-6L3.5 8.5" />
