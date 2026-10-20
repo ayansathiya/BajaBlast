@@ -63,6 +63,7 @@ import { Hero } from './components/home/Hero';
 import { DayList } from './components/home/DayList';
 import { Dock } from './components/home/Dock';
 import { GroceryPanel } from './components/home/GroceryPanel';
+import { BrowserStart, openOnWall, wallBrowserReady } from './components/home/BrowserStart';
 import { ScreenKeyboard } from './components/ScreenKeyboard';
 import { DailyKural, useDailyKural } from './components/DailyKural';
 import { LightsPanel } from './components/LightsPanel';
@@ -114,42 +115,34 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const recipeSettings = settings.recipes ?? DEFAULT_SETTINGS.recipes;
 
+  const [browserStartOpen, setBrowserStartOpen] = useState(false);
+
   /*
     Opening the browser.
 
-    On the Pi, a real Chromium window over the calendar: most big sites refuse
-    to be shown inside another page, so the in-page browser just says "refused
-    to connect" for them. The kiosk launcher opens the window (see
-    /api/browser/open). In the Mac app, and anywhere no launcher is listening,
-    it's the in-page browser as before.
+    On the wall, websites open in this same full-screen window — nothing
+    framed, so every site works — and the wall's add-on (packaging/pi/
+    extension) puts back, a keyboard and Calendar on top of each one. Browser
+    from the menu starts on a page of our own with a search box. Without the
+    add-on (the Mac app, a laptop pointed at the server) it's the in-page
+    browser, which never leaves the calendar either.
   */
-  async function openBrowser(url?: string) {
-    if (!/electron/i.test(navigator.userAgent)) {
-      try {
-        const res = await fetch('/api/browser/open', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: url || recipeSettings.browserHome }),
-        });
-        const result = await res.json();
-        if (result.ok) {
-          setNotice('Opening the browser — close its window to come back to the calendar');
-          window.setTimeout(() => setNotice(null), 6000);
-          return;
-        }
-        // On the Pi, nothing listening means the window helper isn't running
-        // yet. Say so: the in-page browser below can't show YouTube or most
-        // big sites, and "refused to connect" alone explains nothing.
-        if (result.reason === 'no-launcher' && /linux/i.test(navigator.userAgent) && !/android/i.test(navigator.userAgent)) {
-          setNotice("The full browser isn't running yet — restart the Pi once and it will be. Until then, many sites won't open here.");
-          window.setTimeout(() => setNotice(null), 9000);
-        }
-      } catch {
-        // Fall through to the in-page browser.
-      }
+  function openBrowser(url?: string) {
+    if (wallBrowserReady()) {
+      if (url) openOnWall(url);
+      else setBrowserStartOpen(true);
+      return;
     }
     setBrowserUrl(url ?? '');
   }
+
+  // The bar on a website has Search, which comes back here to #browser.
+  useEffect(() => {
+    if (window.location.hash !== '#browser') return;
+    history.replaceState(null, '', window.location.pathname);
+    // The add-on marks the page as soon as it loads; give it that moment.
+    window.setTimeout(() => (wallBrowserReady() ? setBrowserStartOpen(true) : setBrowserUrl('')), 50);
+  }, []);
   const { bake, pick: pickBake } = useBake(recipeSettings.enabled);
   const { bookmarks, addBookmark, removeBookmark } = useBookmarks(recipeSettings.browserEnabled);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -192,7 +185,7 @@ export default function App() {
   // Rolls the display over at midnight and recovers after the Mac wakes.
   // Paused while a panel is open so a reload can't interrupt someone
   // mid-edit, or wipe the board out from under a kid ticking off chores.
-  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen || morningOpen || lightsOpen || groceryOpen;
+  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen || morningOpen || lightsOpen || groceryOpen || browserStartOpen;
   useDailyReload(!panelOpen);
   const isIdle = useIdleTimer(settings.ambient.idleTimeoutSeconds, settings.ambient.enabled && !panelOpen, remote);
 
@@ -275,6 +268,8 @@ export default function App() {
         else if (morningOpen) closeMorning();
         else if (timerPanelOpen) setTimerPanelOpen(false);
         else if (lightsOpen) setLightsOpen(false);
+        else if (browserStartOpen) setBrowserStartOpen(false);
+        else if (groceryOpen) setGroceryOpen(false);
         else if (browserUrl !== null) setBrowserUrl(null);
         else if (recipesOpen) setRecipesOpen(false);
         else if (choresOpen) setChoresOpen(false);
@@ -284,7 +279,7 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [browserUrl, recipesOpen, choresOpen, menuOpen, timerPanelOpen, morningOpen, morningNow, today, lightsOpen]);
+  }, [browserUrl, recipesOpen, choresOpen, menuOpen, timerPanelOpen, morningOpen, morningNow, today, lightsOpen, browserStartOpen, groceryOpen]);
 
   // Accessibility settings reflected as body classes (global.css hooks into these).
   useEffect(() => {
@@ -645,6 +640,15 @@ export default function App() {
         />
       )}
 
+      {browserStartOpen && (
+        <BrowserStart
+          home={recipeSettings.browserHome}
+          bookmarks={bookmarks}
+          onRemoveBookmark={removeBookmark}
+          onClose={() => setBrowserStartOpen(false)}
+        />
+      )}
+
       {groceryOpen && (
         <GroceryPanel
           items={groceryState.items}
@@ -697,7 +701,7 @@ export default function App() {
         enough to hit reliably with a thumb, which is the part that matters.
       */}
 
-      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !timerPanelOpen && !morningOpen && !lightsOpen && !isIdle && (
+      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !timerPanelOpen && !morningOpen && !lightsOpen && !browserStartOpen && !groceryOpen && !isIdle && (
         <KioskMenu
           open={menuOpen}
           onToggle={() => setMenuOpen((v) => !v)}

@@ -60,7 +60,7 @@ async function kioskTests() {
   const srv = await listen();
   const url = `http://127.0.0.1:${srv.address().port}/`;
 
-  function run({ conf = '', browser = 'chromium', prefs = null } = {}) {
+  function run({ conf = '', browser = 'chromium', prefs = null, extension = false } = {}) {
     const dir = fs.mkdtempSync(path.join(tmp, 'k-'));
     const bin = path.join(dir, 'bin');
     const log = path.join(dir, 'args');
@@ -77,7 +77,14 @@ async function kioskTests() {
     const r = spawnSync('/bin/bash', [KIOSK], {
       encoding: 'utf8',
       timeout: 20_000,
-      env: { PATH: basePath(bin), HOME: home, BAJA_BLAST_DEFAULTS: confFile, BAJA_BLAST_KIOSK_ONCE: '1', BAJA_BLAST_KIOSK_WAIT: '3' },
+      env: {
+        PATH: basePath(bin),
+        HOME: home,
+        BAJA_BLAST_DEFAULTS: confFile,
+        BAJA_BLAST_KIOSK_ONCE: '1',
+        BAJA_BLAST_KIOSK_WAIT: '3',
+        BAJA_BLAST_EXTENSION: extension ? path.join(ROOT, 'packaging', 'pi', 'extension') : path.join(dir, 'no-extension'),
+      },
     });
     const args = fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n') : null;
     const prefsAfter = prefs ? fs.readFileSync(path.join(home, '.config', 'baja-blast-kiosk', 'Default', 'Preferences'), 'utf8') : null;
@@ -95,6 +102,12 @@ async function kioskTests() {
     check('with swipe-back off', a.includes('--overscroll-history-navigation=0'));
     check('with no restore-pages bubble', a.includes('--disable-session-crashed-bubble'));
     check('in its own profile, not the desktop user\'s browser', a.some((x) => x.startsWith('--user-data-dir=') && x.endsWith('.config/baja-blast-kiosk')));
+    check('without the add-on installed, none is asked for', !a.some((x) => x.startsWith('--load-extension')));
+  }
+  {
+    const r = run({ extension: true });
+    const a = r.args || [];
+    check('with it installed, the calendar loads the browser add-on', a.some((x) => x === `--load-extension=${path.join(ROOT, 'packaging', 'pi', 'extension')}`), JSON.stringify(a));
   }
   {
     const r = run({ conf: 'KIOSK_SCALE=1.5' });

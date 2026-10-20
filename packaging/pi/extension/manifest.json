@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Baja Blast wall",
+  "version": "1.0",
+  "description": "Keeps websites inside the kitchen calendar: a way back, and a keyboard, on every page.",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["wall.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "background": { "service_worker": "background.js" },
+  "host_permissions": ["http://localhost:8787/*", "http://127.0.0.1:8787/*"]
+}

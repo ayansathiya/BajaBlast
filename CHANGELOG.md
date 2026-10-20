@@ -9,6 +9,26 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-20 — The browser lives inside the calendar now
+
+- **Browser never leaves the app.** Before, it closed the calendar and
+  opened a separate Chromium window — with nothing to type with and no way
+  back. Now Browser opens a page inside the calendar: a big search box
+  (the on-screen keyboard comes up with it), Google, YouTube, your recipe
+  site and your bookmarks. Pick one and the calendar's own screen goes
+  there — every site works, because nothing is squeezed into a frame.
+- **On every website, a bar along the bottom:** Back, Forward, a keyboard,
+  Search (back to the start page) and **Calendar** to come home. Tap any
+  text box on the site — Google's search, YouTube's — and the calendar's
+  keyboard comes up and types into it. Links that would open a new window
+  open in place instead.
+- **It comes home by itself** after ten minutes nobody touches it, and the
+  moment a kitchen timer goes off.
+- After this update the Pi restarts the calendar once by itself to switch
+  this on — a few seconds of blank screen, no reboot.
+- Tested in a real Chromium: typing on a site with the on-screen keyboard,
+  searching, Back, Calendar, and a timer bringing it home.
+
 ## 2026-10-20 — The wall, rebuilt
 
 - **A completely new home screen.** Not a restyle — a different layout:

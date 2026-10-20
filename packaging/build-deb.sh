@@ -164,6 +164,10 @@ install -m 755 "$PI/upgrade"                    "$STAGE/usr/lib/baja-blast/upgra
 install -m 644 "$PI/baja-blast-upgrade.service" "$STAGE/lib/systemd/system/baja-blast-upgrade.service"
 install -m 644 "$PI/baja-blast-upgrade.timer"   "$STAGE/lib/systemd/system/baja-blast-upgrade.timer"
 install -m 755 "$PI/night"                      "$STAGE/usr/lib/baja-blast/night"
+mkdir -p "$STAGE/usr/lib/baja-blast/wall-extension"
+install -m 644 "$PI/extension/manifest.json"   "$STAGE/usr/lib/baja-blast/wall-extension/manifest.json"
+install -m 644 "$PI/extension/wall.js"         "$STAGE/usr/lib/baja-blast/wall-extension/wall.js"
+install -m 644 "$PI/extension/background.js"   "$STAGE/usr/lib/baja-blast/wall-extension/background.js"
 install -m 644 "$PI/baja-blast-night.service"   "$STAGE/lib/systemd/system/baja-blast-night.service"
 install -m 644 "$PI/baja-blast-night.timer"     "$STAGE/lib/systemd/system/baja-blast-night.timer"
 

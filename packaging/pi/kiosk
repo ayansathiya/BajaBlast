@@ -46,7 +46,11 @@ NEXT="$DATA/browse-next"
 # loop learns something the browser helper relies on, so the helper can tell
 # a launcher left running from before an update. See replace_old_loop.
 LOOP_FILE="$DATA/kiosk-loop"
-LOOP_VERSION=2
+LOOP_VERSION=3
+# Loaded into the calendar's own Chromium: it puts Back, a keyboard and a way
+# home on every website, so Browser can take this same window to a site
+# instead of opening another one. See packaging/pi/extension/wall.js.
+EXTENSION="${BAJA_BLAST_EXTENSION:-/usr/lib/baja-blast/wall-extension}"
 # What happened, for when something doesn't: /api/kiosk/log shows the end.
 LOG="$DATA/kiosk.log"
 
@@ -208,10 +212,25 @@ fi
 # to the in-page one that YouTube and most big sites refuse to load in. It
 # also restarts itself when an update replaces this file, for the same reason.
 browser_watch() {
-  local req="$DATA/browser-open.json" url stamp
+  local req="$DATA/browser-open.json" url stamp upgraded=""
   stamp="$(stat -c %Y "$SELF" 2>/dev/null || echo 0)"
   while true; do
     touch "$DATA/kiosk-alive" 2>/dev/null
+    # A calendar started by an older launcher doesn't have the add-on loaded,
+    # so websites would have no way back. Once, after an update: close it,
+    # and the loop comes back as this version, add-on and all.
+    if [ -z "$upgraded" ] && running "$KIOSK_PROFILE"; then
+      if loop_ok; then
+        upgraded=1
+      elif read -r v _ < "$LOOP_FILE" 2>/dev/null && [ "${v:-0}" -ge 2 ]; then
+        log "launcher: restarting the calendar to load the browser add-on"
+        close_profile "$KIOSK_PROFILE"
+        upgraded=1
+      else
+        replace_old_loop || log "launcher: the new one didn't start"
+        upgraded=1
+      fi
+    fi
     if [ -f "$req" ]; then
       url="$(node -e '
         try {
@@ -323,8 +342,11 @@ while true; do
   # calendar reflowing into a phone layout.
   # Pinch-zoom and swipe-back are off: both are things an elbow does to a
   # touch panel, and neither has a way back without a keyboard.
+  EXTENSION_FLAG=()
+  [ -f "$EXTENSION/manifest.json" ] && EXTENSION_FLAG=(--load-extension="$EXTENSION")
   "$BROWSER" \
     --kiosk "$KIOSK_URL" \
+    ${EXTENSION_FLAG[@]+"${EXTENSION_FLAG[@]}"} \
     --user-data-dir="$PROFILE_DIR" \
     --force-device-scale-factor="$KIOSK_SCALE" \
     --ozone-platform-hint=auto \
