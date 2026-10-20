@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import './styles/design.css';
+import './styles/home.css';
 import { useClock } from './hooks/useClock';
 import { useCalendar } from './hooks/useCalendar';
 import { useWeather } from './hooks/useWeather';
@@ -19,7 +20,7 @@ import { WeekView } from './components/WeekView';
 import { MonthView } from './components/MonthView';
 import { useKioskRemote } from './hooks/useKioskRemote';
 import { ViewMode, addDays, eventsOnDay, monthGridStart, rangeLabel, startOfDay, startOfWeek, stepAnchor } from './engine/calendarRange';
-import { expandEvents, nextPerSeries } from './engine/recurrence';
+import { expandEvents } from './engine/recurrence';
 import { bakeEvents } from './engine/bake';
 import { useBake } from './hooks/useBake';
 import { useBookmarks } from './hooks/useBookmarks';
@@ -44,13 +45,7 @@ import {
 import { getThemePeriod, getThemeTokens } from './engine/timeOfDay';
 import { buildIdleScenes } from './engine/idleEngine';
 
-import { ClockDate } from './components/ClockDate';
-import { WhatsNext } from './components/WhatsNext';
-import { TodayTimeline } from './components/TodayTimeline';
-import { RightRail } from './components/RightRail';
-import { HeaderWeather } from './components/HeaderWeather';
 import { TickerBar } from './components/TickerBar';
-import { Briefing } from './components/Briefing';
 import { StatusIndicator } from './components/StatusIndicator';
 import { IdleReel } from './components/IdleReel';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -61,9 +56,13 @@ import { BajaAssistant } from './components/BajaAssistant';
 import { startLive } from './hooks/live';
 import { useMeals, useNotes, useTimers } from './hooks/useKitchen';
 import { buildReminders } from './engine/kitchen';
-import { IdleTimers, RailTimers, TimerAlarm, TimerPanel } from './components/Timers';
-import { IdleReminders, NotesBoard, ReminderStrip, TonightCard, WeekAhead } from './components/DayExtras';
+import { IdleTimers, TimerAlarm, TimerPanel } from './components/Timers';
+import { IdleReminders, NotesBoard, ReminderStrip, WeekAhead } from './components/DayExtras';
 import { GoodMorning } from './components/GoodMorning';
+import { Hero } from './components/home/Hero';
+import { DayList } from './components/home/DayList';
+import { Dock } from './components/home/Dock';
+import { GroceryPanel } from './components/home/GroceryPanel';
 import { ScreenKeyboard } from './components/ScreenKeyboard';
 import { DailyKural, useDailyKural } from './components/DailyKural';
 import { LightsPanel } from './components/LightsPanel';
@@ -155,6 +154,7 @@ export default function App() {
   const { bookmarks, addBookmark, removeBookmark } = useBookmarks(recipeSettings.browserEnabled);
   const [menuOpen, setMenuOpen] = useState(false);
   const [timerPanelOpen, setTimerPanelOpen] = useState(false);
+  const [groceryOpen, setGroceryOpen] = useState(false);
   const [lightsOpen, setLightsOpen] = useState(false);
   const { state: lightsState } = useLights(false);
   const [morningOpen, setMorningOpen] = useState(false);
@@ -192,7 +192,7 @@ export default function App() {
   // Rolls the display over at midnight and recovers after the Mac wakes.
   // Paused while a panel is open so a reload can't interrupt someone
   // mid-edit, or wipe the board out from under a kid ticking off chores.
-  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen || morningOpen || lightsOpen;
+  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen || morningOpen || lightsOpen || groceryOpen;
   useDailyReload(!panelOpen);
   const isIdle = useIdleTimer(settings.ambient.idleTimeoutSeconds, settings.ambient.enabled && !panelOpen, remote);
 
@@ -394,20 +394,13 @@ export default function App() {
   const showWeekAhead = showExtras && upcomingToday <= 4;
   const tonight = mealWeek.find((d) => d.isToday) ?? null;
 
-  const comingUp = useMemo(() => {
-    // Only the nearest bake, not every Saturday between here and Christmas.
-    // Each synthesised bake has its own id, so nextPerSeries can't collapse
-    // them the way it collapses a real weekly repeat.
-    const nextBake = upcomingBakes.filter((e) => new Date(e.start).getTime() > now.getTime()).slice(0, 1);
-    const future = [...upcomingEvents, ...nextBake]
-      .filter((e) => new Date(e.start).getTime() > now.getTime())
-      .filter((e) => e.importance >= 1 || !isSameDay(new Date(e.start), now))
-      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-    // One row per series. Without this, a household whose only repeating event
-    // is a weekly piano lesson sees "piano, piano, piano" as the next three
-    // things coming up, which tells them nothing they didn't know.
-    return nextPerSeries(future).slice(0, 3);
-  }, [upcomingEvents, upcomingBakes, now]);
+  // The next thing to happen, for the big "Next" on the left.
+  const upNext = useMemo(
+    () => upcomingWithBake.find((e) => !e.allDay && new Date(e.start).getTime() > now.getTime()) ?? null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [upcomingWithBake, minuteBucketForExpansion]
+  );
+
 
   // Feature 18 — theme evolves with time of day / sunrise-sunset.
   const themeInfo = getThemePeriod(now, weather ? new Date(weather.now.sunrise) : undefined, weather ? new Date(weather.now.sunset) : undefined);
@@ -492,17 +485,17 @@ export default function App() {
       {settings.display.brightness < 1 && (
         <div className="screen-dimmer" style={{ opacity: Math.min(0.85, 1 - settings.display.brightness) }} aria-hidden />
       )}
-      <ClockDate now={now} clockStyle={settings.display.clockStyle} kural={kural && <DailyKural kural={kural} />} />
-      <HeaderWeather
-        weather={weather}
-        status={weatherStatus}
-        place={settings.homeLocation.label}
+      <Hero
         now={now}
+        clockStyle={settings.display.clockStyle}
+        weather={weather}
+        weatherLoading={weatherStatus === 'loading'}
+        next={upNext}
+        people={settings.people}
+        kural={kural && <DailyKural kural={kural} />}
       />
-      <WhatsNext lines={whatsNextLines} />
 
-      <div className="main-col">
-        <ReminderStrip reminders={reminders} />
+      <main className="stage">
         <ViewSwitcher
           mode={viewMode}
           anchor={anchor}
@@ -511,20 +504,24 @@ export default function App() {
           onStep={(d) => setAnchor((a) => stepAnchor(a, viewMode, d, now))}
           onToday={() => setAnchor(startOfDay(now))}
         />
+        {/* Chores have their place in the strip along the bottom; up here
+            is only for what needs doing about the calendar — leaving,
+            starting. */}
+        <ReminderStrip reminders={reminders.filter((r) => !r.key.startsWith('chores-'))} />
 
         {/* Crossfade rather than a hard cut — the switch reads as the same
             calendar rearranging itself, not as a different screen. */}
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={`${viewMode}-${anchor.toDateString()}`}
-            className={`view-body ${showExtras ? 'with-extras' : ''} ${showWeekAhead ? 'with-week' : ''}`}
+            className={`stage-body stage-${viewMode}`}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: settings.display.reducedMotion ? 0 : 0.28, ease: 'easeOut' }}
           >
             {viewMode === 'day' && (
-              <TodayTimeline
+              <DayList
                 events={timeline}
                 people={settings.people}
                 conflicts={conflicts}
@@ -532,15 +529,15 @@ export default function App() {
                 leaveNow={leaveNow}
                 templates={settings.preparationTemplates}
                 weather={settings.intelligence.weatherAwareness ? weather : null}
+                isToday={anchorIsToday}
               />
             )}
             {showExtras && (
-              <div className="day-extras">
-                <div className="extras-top">
-                  <TonightCard day={tonight} onAddToGrocery={mealToGrocery} />
-                  <NotesBoard notes={notes} people={settings.people} now={now} onRemove={removeNote} max={showWeekAhead ? 3 : 2} />
-                </div>
-                {showWeekAhead && <WeekAhead events={upcomingWithBake} meals={mealWeek} people={settings.people} now={now} />}
+              <div className="stage-extras">
+                <NotesBoard notes={notes} people={settings.people} now={now} onRemove={removeNote} max={3} />
+                {upcomingToday <= 2 && (
+                  <WeekAhead events={upcomingWithBake} meals={mealWeek} people={settings.people} now={now} />
+                )}
               </div>
             )}
             {viewMode === 'week' && (
@@ -551,36 +548,23 @@ export default function App() {
             )}
           </motion.div>
         </AnimatePresence>
+      </main>
 
-        {/* Under today, dinner and notes take this room and the headlines give way: they're in the
-            ticker along the bottom already. */}
-        {settings.ambient.showNews && viewMode === 'day' && !showExtras && (
-          <Briefing news={news} status={newsStatus} updatedAt={newsUpdatedAt} now={now} />
-        )}
-      </div>
-
-      <RightRail
-        upcoming={comingUp}
-        people={settings.people}
-        todayEvents={todayEvents}
+      <Dock
         now={now}
-        showGrocery={settings.ambient.showGrocery}
-        grocery={groceryState.items}
-        onToggleGrocery={groceryState.toggle}
-        photos={photos}
-        showPhotoFrame={settings.feeds?.showPhotoFrame ?? true}
-        nowPlaying={musicState.state?.nowPlaying ?? null}
-        showNowPlaying={settings.music?.showNowPlaying !== false}
-        onMusicCommand={musicState.command}
-        chores={choreState.state}
-        showChores={settings.chores?.enabled !== false}
-        onOpenChores={() => setChoresOpen(true)}
+        nowMs={nowMs}
+        people={settings.people}
+        tonight={tonight}
+        chores={settings.chores?.enabled !== false ? choreState.state : null}
+        grocery={settings.ambient.showGrocery ? groceryState.items : null}
         bake={recipeSettings.enabled ? bake : null}
+        timers={timers}
+        music={settings.music?.showNowPlaying !== false ? musicState.state?.nowPlaying ?? null : null}
+        onOpenChores={() => setChoresOpen(true)}
+        onOpenGrocery={() => setGroceryOpen(true)}
         onOpenRecipes={() => setRecipesOpen(true)}
-        timersSlot={
-          <RailTimers timers={timers} nowMs={nowMs} onAct={actOnTimer} onOpen={() => setTimerPanelOpen(true)} />
-        }
-        timersVisible={timers.length > 0}
+        onOpenTimers={() => setTimerPanelOpen(true)}
+        onMusic={musicState.command}
       />
 
       <TickerBar
@@ -658,6 +642,15 @@ export default function App() {
           onClose={() => setLightsOpen(false)}
           signingKey={settings.wizSigningKey || ''}
           onSigningKey={(key) => updateSettings({ ...settings, wizSigningKey: key })}
+        />
+      )}
+
+      {groceryOpen && (
+        <GroceryPanel
+          items={groceryState.items}
+          onToggle={groceryState.toggle}
+          onAdd={(label) => groceryState.add(label)}
+          onClose={() => setGroceryOpen(false)}
         />
       )}
 

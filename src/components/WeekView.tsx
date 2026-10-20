@@ -36,7 +36,7 @@ export function WeekView({ events, people, anchor, now }: Props) {
             </div>
             <div className="week-col-body">
               {dayEvents.length === 0 ? (
-                <div className="week-empty">—</div>
+                <div className="week-empty" aria-label="Nothing" />
               ) : (
                 dayEvents.map((e) => {
                   const past = new Date(e.end).getTime() < now.getTime();

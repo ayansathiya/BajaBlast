@@ -9,6 +9,36 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-20 — The wall, rebuilt
+
+- **A completely new home screen.** Not a restyle — a different layout:
+  - **On the left, the moment.** A very large time, the day and date, the
+    weather with the high and low, and what's next with a countdown ("in
+    42 min"). The Thirukkural sits quietly at the foot of the column when
+    there's room for it.
+  - **On the right, the calendar, with room to breathe.** Today is a list:
+    the time in its own column, each event in large type, who and where
+    underneath, and "Now" beside whatever's happening. Things that are
+    already over fold into a single "Earlier" line, so the space goes to
+    what's still ahead. On a quiet day the week ahead appears underneath.
+  - **Along the bottom, everything else, in one line.** Dinner, chores
+    (a ring per person that fills as they tick things off), groceries,
+    bake night — and a running timer or what's playing, only while there
+    is one. Tap any of them to open it. Groceries now open a list you can
+    tick off and add to from the wall.
+  - **Headlines** are one quiet line under that.
+- **Black is just black.** No cards, no boxes, no outlines anywhere on
+  the home screen or the Good Morning page — just type on black, lined up.
+  Beige is the same layout on warm paper.
+- **Even spacing.** Every gap now comes from one small set of sizes, and
+  the layout was checked at the Pi's own size (a 1080p panel at its 1.25
+  zoom) as well as plain 1080p, which is where things used to crowd.
+- **The week and month views match:** seven clean columns with today
+  underlined; a month with today circled and no grey boxes.
+- The chores reminders at the top of the calendar are gone — they're in
+  the strip along the bottom now; the top is kept for "leave by" and
+  "starting soon".
+
 ## 2026-10-20 — A new look, in black or beige, and a browser that really opens
 
 - **A whole new look.** The calendar has been redrawn: the time and date
