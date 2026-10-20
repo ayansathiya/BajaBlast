@@ -199,7 +199,7 @@ export function ScreenKeyboard({ always }: Props) {
       <div className="skb-row">{NUMBERS.split('').map((ch) => key(ch, () => insert(field, ch)))}</div>
       {(symbols ? SYMBOLS : LETTERS).map((row, i) => (
         <div className="skb-row" key={i}>
-          {i === 2 && !symbols && key(shift ? '⬆︎' : '⇧', () => setShift((v) => !v), `skb-wide ${shift ? 'on' : ''}`)}
+          {i === 2 && !symbols && key('⇧', () => setShift((v) => !v), `skb-wide ${shift ? 'on' : ''}`)}
           {row.split('').map((ch) => key(shift && !symbols ? ch.toUpperCase() : ch, () => (symbols ? insert(field, ch) : typeChar(ch))))}
           {i === 2 && key('⌫', () => backspace(field), 'skb-wide')}
         </div>

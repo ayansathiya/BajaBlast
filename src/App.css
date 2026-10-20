@@ -4441,3 +4441,274 @@ button.lights-mood:hover {
 .lights-key code {
   color: var(--text);
 }
+
+/* What a typed date or time was read as, under its box. */
+.when-hint {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--accent);
+  min-height: 18px;
+}
+
+.when-hint.bad {
+  color: var(--text-muted);
+}
+
+/* ---------- Settings → What's new → versions ---------- */
+.versions {
+  margin: 4px 0 28px;
+}
+
+.versions-pinned {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.versions-toggle {
+  background: none;
+  border: none;
+  padding: 8px 0;
+  color: var(--accent);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.versions-list {
+  margin-top: 6px;
+  border-top: 1px solid var(--hairline);
+}
+
+.versions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 60px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.versions-name {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.versions-rev {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  min-width: 3ch;
+}
+
+.versions-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.versions-date,
+.versions-here {
+  color: var(--text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.versions-row.current .versions-title {
+  color: var(--accent);
+}
+
+/* ==================================================================== *
+ * A quieter wall
+ *
+ * The calendar had grown a label for everything — ten-pixel capitals with
+ * wide letter-spacing, half of them in coral, a box around every day of the
+ * week whether anything was in it or not. From across a kitchen that reads
+ * as texture, not information. This layer, last in the file so it wins:
+ *
+ *   • nothing smaller than 14px, and labels in plain sentence case;
+ *   • one muted colour for labels; the accent only for "now";
+ *   • space instead of boxes, and nothing drawn where there's nothing to say.
+ * ==================================================================== */
+
+.uppercase-label,
+.label,
+.extras-label,
+.wa-dow,
+.upcoming-when,
+.view-range,
+.view-mode,
+.kural-label,
+.ticker-source,
+.header-weather-stamp {
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* "Next · quiet", "Bake night · this Saturday": a second voice in the
+   label, not a second colour. */
+.rail-count {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.rail-count::before {
+  content: '· ';
+}
+
+/* The headline source in the ticker stays the one accented word there. */
+.ticker-source {
+  color: var(--accent);
+}
+
+/* Small print that has to be read from a step back. */
+.wa-time,
+.chore-pill-count,
+.ticker-price,
+.ticker-symbol,
+.ticker-change,
+.chore-pill,
+.header-weather-meta,
+.kural-translit,
+.kural-meaning,
+.bake-rail-empty,
+.grocery-empty {
+  font-size: 14px;
+}
+
+.wa-title,
+.wa-meal,
+.kural-tamil {
+  font-size: 15px;
+}
+
+.status-indicator {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+/* The week ahead: columns and air, not a table of boxes. */
+.week-ahead-grid {
+  background: none;
+  border: none;
+  border-radius: 0;
+  gap: 20px;
+}
+
+.wa-day,
+.wa-day.weekend {
+  background: none;
+  padding-left: 0;
+  padding-right: 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.wa-head {
+  padding-top: 12px;
+}
+
+/* An unplanned dinner or a free day is the absence of something; showing
+   "Dinner?" and "Free" six times over was the loudest thing on the screen. */
+.wa-meal.empty,
+.wa-free {
+  display: none;
+}
+
+.wa-meal {
+  background: none;
+  padding-left: 0;
+  color: var(--accent);
+}
+
+.wa-event {
+  border-left-width: 2px;
+}
+
+/* Cards in the rail and under today: separated by space, not outlined. */
+.tonight-card,
+.notes-board,
+.rail-section {
+  border: none;
+  box-shadow: none;
+}
+
+/* The corner menu: drawn icons, aligned, a little larger. */
+.kiosk-menu-icon {
+  display: inline-flex;
+  width: 28px;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.kiosk-menu-item:hover .kiosk-menu-icon,
+.kiosk-menu-item:active .kiosk-menu-icon {
+  color: var(--text);
+}
+
+.icon {
+  flex: none;
+  vertical-align: middle;
+}
+
+.mw-icon {
+  display: inline-flex;
+  color: var(--text);
+}
+
+.mb-icon {
+  margin-right: 6px;
+  color: var(--accent);
+}
+
+/* Some labels are styled more specifically elsewhere (the rail's, the
+   ticker's, the quiet-day one); these win over all of them. */
+.kiosk .uppercase-label,
+.kiosk .label,
+.kiosk .rail-label,
+.kiosk .rail-count,
+.kiosk .ticker-key {
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.kiosk .label {
+  color: var(--text-muted);
+}
+
+/* "Thu 22", together, at the top of each day — not the name of one day
+   sitting beside the number of the next. */
+.wa-head {
+  justify-content: flex-start;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.wa-date {
+  order: 1;
+  font-size: 26px;
+}
+
+.wa-dow {
+  order: 2;
+}
+
+/* Something not being planned yet is a quiet line, not the largest text on
+   the screen. */
+.tonight-empty {
+  font-family: var(--font);
+  font-size: 15px;
+  max-width: none;
+}

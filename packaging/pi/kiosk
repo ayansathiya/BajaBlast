@@ -19,6 +19,7 @@ read_conf() {
   KIOSK=1
   KIOSK_SCALE=1.25
   KIOSK_URL="http://localhost:8787/"
+  BROWSER_MINUTES=45
   # shellcheck disable=SC1090
   [ -r "$CONF" ] && . "$CONF"
   # A typo here would otherwise reach Chromium as a flag it silently ignores,
@@ -26,6 +27,7 @@ read_conf() {
   case "$KIOSK_SCALE" in
     ''|*[!0-9.]*|.*|*.*.*) echo "baja-blast-kiosk: KIOSK_SCALE='$KIOSK_SCALE' isn't a number; using 1.25" >&2; KIOSK_SCALE=1.25 ;;
   esac
+  case "$BROWSER_MINUTES" in ''|*[!0-9]*) BROWSER_MINUTES=45 ;; esac
 }
 
 kiosk_off() {
@@ -35,6 +37,86 @@ kiosk_off() {
 
 SELF="$(readlink -f "$0" 2>/dev/null || echo "$0")"
 DATA="${BAJA_BLAST_DATA:-/var/lib/baja-blast}"
+KIOSK_PROFILE="${HOME}/.config/baja-blast-kiosk"
+BROWSER_PROFILE="${HOME}/.config/baja-blast-browser"
+# A web address waiting for the main loop to open, once the kiosk is out of
+# the way. See browser_watch.
+NEXT="$DATA/browse-next"
+
+# Is a Chromium using this profile still open? Its window may belong to a
+# process started by an earlier call, so ask by profile, not by PID.
+running() {
+  pgrep -f -- "--user-data-dir=$1" >/dev/null 2>&1
+}
+
+close_profile() {
+  pkill -TERM -f -- "--user-data-dir=$1" 2>/dev/null
+  for _ in 1 2 3 4 5 6 7 8 9 10; do running "$1" || return 0; sleep 0.3; done
+  pkill -KILL -f -- "--user-data-dir=$1" 2>/dev/null
+}
+
+# A kiosk gets switched off at the wall, and the browser gets closed for the
+# calendar to come back. Chromium records both as a crash, and the next start
+# opens with a "Restore pages?" bar.
+tidy_profile() {
+  local prefs="$1/Default/Preferences"
+  if [ -f "$prefs" ]; then
+    sed -i.bak 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"Crashed"/"exit_type":"Normal"/' "$prefs" 2>/dev/null || true
+    rm -f "$prefs.bak"
+  fi
+}
+
+open_window() {
+  "$BROWSER" \
+    --user-data-dir="$BROWSER_PROFILE" \
+    --no-first-run \
+    --noerrdialogs \
+    --disable-session-crashed-bubble \
+    --ozone-platform-hint=auto \
+    --enable-wayland-ime \
+    --start-maximized \
+    --new-window "$1" >/dev/null 2>&1 &
+}
+
+# A kitchen timer going off has to be seen. The alarm lives on the calendar,
+# so a browser in front of it closes for it.
+timer_ringing() {
+  node -e '
+    fetch(new URL("api/timers", process.argv[1]), { signal: AbortSignal.timeout(3000) })
+      .then((r) => r.json())
+      .then((j) => {
+        const now = Date.parse(j.serverNow) || Date.now();
+        const ringing = (j.timers || []).some((t) => t.endsAt && t.remainingMs == null && Date.parse(t.endsAt) <= now);
+        process.exit(ringing ? 0 : 1);
+      })
+      .catch(() => process.exit(1));
+  ' "$KIOSK_URL" 2>/dev/null
+}
+
+# The browser in the calendar's place, until it's closed.
+#
+# Only one of the two is ever on screen. The browser used to open as a second
+# window over the full-screen calendar, and a full-screen window can stay on
+# top of new ones — so on the wall nothing appeared to happen at all. Now the
+# calendar steps aside, the browser opens maximized with tabs, an address bar,
+# a back button and a close button, and closing it brings the calendar
+# straight back. It also closes by itself after BROWSER_MINUTES, or the moment
+# a kitchen timer goes off.
+browse() {
+  local started
+  started="$(date +%s)"
+  tidy_profile "$BROWSER_PROFILE"
+  open_window "$1"
+  # Give it a moment to appear before treating "not running" as "closed".
+  for _ in $(seq 1 50); do running "$BROWSER_PROFILE" && break; sleep 0.2; done
+  while running "$BROWSER_PROFILE"; do
+    if [ $(( $(date +%s) - started )) -ge $(( BROWSER_MINUTES * 60 )) ] || timer_ringing; then
+      close_profile "$BROWSER_PROFILE"
+      break
+    fi
+    sleep "${BAJA_BLAST_BROWSE_POLL:-2}"
+  done
+}
 
 read_conf
 
@@ -84,13 +166,15 @@ browser_watch() {
       ' "$req" 2>/dev/null)"
       rm -f "$req"
       if [ -n "$url" ]; then
-        "$BROWSER" \
-          --user-data-dir="${HOME}/.config/baja-blast-browser" \
-          --no-first-run \
-          --ozone-platform-hint=auto \
-          --enable-wayland-ime \
-          --start-maximized \
-          --new-window "$url" >/dev/null 2>&1 &
+        if running "$KIOSK_PROFILE" && ! running "$BROWSER_PROFILE"; then
+          # The calendar is on screen: ask the main loop to swap it for the
+          # browser, by leaving the address and closing the kiosk.
+          printf '%s\n' "$url" > "$NEXT.tmp" && mv -f "$NEXT.tmp" "$NEXT"
+          close_profile "$KIOSK_PROFILE"
+        else
+          # Already browsing (a new tab in it), or no kiosk at all.
+          open_window "$url"
+        fi
       fi
     fi
     if [ "$(stat -c %Y "$SELF" 2>/dev/null || echo 0)" != "$stamp" ]; then
@@ -130,8 +214,9 @@ for _ in $(seq 1 "${BAJA_BLAST_KIOSK_WAIT:-120}"); do
   sleep 1
 done
 
-PROFILE_DIR="${HOME}/.config/baja-blast-kiosk"
+PROFILE_DIR="$KIOSK_PROFILE"
 mkdir -p "$PROFILE_DIR"
+rm -f "$NEXT"
 
 # Hide the pointer when it isn't moving. X11 only: Wayland has no equivalent,
 # and on a touch panel labwc and Wayfire hide it after a tap anyway.
@@ -148,13 +233,7 @@ while true; do
   read_conf
   kiosk_off && exit 0
 
-  # A kiosk gets switched off at the wall. Chromium records that as a crash,
-  # and the next start opens with a "Restore pages?" bar across the calendar.
-  prefs="$PROFILE_DIR/Default/Preferences"
-  if [ -f "$prefs" ]; then
-    sed -i.bak 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"Crashed"/"exit_type":"Normal"/' "$prefs" 2>/dev/null || true
-    rm -f "$prefs.bak"
-  fi
+  tidy_profile "$PROFILE_DIR"
 
   # --force-device-scale-factor scales the whole layout, not just the text,
   # which is what keeps a 21.5" panel at arm's length readable without the
@@ -177,6 +256,14 @@ while true; do
     --check-for-update-interval=31536000 \
     --autoplay-policy=no-user-gesture-required
   status=$?
+
+  # Closed to make way for the browser: show it, then straight back.
+  if [ -f "$NEXT" ]; then
+    url="$(head -n 1 "$NEXT")"
+    rm -f "$NEXT"
+    browse "$url"
+    continue
+  fi
 
   [ -n "${BAJA_BLAST_KIOSK_ONCE:-}" ] && exit "$status"
   echo "baja-blast-kiosk: $BROWSER exited ($status), restarting in 3s" >&2

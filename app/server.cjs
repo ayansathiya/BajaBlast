@@ -718,9 +718,17 @@ function restartWhenQuiet(startedAt = Date.now()) {
   setTimeout(() => relaunchApp && relaunchApp(), 1_500);
 }
 
+/** For a version someone just picked by hand: they're waiting to see it. */
+function restartNow() {
+  notifyKiosk({ kind: 'updating', text: 'Switching version…' });
+  setTimeout(() => relaunchApp && relaunchApp(), 1_500);
+}
+
 let updateFailures = 0;
 
 async function runUpdateCycle() {
+  // Someone chose to stay on an older version. Leave it until they say so.
+  if (updater.isPinned()) return;
   try {
     const result = await updater.check();
 
@@ -2259,6 +2267,29 @@ function startServer(options = {}) {
       const result = await updater.install();
       if (result.ok) restartWhenQuiet();
       return send(res, result.ok ? 200 : 400, { ...result, status: updater.status() });
+    }
+
+    // Going back to an earlier version, and forward again. Settings → What's
+    // new lists the releases; picking one installs it and stays on it.
+    if (url.pathname === '/api/update/releases' && req.method === 'GET') {
+      const result = await updater.listReleases();
+      return send(res, result.ok ? 200 : 502, result);
+    }
+
+    if (url.pathname === '/api/update/version' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      if (!updater.state.latest) await updater.check();
+      const newest = updater.state.latest ? updater.state.latest.rev : 0;
+      const result = await updater.installVersion(body.rev, newest);
+      if (result.ok) restartNow();
+      return send(res, result.ok ? 200 : 400, result);
+    }
+
+    if (url.pathname === '/api/update/unpin' && req.method === 'POST') {
+      const result = updater.unpin();
+      // Straight to the newest, rather than waiting for the next check.
+      if (result.changed) runUpdateCycle();
+      return send(res, 200, result);
     }
 
     if (url.pathname === '/health') {

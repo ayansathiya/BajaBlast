@@ -9,6 +9,37 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-20 — Type a time, go back a version, and a quieter wall
+
+- **Type the time of an event.** The date and time boxes used the
+  browser's own pickers, which on a touch screen are a cramped wheel with
+  only some times on it. Now they're ordinary boxes for the on-screen
+  keyboard, and they understand how people write: "3pm", "3:30", "330p",
+  "noon"; "tomorrow", "fri", "oct 25", "10/25". Underneath each box it
+  shows what it understood ("→ 3:30 PM", "→ Fri, Oct 23"), and Save waits
+  until all three make sense. A bare "4" means four in the afternoon.
+- **No more empty boxes for icons.** The corner menu's icons were emoji,
+  and the Pi has no emoji font, so they came out as boxes with a cross.
+  Every icon — menu, weather, play and pause, close, bookmark — is now
+  drawn instead, and the Pi gets the emoji font as well for emoji inside
+  recipes and messages.
+- **The browser opens.** Browser used to open as a second window behind
+  the full-screen calendar, where nothing could be seen. Now the calendar
+  steps aside and the browser takes the whole screen, with tabs, an
+  address bar, back and close; close it and the calendar is straight back.
+  It closes by itself after 45 minutes (`BROWSER_MINUTES` in
+  `/etc/default/baja-blast`), and at once when a kitchen timer goes off,
+  so an alarm is never hidden behind a web page.
+- **Go back to an older version.** Settings → What's new → "Go back to an
+  older version" lists every release. Pick one and the wall switches to it
+  in a few seconds and stays there — automatic updates wait — until you
+  press "Back to the newest". Calendar, lists and photos aren't touched.
+- **A quieter wall.** Labels are plain words in one muted colour instead
+  of tiny coloured capitals; nothing is smaller than 14px, so it reads
+  from across the kitchen; the week ahead is columns instead of a grid of
+  boxes, and stops writing "Dinner?" and "Free" six times over. The
+  accent colour is kept for what's happening now.
+
 ## 2026-10-14 — Lights that can be seen but not switched
 
 - **Why the lights said "couldn't reach".** Newer WiZ bulbs have a security

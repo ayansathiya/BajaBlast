@@ -29,7 +29,7 @@ export function TodayTimeline({ events, people, conflicts, freeWindow, leaveNow,
     return (
       <div className="timeline-col">
           <div className="info-banner" style={{ borderTop: 'none' }}>
-          <div className="label">QUIET DAY</div>
+          <div className="label">Quiet day</div>
           <div className="body">Nothing scheduled today.</div>
         </div>
       </div>
@@ -41,7 +41,7 @@ export function TodayTimeline({ events, people, conflicts, freeWindow, leaveNow,
 
       {conflicts.length > 0 && (
         <div className="info-banner">
-          <div className="label">SCHEDULE CONFLICT</div>
+          <div className="label">Schedule conflict</div>
           <div className="body">
             {conflicts.map((c, i) => (
               <div key={i}>
@@ -102,7 +102,7 @@ export function TodayTimeline({ events, people, conflicts, freeWindow, leaveNow,
 
       {freeWindow && (
         <div className="info-banner">
-          <div className="label">OPEN {freeWindow.start.getHours() < 12 ? 'MORNING' : 'AFTERNOON'}</div>
+          <div className="label">Free {freeWindow.start.getHours() < 12 ? 'morning' : 'afternoon'}</div>
           <div className="body">
             {formatClock(freeWindow.start)} → {formatClock(freeWindow.end)} · No scheduled events.
           </div>

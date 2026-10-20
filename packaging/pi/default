@@ -8,6 +8,11 @@ KIOSK=1
 # Chromium's normal size, 1.5 for across the room. Scales the whole layout.
 KIOSK_SCALE=1.25
 
+# Browser (from the corner menu) takes the calendar's place until it's
+# closed, and closes by itself after this many minutes — or straight away
+# when a kitchen timer goes off — so the wall never stays on a web page.
+BROWSER_MINUTES=45
+
 # Install new versions of this package from GitHub on its own, checked every
 # ten minutes. The calendar's own code updates itself either way; this is for
 # the parts that only a package can change (like the settings above).

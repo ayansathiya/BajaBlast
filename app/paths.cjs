@@ -136,7 +136,10 @@ function payloadRoot() {
 
   const installed = readBuild(dir);
   const shipped = readBuild(bundled);
-  if (installed.rev <= shipped.rev) {
+  // Pinned means someone chose this version on purpose — Settings → What's
+  // new → an older release — so it runs even though the packaged copy is
+  // newer. Otherwise the newer of the two wins.
+  if (installed.rev <= shipped.rev && !active.pinned) {
     // The package is newer — someone installed a fresh .deb over the top.
     return { root: bundled, source: 'bundled', ...shipped };
   }

@@ -8,6 +8,7 @@ import { useMusic } from '../hooks/useMusic';
 import { VoiceStatus, onVoice } from '../hooks/live';
 import { qrToSvg } from '../engine/qr';
 import { collapseSeries, describeRecurrence } from '../engine/recurrence';
+import { Icon } from './Icon';
 
 /** Shape of one entry from Spotify's /me/player/devices. */
 interface SpotifyDevice {
@@ -1291,11 +1292,11 @@ function MusicManager({ settings, onChange }: { settings: HouseholdSettings; onC
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn-secondary" onClick={() => command('previous')}>◀◀</button>
+            <button className="btn-secondary" onClick={() => command('previous')} aria-label="Previous"><Icon name="prev" size={16} /></button>
             <button className="btn-secondary" onClick={() => command(np.playing ? 'pause' : 'play')}>
-              {np.playing ? '❚❚' : '▶'}
+              <Icon name={np.playing ? 'pause' : 'play'} size={16} label={np.playing ? 'Pause' : 'Play'} />
             </button>
-            <button className="btn-secondary" onClick={() => command('next')}>▶▶</button>
+            <button className="btn-secondary" onClick={() => command('next')} aria-label="Next"><Icon name="next" size={16} /></button>
           </div>
         </div>
       ) : (
@@ -1581,6 +1582,118 @@ interface ChangelogEntry {
   changes: string[];
 }
 
+interface ReleaseRow {
+  rev: number;
+  build: string;
+  title: string;
+  publishedAt: string;
+}
+
+/**
+ * Every version GitHub has, and a way back to any of them.
+ *
+ * An update that makes things worse shouldn't mean waiting for a fix: pick
+ * the version from before it and the wall switches in a few seconds and stays
+ * there — automatic updates hold off — until someone presses "Back to the
+ * newest".
+ */
+function Versions() {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<ReleaseRow[] | null>(null);
+  const [current, setCurrent] = useState(0);
+  const [pinned, setPinned] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<number | 'newest' | null>(null);
+
+  const load = () =>
+    fetch('/api/update/releases')
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.ok) throw new Error(d.error || 'GitHub didn’t answer');
+        setRows(d.releases);
+        setCurrent(d.current);
+        setPinned(!!d.pinned);
+        setError(null);
+      })
+      .catch((e) => setError(e.message));
+
+  useEffect(() => {
+    if (open && !rows) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  async function use(rev: number) {
+    setBusy(rev);
+    setError(null);
+    const res = await fetch('/api/update/version', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rev }),
+    })
+      .then((r) => r.json())
+      .catch(() => ({ ok: false, error: 'Lost touch with the calendar' }));
+    // On success the calendar restarts into it and the page reloads itself.
+    if (!res.ok) {
+      setError(res.error || 'That version couldn’t be installed');
+      setBusy(null);
+    }
+  }
+
+  async function newest() {
+    setBusy('newest');
+    await fetch('/api/update/unpin', { method: 'POST' }).catch(() => undefined);
+    setPinned(false);
+    setBusy(null);
+  }
+
+  return (
+    <div className="versions">
+      {pinned && (
+        <div className="versions-pinned">
+          <span>
+            Staying on version {current} — automatic updates are paused.
+          </span>
+          <button className="btn-secondary" onClick={newest} disabled={busy !== null}>
+            {busy === 'newest' ? 'Updating…' : 'Back to the newest'}
+          </button>
+        </div>
+      )}
+      <button className="versions-toggle" onClick={() => setOpen((v) => !v)}>
+        {open ? 'Hide older versions' : 'Go back to an older version'}
+      </button>
+      {open && (
+        <div className="versions-list">
+          {error && <div className="settings-note">{error}</div>}
+          {!rows && !error && <div className="settings-note">Asking GitHub…</div>}
+          {rows?.map((r, i) => (
+            <div className={`versions-row ${r.rev === current ? 'current' : ''}`} key={r.rev}>
+              <div className="versions-name">
+                <span className="versions-rev">v{r.rev}</span>
+                <span className="versions-title">{r.title || r.build}</span>
+                <span className="versions-date">
+                  {new Date(r.publishedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  {i === 0 ? ' · newest' : ''}
+                </span>
+              </div>
+              {r.rev === current ? (
+                <span className="versions-here">On screen now</span>
+              ) : (
+                <button className="btn-secondary" onClick={() => use(r.rev)} disabled={busy !== null}>
+                  {busy === r.rev ? 'Switching…' : 'Use this'}
+                </button>
+              )}
+            </div>
+          ))}
+          <p className="settings-note">
+            Your calendar, lists and photos aren’t touched — only the app’s own version changes. A version from
+            long ago may not know about things added since.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * What's new — the update log, read from CHANGELOG.md on the server.
  *
@@ -1623,6 +1736,8 @@ function WhatsNew() {
       <p className="settings-note" style={{ marginTop: 0 }}>
         This display updates itself. Build <strong>{build || '—'}</strong> is running now.
       </p>
+
+      <Versions />
 
       {state === 'loading' && <div className="settings-note">Loading…</div>}
       {state === 'error' && <div className="settings-note">Could not read the update log.</div>}

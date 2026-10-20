@@ -68,6 +68,7 @@ import { DailyKural, useDailyKural } from './components/DailyKural';
 import { LightsPanel } from './components/LightsPanel';
 import { useLights } from './hooks/useLights';
 import { dayKey, isMorning } from './engine/morning';
+import { Icon } from './components/Icon';
 
 // Which day the Good Morning page was last put away, so a tap keeps it away
 // until tomorrow — including across the reload at midnight or an update.
@@ -708,19 +709,19 @@ export default function App() {
             },
           ]}
           entries={[
-            { key: 'morning', label: 'Good morning', icon: '☀', onPick: () => setMorningOpen(true) },
-            { key: 'timers', label: 'Timers', icon: '⏱', onPick: () => setTimerPanelOpen(true) },
-            { key: 'lights', label: 'Lights', icon: '💡', onPick: () => setLightsOpen(true) },
+            { key: 'morning', label: 'Good morning', icon: <Icon name="sun" />, onPick: () => setMorningOpen(true) },
+            { key: 'timers', label: 'Timers', icon: <Icon name="timer" />, onPick: () => setTimerPanelOpen(true) },
+            { key: 'lights', label: 'Lights', icon: <Icon name="bulb" />, onPick: () => setLightsOpen(true) },
             ...(recipeSettings.enabled
-              ? [{ key: 'recipes', label: 'Recipes', icon: '🍴', onPick: () => setRecipesOpen(true) }]
+              ? [{ key: 'recipes', label: 'Recipes', icon: <Icon name="utensils" />, onPick: () => setRecipesOpen(true) }]
               : []),
             ...(recipeSettings.browserEnabled
-              ? [{ key: 'browser', label: 'Browser', icon: '🌐', onPick: () => openBrowser() }]
+              ? [{ key: 'browser', label: 'Browser', icon: <Icon name="globe" />, onPick: () => openBrowser() }]
               : []),
             ...(settings.chores?.enabled !== false && choreState.state
-              ? [{ key: 'chores', label: 'Chores', icon: '✓', onPick: () => setChoresOpen(true) }]
+              ? [{ key: 'chores', label: 'Chores', icon: <Icon name="check" />, onPick: () => setChoresOpen(true) }]
               : []),
-            { key: 'settings', label: 'Settings', icon: '⚙', onPick: () => setSettingsOpen(true) },
+            { key: 'settings', label: 'Settings', icon: <Icon name="gear" />, onPick: () => setSettingsOpen(true) },
           ]}
         />
       )}

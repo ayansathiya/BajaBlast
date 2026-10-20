@@ -178,7 +178,6 @@ export function RightRail({
           <button className="rail-section chore-rail" onClick={onOpenChores}>
             <div className="uppercase-label rail-label">
               Chores
-              <span className="rail-count">Tap to open</span>
             </div>
             {/* Pills rather than a row each: five people with progress bars
                 cost about 170px, which is most of what the grocery list

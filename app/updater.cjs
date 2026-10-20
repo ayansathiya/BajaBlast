@@ -195,6 +195,12 @@ function currentRev() {
   return paths.payloadRoot().rev || 0;
 }
 
+/** True while the household has chosen to stay on a particular version. */
+function isPinned() {
+  const active = paths.readJSON(paths.ACTIVE_FILE()) || {};
+  return !!active.pinned;
+}
+
 function blockedRevs() {
   const active = paths.readJSON(paths.ACTIVE_FILE()) || {};
   return Array.isArray(active.blocked) ? active.blocked : [];
@@ -285,6 +291,87 @@ async function check() {
     state.etag = null;
     return { ok: false, error: err.message };
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Older versions
+ * ------------------------------------------------------------------ */
+
+/**
+ * Every release that carries an app payload, newest first — what Settings
+ * offers when someone wants to go back to an earlier version.
+ */
+async function listReleases() {
+  const repo = repoConfig();
+  if (!repo) return { ok: false, error: 'No GitHub repository configured.' };
+  try {
+    const list = await getJSON(`${apiBase()}/repos/${repo.owner}/${repo.repo}/releases?per_page=50`);
+    const releases = (Array.isArray(list) ? list : [])
+      .filter((r) => !r.draft && /^v\d+$/.test(r.tag_name || '') && (r.assets || []).some((a) => a.name === ASSET_NAME))
+      .map((r) => ({
+        rev: Number(r.tag_name.slice(1)),
+        build: r.name || r.tag_name,
+        title: String(r.body || '').split('\n')[0].slice(0, 120),
+        publishedAt: r.published_at,
+      }))
+      .sort((a, b) => b.rev - a.rev);
+    return { ok: true, releases, current: currentRev(), pinned: isPinned(), blocked: blockedRevs() };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+/** The download for one particular release, checksum and all. */
+async function releaseTarget(rev) {
+  const repo = repoConfig();
+  if (!repo) throw new Error('No GitHub repository configured.');
+  const release = await getJSON(`${apiBase()}/repos/${repo.owner}/${repo.repo}/releases/tags/v${rev}`);
+  const assets = release.assets || [];
+  const payload = assets.find((a) => a.name === ASSET_NAME);
+  const checksum = assets.find((a) => a.name === CHECKSUM_NAME);
+  if (!payload || !checksum) throw new Error(`v${rev} has no app payload attached`);
+  const sha = ((await getText(checksum.browser_download_url)).trim().split(/\s+/)[0] || '').toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(sha)) throw new Error('checksum file is not a sha256');
+  return { rev, build: release.name || release.tag_name, url: payload.browser_download_url, sha, bytes: payload.size };
+}
+
+/**
+ * Install one chosen version and stay on it.
+ *
+ * Choosing the newest release is the same as going back to normal: it isn't
+ * pinned, so updates carry on. Anything older is pinned, and automatic
+ * updates leave it alone until someone picks "Back to the newest".
+ */
+async function installVersion(rev, newest) {
+  rev = Number(rev);
+  if (!Number.isInteger(rev) || rev < 1) return { ok: false, error: 'not a version number' };
+  let target;
+  try {
+    target = await releaseTarget(rev);
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+  // A version the household picks by hand gets its chance even if it was
+  // once blocked: they're standing there to see whether it works.
+  const active = paths.readJSON(paths.ACTIVE_FILE()) || {};
+  if (Array.isArray(active.blocked) && active.blocked.includes(rev)) {
+    paths.writeJSONAtomic(paths.ACTIVE_FILE(), { ...active, blocked: active.blocked.filter((r) => r !== rev) });
+  }
+  const result = await install(target);
+  if (!result.ok) return result;
+  const pinned = !(Number(newest) && rev >= Number(newest));
+  paths.writeJSONAtomic(paths.ACTIVE_FILE(), { ...(paths.readJSON(paths.ACTIVE_FILE()) || {}), pinned });
+  return { ...result, pinned };
+}
+
+/** Let automatic updates take over again. The next check installs the newest. */
+function unpin() {
+  const active = paths.readJSON(paths.ACTIVE_FILE()) || {};
+  if (!active.pinned) return { ok: true, changed: false };
+  delete active.pinned;
+  paths.writeJSONAtomic(paths.ACTIVE_FILE(), active);
+  state.etag = null; // ask GitHub afresh rather than being told "unchanged"
+  return { ok: true, changed: true };
 }
 
 /* ------------------------------------------------------------------ *
@@ -413,8 +500,9 @@ function status() {
     lastInstalled: state.lastInstalled,
     blocked: blockedRevs(),
     repo: repoConfig(),
-    updateAvailable: !!(state.latest && state.latest.rev > running.rev && !blockedRevs().includes(state.latest.rev)),
+    pinned: isPinned(),
+    updateAvailable: !isPinned() && !!(state.latest && state.latest.rev > running.rev && !blockedRevs().includes(state.latest.rev)),
   };
 }
 
-module.exports = { check, install, status, state, prune, locatePayload, _internals: { download, request, getJSON, getText } };
+module.exports = { check, install, status, state, prune, locatePayload, listReleases, installVersion, unpin, isPinned, _internals: { download, request, getJSON, getText } };

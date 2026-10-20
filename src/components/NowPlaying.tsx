@@ -1,4 +1,5 @@
 import { NowPlaying as NowPlayingModel } from '../data/models';
+import { Icon } from './Icon';
 
 interface Props {
   nowPlaying: NowPlayingModel | null;
@@ -25,11 +26,11 @@ export function NowPlaying({ nowPlaying, onCommand }: Props) {
         {/* Transport sits on the label line rather than its own row — the rail
             is tight, and three glyphs don't need a band of their own. */}
         <span className="np-transport">
-          <button onClick={() => onCommand('previous')} aria-label="Previous">◀◀</button>
+          <button onClick={() => onCommand('previous')} aria-label="Previous"><Icon name="prev" size={16} /></button>
           <button onClick={() => onCommand(nowPlaying.playing ? 'pause' : 'play')} aria-label="Play or pause">
-            {nowPlaying.playing ? '❚❚' : '▶'}
+            <Icon name={nowPlaying.playing ? 'pause' : 'play'} size={16} />
           </button>
-          <button onClick={() => onCommand('next')} aria-label="Next">▶▶</button>
+          <button onClick={() => onCommand('next')} aria-label="Next"><Icon name="next" size={16} /></button>
         </span>
       </div>
       <div className="np-row">

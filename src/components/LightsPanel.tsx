@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLights } from '../hooks/useLights';
+import { Icon } from './Icon';
 
 /**
  * The lights, by hand: moods along the top, then each bulb with its switch,
@@ -37,7 +38,7 @@ export function LightsPanel({ onClose, signingKey, onSigningKey }: { onClose: ()
         <div className="timer-panel-head">
           <h2>Lights</h2>
           <button className="timer-panel-close" onClick={onClose} aria-label="Close">
-            ✕
+            <Icon name="close" size={18} />
           </button>
         </div>
 
@@ -71,7 +72,7 @@ export function LightsPanel({ onClose, signingKey, onSigningKey }: { onClose: ()
                     {s.name}
                   </button>
                   <button className="lights-mood-x" aria-label={`Delete ${s.name}`} onClick={() => removeScene(s.id).then(refresh)}>
-                    ✕
+                    <Icon name="close" size={14} />
                   </button>
                 </span>
               ))}

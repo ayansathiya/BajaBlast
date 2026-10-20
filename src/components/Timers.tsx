@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { KitchenTimer } from '../data/models';
 import { formatCountdown, isRinging, sortTimers, timerProgress, timerRemaining } from '../engine/kitchen';
 import { TimerAction } from '../hooks/useKitchen';
+import { Icon } from './Icon';
 
 /* ------------------------------------------------------------------ *
  * The ring — a thin circle that empties as the time runs out
@@ -70,7 +71,7 @@ export function RailTimers({ timers, nowMs, onAct, onOpen }: RailProps) {
               ) : (
                 <>
                   <button onClick={() => onAct(t.id, 'add', 60)}>+1</button>
-                  <button onClick={() => onAct(t.id, paused ? 'resume' : 'pause')}>{paused ? '▶' : '❙❙'}</button>
+                  <button onClick={() => onAct(t.id, paused ? 'resume' : 'pause')}><Icon name={paused ? 'play' : 'pause'} size={16} label={paused ? 'Resume' : 'Pause'} /></button>
                 </>
               )}
             </div>
@@ -242,7 +243,7 @@ export function TimerPanel({ timers, nowMs, onStart, onAct, onClose }: PanelProp
         <div className="timer-panel-head">
           <h2>Timers</h2>
           <button className="timer-panel-close" onClick={onClose} aria-label="Close">
-            ✕
+            <Icon name="close" size={18} />
           </button>
         </div>
 

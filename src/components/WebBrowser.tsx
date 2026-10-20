@@ -3,6 +3,7 @@ import { BakePick, Bookmark } from '../data/models';
 import { BakeState, bakeWhen, bakeWhenPhrase } from '../engine/bake';
 import { qrToSvg } from '../engine/qr';
 import { normalizeUrl } from '../engine/websearch';
+import { Icon } from './Icon';
 
 interface Props {
   home: string;
@@ -187,7 +188,7 @@ export function WebBrowser({
           ›
         </button>
         <button className="web-btn" onClick={() => go(home)} aria-label="Home">
-          ⌂
+          <Icon name="home" size={20} />
         </button>
 
         {/*
@@ -235,7 +236,7 @@ export function WebBrowser({
           aria-label={saved ? 'Remove bookmark' : 'Bookmark this page'}
           title={saved ? 'Remove bookmark' : 'Bookmark this page'}
         >
-          {saved ? '★' : '☆'}
+          <Icon name={saved ? 'starFilled' : 'star'} size={20} />
         </button>
 
         {bake?.enabled && (

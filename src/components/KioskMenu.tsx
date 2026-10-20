@@ -3,7 +3,7 @@ import { ReactNode, useEffect, useRef } from 'react';
 interface Entry {
   key: string;
   label: string;
-  icon: string;
+  icon: ReactNode;
   onPick: () => void;
 }
 

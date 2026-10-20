@@ -2,6 +2,7 @@ import { CalendarEvent, ChoreState, MealDay, NewsHeadline, Person, WeatherSnapsh
 import { formatClock } from '../engine/intelligence';
 import { greeting, morningWeather, upcomingBirthdays, whenLabel } from '../engine/morning';
 import { DailyKural, Kural } from './DailyKural';
+import { Icon, IconName } from './Icon';
 
 interface Props {
   now: Date;
@@ -18,13 +19,14 @@ interface Props {
   onClose: () => void;
 }
 
-const ICON: Record<WeatherSnapshot['now']['icon'], string> = {
-  sun: '☀️',
-  partly: '⛅',
-  cloud: '☁️',
-  rain: '🌧️',
-  snow: '❄️',
-  storm: '⛈️',
+// The weather's own names line up with the icon set's.
+const ICON: Record<WeatherSnapshot['now']['icon'], IconName> = {
+  sun: 'sun',
+  partly: 'partly',
+  cloud: 'cloud',
+  rain: 'rain',
+  snow: 'snow',
+  storm: 'storm',
 };
 
 /**
@@ -78,7 +80,7 @@ export function GoodMorning({ now, weather, todayEvents, upcoming, tonight, chor
             {w ? (
               <>
                 <div className="mw-now">
-                  <span className="mw-icon">{ICON[w.icon]}</span>
+                  <span className="mw-icon"><Icon name={ICON[w.icon]} size={56} /></span>
                   <span className="mw-temp tabular">{w.nowF}°</span>
                   <span className="mw-cond">
                     {w.condition}
@@ -153,7 +155,7 @@ export function GoodMorning({ now, weather, todayEvents, upcoming, tonight, chor
               <ul>
                 {birthdays.slice(0, 3).map((b) => (
                   <li key={`${b.id}-${b.start}`}>
-                    🎂 {b.title} <span className="mb-when">{whenLabel(new Date(b.start), now)}</span>
+                    <Icon name="cake" size={20} className="mb-icon" /> {b.title} <span className="mb-when">{whenLabel(new Date(b.start), now)}</span>
                   </li>
                 ))}
               </ul>

@@ -69,6 +69,9 @@ function sha256(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
 
+// Older releases, still on GitHub, for going back to one. rev → tarball.
+const archive = new Map();
+
 function publish(rev, tarball, { corrupt = false } = {}) {
   served.rev = rev;
   served.tarball = tarball;
@@ -105,6 +108,44 @@ const server = http.createServer((req, res) => {
         ],
       }),
     );
+  }
+
+  if (u.pathname === '/repos/fam/baja-blast/releases') {
+    const list = [...archive.keys()].sort((a, b) => b - a).map((rev) => ({
+      tag_name: `v${rev}`,
+      name: `test-${rev}`,
+      body: `Release ${rev}\nmore detail`,
+      draft: false,
+      published_at: new Date(2026, 9, rev).toISOString(),
+      assets: [{ name: 'baja-blast-payload.tar.gz' }, { name: 'baja-blast-payload.sha256' }],
+    }));
+    // Something that isn't an app release, the way the Android APK's is.
+    list.push({ tag_name: 'android', name: 'Android app', body: '', assets: [{ name: 'baja-blast.apk' }] });
+    res.writeHead(200, { 'content-type': 'application/json' });
+    return res.end(JSON.stringify(list));
+  }
+
+  const tag = u.pathname.match(/^\/repos\/fam\/baja-blast\/releases\/tags\/v(\d+)$/);
+  if (tag && archive.has(Number(tag[1]))) {
+    const rev = Number(tag[1]);
+    res.writeHead(200, { 'content-type': 'application/json' });
+    return res.end(
+      JSON.stringify({
+        tag_name: `v${rev}`,
+        name: `test-${rev}`,
+        assets: [
+          { name: 'baja-blast-payload.tar.gz', size: fs.statSync(archive.get(rev)).size, browser_download_url: `${base}/old/${rev}/payload` },
+          { name: 'baja-blast-payload.sha256', size: 64, browser_download_url: `${base}/old/${rev}/sha` },
+        ],
+      }),
+    );
+  }
+
+  const old = u.pathname.match(/^\/old\/(\d+)\/(payload|sha)$/);
+  if (old && archive.has(Number(old[1]))) {
+    const file = archive.get(Number(old[1]));
+    res.writeHead(200);
+    return res.end(old[2] === 'sha' ? `${sha256(file)}  baja-blast-payload.tar.gz\n` : fs.readFileSync(file));
   }
 
   if (u.pathname === '/dl/sha') {
@@ -302,6 +343,43 @@ async function main() {
   seen.conditional = 0;
   await updater.check();
   check('a failure clears the tag, so the retry asks fully', seen.conditional === 0, `${seen.conditional}`);
+
+  console.log('\nGoing back to an older version');
+  {
+    // v16 is the newest; v4 is from weeks ago. The packaged copy is newer
+    // than v4, which is exactly the case that used to make going back
+    // impossible: the newer packaged copy always won.
+    const v4 = buildPayload(4);
+    const v16 = buildPayload(16);
+    archive.set(4, v4.tarball);
+    archive.set(16, v16.tarball);
+    publish(16, v16.tarball);
+    await updater.check();
+
+    const list = await updater.listReleases();
+    check('the releases are listed, newest first', list.ok && list.releases.map((x) => x.rev).join(',') === '16,4', JSON.stringify(list).slice(0, 200));
+    check('only app releases, not the Android one', list.ok && list.releases.every((x) => Number.isInteger(x.rev)));
+    check('each with its title', list.ok && list.releases[1].title === 'Release 4');
+
+    fs.writeFileSync(path.join(bundled, 'build.json'), JSON.stringify({ build: 'test-10', rev: 10, updates: { owner: 'fam', repo: 'baja-blast' } }));
+    const back = await updater.installVersion(4, 16);
+    check('picking v4 installs it', back.ok && back.rev === 4, JSON.stringify(back));
+    check('and stays on it', back.pinned === true && updater.isPinned());
+    check('the launcher runs v4, though the packaged copy is newer', paths.payloadRoot().rev === 4, JSON.stringify(paths.payloadRoot()));
+    check('automatic updates hold off while it\'s chosen', updater.status().updateAvailable === false);
+
+    const again = await updater.installVersion(16, 16);
+    check('picking the newest goes back to normal', again.ok && again.pinned === false && !updater.isPinned());
+    check('…and runs it', paths.payloadRoot().rev === 16);
+
+    await updater.installVersion(4, 16);
+    const un = updater.unpin();
+    check('"back to the newest" lets updates take over again', un.changed && !updater.isPinned());
+    check('…and until it arrives the newer packaged copy runs', paths.payloadRoot().rev === 10, JSON.stringify(paths.payloadRoot()));
+
+    const missing = await updater.installVersion(3, 16);
+    check('a version that was never released is refused', !missing.ok);
+  }
 
   server.close();
   console.log(`\n${pass} passed, ${fail} failed\n`);

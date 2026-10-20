@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { CalendarEvent, HouseholdSettings, RecurrenceRule, eventPeople } from '../data/models';
 import { parseOccurrenceId } from '../engine/recurrence';
+import { parseDate, parseTime, showDate, showTime } from '../engine/when';
 
 const BUILT_IN = [
   'school', 'work', 'sports', 'meal', 'medical', 'social',
@@ -47,9 +48,14 @@ export function EventEditor({ event, settings, inputStyle, onSave, onDelete, onC
   const endParts = toLocalInputs(event?.end ?? new Date(Date.now() + 3600e3).toISOString());
 
   const [title, setTitle] = useState(event?.title ?? '');
-  const [date, setDate] = useState(startParts.date);
-  const [start, setStart] = useState(startParts.time);
-  const [end, setEnd] = useState(endParts.time);
+  // What's in the boxes, as typed. Parsed on every keystroke and shown back
+  // underneath, so "3" turning into 3:00 PM is visible before it's saved.
+  const [dateText, setDateText] = useState(showDate(startParts.date));
+  const [startText, setStartText] = useState(showTime(startParts.time));
+  const [endText, setEndText] = useState(showTime(endParts.time));
+  const date = parseDate(dateText);
+  const start = parseTime(startText);
+  const end = parseTime(endText);
   const [location, setLocation] = useState(event?.location?.label ?? '');
   const [category, setCategory] = useState(event?.category ?? 'other');
   const [personIds, setPersonIds] = useState<string[]>(event ? eventPeople(event) : []);
@@ -57,6 +63,8 @@ export function EventEditor({ event, settings, inputStyle, onSave, onDelete, onC
   const [rule, setRule] = useState<RecurrenceRule>(
     event?.recurrence ?? { freq: 'weekly', interval: 1, byWeekday: [new Date(event?.start ?? Date.now()).getDay()] }
   );
+  const [untilText, setUntilText] = useState(rule.until ? showDate(rule.until.slice(0, 10)) : '');
+  const until = untilText.trim() ? parseDate(untilText) : null;
   const [busy, setBusy] = useState(false);
 
   // Only an occurrence of a repeat needs the this-one-or-all question.
@@ -77,8 +85,10 @@ export function EventEditor({ event, settings, inputStyle, onSave, onDelete, onC
     });
   }
 
+  const ready = !!title.trim() && !!date && !!start && !!end && (!untilText.trim() || !!until);
+
   async function save() {
-    if (!title.trim()) return;
+    if (!ready || !date || !start || !end) return;
     setBusy(true);
     try {
       const draft: Partial<CalendarEvent> = {
@@ -92,7 +102,7 @@ export function EventEditor({ event, settings, inputStyle, onSave, onDelete, onC
         personId: undefined,
         calendarId: 'household',
         importance: event?.importance ?? 2,
-        recurrence: repeats ? rule : undefined,
+        recurrence: repeats ? { ...rule, until: until ?? undefined } : undefined,
       };
       await onSave(draft, partOfSeries ? scope : 'all');
     } finally {
@@ -107,18 +117,23 @@ export function EventEditor({ event, settings, inputStyle, onSave, onDelete, onC
         <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Piano lesson" />
       </div>
 
+      {/* Plain text boxes, not the browser's date and time pickers: on a
+          touch screen those are a cramped wheel you can't type into. */}
       <div style={{ display: 'flex', gap: 8 }}>
         <div style={{ flex: 2 }}>
           <div className="field-label">Date</div>
-          <input style={inputStyle} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <input style={inputStyle} value={dateText} onChange={(e) => setDateText(e.target.value)} placeholder="tomorrow, fri, oct 25" />
+          <div className={`when-hint ${date ? '' : 'bad'}`}>{date ? `→ ${showDate(date)}` : 'Try "tomorrow", "fri" or "oct 25"'}</div>
         </div>
         <div style={{ flex: 1 }}>
           <div className="field-label">Start</div>
-          <input style={inputStyle} type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+          <input style={inputStyle} value={startText} onChange={(e) => setStartText(e.target.value)} placeholder="3pm" />
+          <div className={`when-hint ${start ? '' : 'bad'}`}>{start ? `→ ${showTime(start)}` : 'Try "3pm" or "15:30"'}</div>
         </div>
         <div style={{ flex: 1 }}>
           <div className="field-label">End</div>
-          <input style={inputStyle} type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+          <input style={inputStyle} value={endText} onChange={(e) => setEndText(e.target.value)} placeholder="4pm" />
+          <div className={`when-hint ${end ? '' : 'bad'}`}>{end ? `→ ${showTime(end)}` : 'Try "4pm"'}</div>
         </div>
       </div>
 
@@ -197,12 +212,10 @@ export function EventEditor({ event, settings, inputStyle, onSave, onDelete, onC
               </div>
               <div style={{ flex: 1 }}>
                 <div className="field-label">Until (optional)</div>
-                <input
-                  style={inputStyle}
-                  type="date"
-                  value={rule.until ?? ''}
-                  onChange={(e) => setRule({ ...rule, until: e.target.value || undefined })}
-                />
+                <input style={inputStyle} value={untilText} onChange={(e) => setUntilText(e.target.value)} placeholder="Never" />
+                {untilText.trim() && (
+                  <div className={`when-hint ${until ? '' : 'bad'}`}>{until ? `→ ${showDate(until)}` : 'Try "jun 30"'}</div>
+                )}
               </div>
             </div>
 
@@ -246,7 +259,7 @@ export function EventEditor({ event, settings, inputStyle, onSave, onDelete, onC
       )}
 
       <div className="editor-actions">
-        <button className="btn-primary" onClick={save} disabled={busy || !title.trim()}>
+        <button className="btn-primary" onClick={save} disabled={busy || !ready}>
           {isNew ? 'Add event' : 'Save changes'}
         </button>
         <button className="btn-secondary" onClick={onCancel}>

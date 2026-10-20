@@ -42,7 +42,7 @@ function fakeBin(dir, name, body) {
 // the machine running the tests can never be the one that answers.
 function basePath(bin) {
   const sys = fs.mkdtempSync(path.join(tmp, 'sys-'));
-  for (const tool of ['sh', 'bash', 'sed', 'rm', 'mkdir', 'seq', 'sleep', 'cat', 'tr', 'tail', 'grep', 'mktemp', 'chmod', 'node', 'echo', 'cut', 'date', 'gzip', 'touch', 'flock', 'stat', 'readlink']) {
+  for (const tool of ['sh', 'bash', 'sed', 'rm', 'mkdir', 'seq', 'sleep', 'cat', 'tr', 'tail', 'grep', 'mktemp', 'chmod', 'node', 'echo', 'cut', 'date', 'gzip', 'touch', 'flock', 'stat', 'readlink', 'pgrep', 'pkill', 'head', 'mv']) {
     const found = spawnSync('/bin/sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim();
     if (found.startsWith('/')) fs.symlinkSync(found, path.join(sys, tool));
   }
@@ -123,73 +123,111 @@ async function kioskTests() {
     check('a power cut at the wall doesn\'t leave a restore bar', r.prefsAfter === '{"profile":{"exited_cleanly":true,"exit_type":"Normal"}}', r.prefsAfter);
   }
 
-  console.log('\nA real browser window when the calendar asks');
+  console.log('\nBrowser takes the calendar\'s place, then gives it back');
   {
-    // The kiosk's Chromium stays open while the calendar asks for a window,
-    // as it would on the wall, until the test says it can close. Every wait
-    // is for the thing itself to happen, never a fixed sleep: a busy CI
-    // machine is slow in ways a timer can't predict.
-    const dir = fs.mkdtempSync(path.join(tmp, 'w-'));
-    const bin = path.join(dir, 'bin');
-    const log = path.join(dir, 'calls');
-    const data = path.join(dir, 'data');
-    const release = path.join(dir, 'release');
-    fs.mkdirSync(data);
-    fs.writeFileSync(log, '');
-    fakeBin(
-      bin,
-      'chromium',
-      `printf '%s\\n' "$@" >> "${log}"; echo --- >> "${log}"; case "$*" in *--kiosk*) while [ ! -e "${release}" ]; do sleep 0.1; done ;; esac`
-    );
-    const confFile = path.join(dir, 'default');
-    fs.writeFileSync(confFile, `KIOSK_URL=${url}\n`);
-    const child = spawn('/bin/bash', [KIOSK], {
-      env: {
-        PATH: basePath(bin),
-        HOME: path.join(dir, 'home'),
-        BAJA_BLAST_DEFAULTS: confFile,
-        BAJA_BLAST_DATA: data,
-        BAJA_BLAST_KIOSK_ONCE: '1',
-        BAJA_BLAST_KIOSK_WAIT: '10',
-        BAJA_BLAST_WATCH_SECONDS: '0.2',
-      },
-      stdio: 'ignore',
-    });
-    const exited = new Promise((r) => child.on('exit', r));
-
-    async function until(test, ms = 15000) {
+    // Every wait is for the thing itself to happen, never a fixed sleep: a
+    // busy CI machine is slow in ways a timer can't predict.
+    const until = async (test, ms = 20000) => {
       const end = Date.now() + ms;
       while (Date.now() < end) {
         if (test()) return true;
         await new Promise((r) => setTimeout(r, 100));
       }
       return false;
+    };
+
+    // A stand-in for the calendar's server: only /api/timers matters here.
+    let ringing = false;
+    const http = require('node:http');
+    const api = http.createServer((req, res) => {
+      const now = new Date();
+      const timers = ringing ? [{ id: 't', label: 'Pasta', endsAt: new Date(now - 1000).toISOString(), remainingMs: null }] : [];
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ serverNow: now.toISOString(), timers }));
+    });
+    await new Promise((r) => api.listen(0, '127.0.0.1', r));
+    const apiUrl = `http://127.0.0.1:${api.address().port}/`;
+
+    async function session(scenario) {
+      const dir = fs.mkdtempSync(path.join(tmp, 'w-'));
+      const bin = path.join(dir, 'bin');
+      const log = path.join(dir, 'calls');
+      const data = path.join(dir, 'data');
+      const release = path.join(dir, 'release');
+      const closed = path.join(dir, 'closed');
+      fs.mkdirSync(data);
+      fs.writeFileSync(log, '');
+      // The kiosk stays up until it's closed (by the launcher, or the test);
+      // the browser window stays up until someone "closes" it.
+      fakeBin(
+        bin,
+        'chromium',
+        `printf '%s\\n' "$@" >> "${log}"; echo --- >> "${log}"
+         case "$*" in
+           *--kiosk*) while [ ! -e "${release}" ]; do sleep 0.1; done ;;
+           *--new-window*) while [ ! -e "${closed}" ]; do sleep 0.1; done ;;
+         esac`
+      );
+      const confFile = path.join(dir, 'default');
+      fs.writeFileSync(confFile, `KIOSK_URL=${apiUrl}\n`);
+      const child = spawn('/bin/bash', process.env.TRACE ? ['-x', KIOSK] : [KIOSK], {
+        env: {
+          PATH: basePath(bin),
+          HOME: path.join(dir, 'home'),
+          BAJA_BLAST_DEFAULTS: confFile,
+          BAJA_BLAST_DATA: data,
+          BAJA_BLAST_KIOSK_ONCE: '1',
+          BAJA_BLAST_KIOSK_WAIT: '10',
+          BAJA_BLAST_WATCH_SECONDS: '0.2',
+          BAJA_BLAST_BROWSE_POLL: '0.3',
+          ...(process.env.TRACE ? { SHELLOPTS: 'xtrace' } : {}),
+        },
+        stdio: process.env.TRACE ? ['ignore', 'ignore', fs.openSync(process.env.TRACE, 'a')] : 'ignore',
+      });
+      const exited = new Promise((r) => child.on('exit', r));
+      const calls = () =>
+        fs.readFileSync(log, 'utf8').split('---\n').filter((c) => c.trim()).map((c) => c.trim().split('\n'));
+      const kiosks = () => calls().filter((a) => a.includes('--kiosk')).length;
+      const windows = () => calls().filter((a) => a.includes('--new-window'));
+      const request = path.join(data, 'browser-open.json');
+
+      const r = { alive: await until(() => fs.existsSync(path.join(data, 'kiosk-alive')) && kiosks() === 1) };
+      fs.writeFileSync(request, JSON.stringify({ url: 'https://www.allrecipes.com/' }));
+      r.opened = await until(() => windows().length === 1);
+      r.kiosksWhileBrowsing = kiosks();
+      if (scenario === 'close') {
+        // Something that isn't a web address, while browsing: never opened.
+        fs.writeFileSync(request, JSON.stringify({ url: 'file:///etc/passwd' }));
+        r.consumed = await until(() => !fs.existsSync(request));
+        fs.writeFileSync(closed, '');
+      } else {
+        ringing = true;
+      }
+      r.back = await until(() => kiosks() === 2);
+      fs.writeFileSync(release, '');
+      fs.writeFileSync(closed, '');
+      await exited;
+      ringing = false;
+      r.window = windows()[0] || [];
+      r.windows = windows().length;
+      r.leftover = fs.existsSync(request) || fs.existsSync(path.join(data, 'browse-next'));
+      return r;
     }
-    const calls = () =>
-      fs
-        .readFileSync(log, 'utf8')
-        .split('---\n')
-        .filter((c) => c.trim())
-        .map((c) => c.trim().split('\n'));
-    const windows = () => calls().filter((a) => a.includes('--new-window'));
-    const request = path.join(data, 'browser-open.json');
 
-    const alive = await until(() => fs.existsSync(path.join(data, 'kiosk-alive')));
-    fs.writeFileSync(request, JSON.stringify({ url: 'https://www.allrecipes.com/' }));
-    await until(() => windows().length >= 1);
-    // Then something that isn't a web address, and wait for it to be used up.
-    fs.writeFileSync(request, JSON.stringify({ url: 'file:///etc/passwd' }));
-    const consumed = await until(() => !fs.existsSync(request));
-    fs.writeFileSync(release, '');
-    await exited;
+    const a = await session('close');
+    check('it tells the calendar it is listening', a.alive);
+    check('Browser opens a real browser for the address asked for', a.opened && a.window[a.window.length - 1] === 'https://www.allrecipes.com/', JSON.stringify(a.window));
+    check('with the calendar closed, so nothing can hide it', a.kiosksWhileBrowsing === 1);
+    check('in its own profile, apart from the kiosk', a.window.some((x) => x.endsWith('.config/baja-blast-browser')));
+    check('maximized, with the Pi\'s on-screen keyboard allowed', a.window.includes('--start-maximized') && a.window.includes('--enable-wayland-ime'));
+    check('closing the browser brings the calendar back', a.back);
+    check('never for anything that isn\'t a web address', a.consumed && a.windows === 1);
+    check('nothing is left waiting afterwards', !a.leftover);
 
-    const w = windows();
-    check('it tells the calendar it is listening', alive);
-    check('it opens a real browser window for the address asked for', w.length >= 1 && w[0][w[0].length - 1] === 'https://www.allrecipes.com/', JSON.stringify(calls()));
-    check('in its own profile, apart from the kiosk', w[0] && w[0].some((x) => x.endsWith('.config/baja-blast-browser')));
-    check('with the Pi\'s on-screen keyboard allowed', w[0] && w[0].includes('--enable-wayland-ime'));
-    check('and never for anything that isn\'t a web address', consumed && w.length === 1);
-    check('each request is used once', !fs.existsSync(request));
+    const b = await session('timer');
+    check('a kitchen timer going off closes the browser and shows the calendar', b.opened && b.back);
+
+    api.close();
   }
 
   console.log('\nThe browser window helper on its own, as an update starts it');
