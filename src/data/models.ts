@@ -175,7 +175,8 @@ export interface DisplaySchedule {
 
 export interface DisplaySettings {
   brightness: number; // 0-1
-  theme: 'auto' | 'dark' | 'light';
+  /** See engine/timeOfDay.ts — black, beige, or beige by day. */
+  theme: 'auto' | 'dark' | 'light' | 'daylight';
   reducedMotion: boolean;
   largeText: boolean;
   highContrast: boolean;

@@ -9,6 +9,7 @@ import { VoiceStatus, onVoice } from '../hooks/live';
 import { qrToSvg } from '../engine/qr';
 import { collapseSeries, describeRecurrence } from '../engine/recurrence';
 import { Icon } from './Icon';
+import { TimeField } from './TimeField';
 
 /** Shape of one entry from Spotify's /me/player/devices. */
 interface SpotifyDevice {
@@ -625,20 +626,10 @@ function ScreenScheduleRows({
       {schedule.enabled && (
         <>
           <Row label="Wakes at" desc="The schedule should be up before anyone comes downstairs">
-            <input
-              type="time"
-              value={schedule.on}
-              onChange={(e) => set({ on: e.target.value })}
-              style={{ ...inputStyle, width: 140 }}
-            />
+            <TimeField value={schedule.on} onChange={(on) => set({ on })} style={{ ...inputStyle, width: 140 }} />
           </Row>
           <Row label="Sleeps at">
-            <input
-              type="time"
-              value={schedule.off}
-              onChange={(e) => set({ off: e.target.value })}
-              style={{ ...inputStyle, width: 140 }}
-            />
+            <TimeField value={schedule.off} onChange={(off) => set({ off })} style={{ ...inputStyle, width: 140 }} />
           </Row>
           <Row
             label="Touch wakes it early"
@@ -1537,12 +1528,7 @@ function RecipesManager({
       </Row>
 
       <Row label="Time" desc="Where it sits on the day view">
-        <input
-          type="time"
-          value={recipes.bakeNight.time}
-          onChange={(e) => patchBake({ time: e.target.value })}
-          style={{ ...inputStyle, width: 130 }}
-        />
+        <TimeField value={recipes.bakeNight.time} onChange={(time) => patchBake({ time })} style={{ ...inputStyle, width: 130 }} />
       </Row>
 
       <Row label="What to call it" desc="Shown on the calendar and in the rail">
@@ -1814,16 +1800,25 @@ export function SettingsPanel({
             <>
               <h2>Display</h2>
               <ScreenScheduleRows settings={settings} patch={patch} />
-              <Row label="Theme" desc="Auto adapts to time of day">
-                <select
-                  value={settings.display.theme}
-                  onChange={(e) => patch('display', { ...settings.display, theme: e.target.value as any })}
-                  style={{ ...inputStyle, width: 140 }}
-                >
-                  <option value="auto">Auto</option>
-                  <option value="dark">Dark</option>
-                  <option value="light">Light</option>
-                </select>
+              <Row label="Look" desc="Black, beige, or beige while it's light out and black after sunset">
+                <div className="theme-choice">
+                  {([
+                    ['auto', 'Black'],
+                    ['light', 'Beige'],
+                    ['daylight', 'Beige by day'],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      className={`theme-swatch theme-${value} ${
+                        (settings.display.theme === 'dark' ? 'auto' : settings.display.theme) === value ? 'on' : ''
+                      }`}
+                      onClick={() => patch('display', { ...settings.display, theme: value })}
+                    >
+                      <span className="theme-swatch-chip" aria-hidden />
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </Row>
               <Row label="Thirukkural of the day" desc="One kural a day beside the date, in Tamil, transliterated, and in English">
                 <Toggle on={settings.display.kural !== false} onClick={() => patch('display', { ...settings.display, kural: settings.display.kural === false })} />

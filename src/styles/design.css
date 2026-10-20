@@ -1,0 +1,929 @@
+/* ==================================================================== *
+ * The look
+ *
+ * Loaded after App.css, and the only place the app's appearance is decided:
+ * App.css lays things out, this says what they look like. Everything here
+ * reads the theme's variables (engine/timeOfDay.ts), so the same rules draw
+ * the black wall and the beige one.
+ *
+ * Three ideas, held to throughout:
+ *
+ *   Paper and ink. Two surfaces — the background, and cards one step off
+ *   it — and text in three strengths. No outlines around things that
+ *   space can separate, no gradients, no glow.
+ *
+ *   One accent. Sand on black, a deep warm brown on beige, used for what's
+ *   happening now and for the thing to press. Coral appears only when
+ *   something needs attention this minute.
+ *
+ *   Read from the doorway. Nothing under 14px, labels in plain words, a
+ *   serif for the few big numbers and names, and a sans for everything else.
+ * ==================================================================== */
+
+:root {
+  --radius-lg: 22px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+  --font-display: 'Zodiak', 'Iowan Old Style', Georgia, serif;
+  --font: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+html,
+body {
+  transition: background 0.8s ease;
+}
+
+html[data-theme='light'] body {
+  background: #eee7db;
+}
+
+/* ---------- the frame ---------- */
+
+.kiosk {
+  padding: clamp(28px, 3vw, 48px) clamp(28px, 3.4vw, 56px) clamp(24px, 2.4vw, 36px);
+  column-gap: clamp(20px, 2vw, 32px);
+  row-gap: clamp(16px, 1.6vw, 24px);
+  color: var(--text);
+  font-family: var(--font);
+  font-weight: 500;
+}
+
+/* ---------- header: the time, the day, the weather ---------- */
+
+.clock-block {
+  align-items: flex-end;
+  gap: clamp(24px, 2.6vw, 44px);
+}
+
+.clock {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(96px, 8.6vw, 156px);
+  line-height: 0.82;
+  letter-spacing: -0.045em;
+  color: var(--text);
+}
+
+/* "PM", small and to the side. */
+.clock span {
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: 0.17em;
+  letter-spacing: 0.04em;
+  margin-left: 0.25em;
+  color: var(--text-muted);
+}
+
+.date-line {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(26px, 2.1vw, 38px);
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.kural {
+  margin-bottom: 10px;
+  max-width: 62ch;
+}
+
+.kural-label,
+.kural-num {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--text-faint);
+}
+
+.kural-num {
+  color: var(--accent);
+  margin-left: 6px;
+}
+
+.kural-tamil {
+  font-size: 16px;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+.kural-translit {
+  font-size: 14px;
+  color: var(--text-faint);
+}
+
+.kural-meaning {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.header-weather {
+  align-self: end;
+}
+
+.header-weather-temp {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(54px, 4.4vw, 80px);
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+  color: var(--text);
+}
+
+.header-weather-cond {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.header-weather-meta {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.header-weather-stamp {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-faint);
+}
+
+/* ---------- labels, everywhere ---------- */
+
+.kiosk .uppercase-label,
+.kiosk .label,
+.kiosk .rail-label,
+.kiosk .extras-label,
+.kiosk .ticker-key,
+.kiosk .view-range,
+.kiosk .upcoming-when,
+.kiosk .wa-dow {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  text-transform: none;
+  color: var(--text-muted) !important;
+}
+
+.kiosk .rail-count {
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-faint);
+}
+
+.kiosk .rail-count::before {
+  content: '· ';
+}
+
+/* ---------- "What's next" ---------- */
+
+.whats-next {
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+.whats-next .line {
+  font-size: clamp(17px, 1.3vw, 21px);
+  color: var(--text);
+}
+
+/* ---------- the calendar card ---------- */
+
+.main-col {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  padding: clamp(20px, 1.8vw, 30px) clamp(22px, 2vw, 34px);
+}
+
+.view-switcher {
+  border: none;
+  padding: 0 0 6px;
+  margin-bottom: 8px;
+}
+
+.view-range {
+  font-size: 15px !important;
+}
+
+/* Day / week / month: one segmented control, not three boxes. */
+.view-modes {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: none;
+}
+
+.view-modes button,
+.view-mode {
+  border: none !important;
+  border-radius: 999px !important;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: capitalize;
+  min-height: 40px;
+  padding: 0 18px;
+}
+
+.view-modes button.active,
+.view-mode.active {
+  background: var(--text) !important;
+  color: var(--bg-elevated) !important;
+}
+
+.view-arrow,
+.view-today {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 999px;
+  border: none;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 16px;
+}
+
+/* ---------- today ---------- */
+
+.info-banner {
+  border: none;
+  background: none;
+  padding: 6px 0 14px;
+}
+
+.info-banner .body {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.timeline-time {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.timeline-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(20px, 1.6vw, 26px);
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.timeline-sub,
+.timeline-meta-row {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.meta-pill {
+  border: none;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border-radius: 999px;
+  font-size: 14px;
+  padding: 4px 12px;
+}
+
+.meta-pill.leave-now,
+.meta-pill.rain-flag {
+  background: color-mix(in srgb, var(--urgent) 14%, transparent);
+  color: var(--urgent);
+}
+
+.timeline-rule {
+  background: var(--hairline);
+}
+
+/* ---------- under today: dinner, notes, the week ahead ---------- */
+
+.day-extras {
+  border-top: 1px solid var(--hairline);
+  padding-top: 18px;
+}
+
+.tonight-card,
+.notes-board {
+  border: none;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.tonight-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.tonight-sub,
+.tonight-empty {
+  font-family: var(--font);
+  font-size: 15px;
+  color: var(--text-muted);
+  max-width: none;
+}
+
+.tonight-grocery {
+  border: none;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 40px;
+  padding: 0 16px;
+}
+
+.note-card {
+  border: none;
+  border-top: none !important;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.note-text {
+  font-size: 16px;
+}
+
+.note-meta {
+  font-size: 14px;
+  color: var(--text-faint);
+}
+
+.week-ahead-grid {
+  background: none;
+  border: none;
+  border-radius: 0;
+  gap: 14px;
+}
+
+.wa-day,
+.wa-day.weekend {
+  background: none;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.wa-head {
+  justify-content: flex-start;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.wa-date {
+  order: 1;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 28px;
+  color: var(--text);
+}
+
+.wa-dow {
+  order: 2;
+}
+
+.wa-day:first-child .wa-dow {
+  color: var(--accent) !important;
+}
+
+.wa-meal.empty,
+.wa-free {
+  display: none;
+}
+
+.wa-meal {
+  background: none;
+  padding: 0;
+  margin-top: 6px;
+  font-size: 15px;
+  color: var(--accent);
+}
+
+.wa-event {
+  border-left: none !important;
+  padding-left: 0;
+  margin-top: 8px;
+}
+
+.wa-time {
+  font-size: 14px;
+  color: var(--text-faint);
+}
+
+.wa-title {
+  font-size: 15px;
+  color: var(--text);
+}
+
+/* ---------- week and month views ---------- */
+
+.week-grid,
+.month-grid {
+  background: none;
+  border: none;
+  gap: 8px;
+}
+
+.week-col,
+.month-cell {
+  background: none;
+  border: none;
+  border-top: 1px solid var(--hairline);
+  border-radius: 0;
+}
+
+.week-col.today,
+.month-cell.today {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  border-top-color: transparent;
+}
+
+.week-dow,
+.month-dow {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
+
+.week-date,
+.month-cell-date {
+  font-family: var(--font-display);
+  font-weight: 400;
+  color: var(--text);
+}
+
+.week-event,
+.month-event {
+  border: none;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.week-event-time,
+.month-event-time {
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.week-event-title,
+.month-event-title {
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* ---------- the rail ---------- */
+
+.rail-scroll {
+  gap: 12px;
+}
+
+.rail-section {
+  background: var(--bg-elevated);
+  border: none !important;
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: none;
+}
+
+.rail-section + .rail-section {
+  border-top: none !important;
+  margin-top: 0;
+}
+
+.upcoming-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 21px;
+  color: var(--text);
+}
+
+.chore-pill {
+  border: none;
+  background: var(--surface-2);
+  border-radius: 999px;
+  font-size: 14px;
+  padding: 6px 12px;
+}
+
+.chore-pill-count {
+  color: var(--text-faint);
+}
+
+.bake-rail-empty,
+.grocery-empty {
+  font-size: 15px;
+  color: var(--text-faint);
+}
+
+.photo-frame {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: none;
+}
+
+/* ---------- the ticker ---------- */
+
+.ticker-bar {
+  border-top: none;
+  padding-top: 4px;
+}
+
+.ticker-headline {
+  font-size: 17px;
+  color: var(--text);
+}
+
+.ticker-source {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--accent);
+}
+
+.ticker-symbol {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ticker-price {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.ticker-change {
+  font-size: 15px;
+}
+
+.ticker-change.up {
+  color: var(--text);
+}
+
+.ticker-change.down {
+  color: var(--urgent);
+}
+
+.status-indicator {
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+/* ---------- the corner ---------- */
+
+.touch-menu {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  border: none;
+  background: var(--bg-elevated);
+  color: var(--text);
+  opacity: 1;
+}
+
+.touch-menu.open {
+  background: var(--text);
+  color: var(--bg-elevated);
+}
+
+.kiosk-menu-list {
+  background: var(--bg-elevated);
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.kiosk-menu-item {
+  border: none;
+  border-radius: var(--radius-md);
+  min-height: 56px;
+  padding: 0 18px 0 12px;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--text);
+  background: transparent;
+}
+
+.kiosk-menu-item:active,
+.kiosk-menu-item:hover {
+  background: var(--surface-2);
+}
+
+.kiosk-menu-icon {
+  display: inline-flex;
+  width: 32px;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.icon {
+  flex: none;
+  vertical-align: middle;
+}
+
+/* ---------- reminders ---------- */
+
+.reminder {
+  border: none;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  font-size: 16px;
+}
+
+.reminder.now {
+  background: color-mix(in srgb, var(--urgent) 14%, var(--bg-elevated));
+  color: var(--urgent);
+}
+
+/* ---------- panels that open over the calendar ---------- */
+
+.settings-overlay,
+.timer-overlay,
+.chore-overlay {
+  background: var(--scrim);
+  backdrop-filter: none;
+}
+
+.settings-panel,
+.timer-panel,
+.chore-panel,
+.recipe-panel {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+}
+
+.settings-panel h2,
+.timer-panel-head h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.settings-nav-item {
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+}
+
+.settings-nav-item.active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.settings-row {
+  border-color: var(--hairline);
+}
+
+.kiosk input,
+.kiosk select,
+.kiosk textarea {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.kiosk input:focus,
+.kiosk select:focus,
+.kiosk textarea:focus {
+  border-color: var(--accent) !important;
+  outline: none;
+}
+
+.btn-primary,
+.btn-accent {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.btn-secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  border: none;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.timer-panel-close {
+  border: none;
+  background: var(--surface-2);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-panel-row button,
+.timer-grid button {
+  border: none;
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: var(--radius-md);
+}
+
+/* The look picker in Settings → Display. */
+.theme-choice {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.theme-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 16px 0 10px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.theme-swatch.on {
+  border-color: var(--accent);
+}
+
+.theme-swatch-chip {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+}
+
+.theme-auto .theme-swatch-chip {
+  background: #000;
+}
+
+.theme-light .theme-swatch-chip {
+  background: linear-gradient(135deg, #eee7db 50%, #ffffff 50%);
+}
+
+.theme-daylight .theme-swatch-chip {
+  background: linear-gradient(135deg, #eee7db 50%, #000 50%);
+}
+
+/* ---------- Good morning ---------- */
+
+.morning-overlay {
+  background: var(--bg);
+}
+
+.morning-hello {
+  font-weight: 300;
+  letter-spacing: -0.03em;
+}
+
+.morning-card {
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+}
+
+.morning-label {
+  font-size: 14px;
+  letter-spacing: 0.005em;
+  text-transform: none;
+  font-weight: 600;
+}
+
+.morning-go {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.morning-events li {
+  border-left: none;
+  padding-left: 0;
+}
+
+.mw-icon {
+  display: inline-flex;
+  color: var(--text);
+}
+
+.mb-icon {
+  margin-right: 6px;
+  color: var(--accent);
+}
+
+/* ---------- the on-screen keyboard ---------- */
+
+.skb {
+  background: var(--bg-elevated);
+  border-top: none;
+  box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.18);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.skb-key {
+  border: none;
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+}
+
+.skb-key:active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.skb-wide.on {
+  background: var(--text);
+  color: var(--bg-elevated);
+}
+
+.skb-space {
+  color: var(--text-muted);
+}
+
+.skb-go {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------- small things ---------- */
+
+.when-hint {
+  color: var(--accent);
+}
+
+.when-hint.bad {
+  color: var(--text-faint);
+}
+
+.versions-pinned {
+  border: none;
+  background: var(--surface-2);
+}
+
+/* Beige: the cards need a whisper of edge against the paper. */
+html[data-theme='light'] .main-col,
+html[data-theme='light'] .rail-section,
+html[data-theme='light'] .morning-card,
+html[data-theme='light'] .touch-menu {
+  box-shadow: 0 1px 2px rgba(60, 45, 25, 0.06), 0 8px 24px rgba(60, 45, 25, 0.05);
+}
+
+/* A person's colour can be white or pale — a faint ring keeps every dot
+   visible on beige and on black. */
+.person-dot,
+.chore-pill-dot,
+.reminder-dot,
+.chore-person-dot,
+.person-chip-dot {
+  box-shadow: 0 0 0 1px var(--hairline);
+}
+
+/* Settings: the section list in plain words, like everything else. */
+.settings-nav-item {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.settings-panel .settings-row-desc,
+.settings-panel .row-desc,
+.settings-note {
+  font-size: 14px;
+}
+
+.mc-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.mc-name .person-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: none;
+}

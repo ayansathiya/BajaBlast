@@ -195,7 +195,7 @@
 }
 
 .ticker-change.down {
-  color: var(--coral, #ff5c72);
+  color: var(--urgent);
 }
 
 .rail-count {
@@ -377,7 +377,7 @@
 }
 
 .view-mode.active {
-  color: #000;
+  color: var(--accent-ink);
   background: var(--accent);
   border-color: var(--accent);
   z-index: 1;
@@ -410,7 +410,7 @@
 }
 
 .week-col.today {
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--surface-2);
 }
 
 .week-col-head {
@@ -534,7 +534,7 @@
 }
 
 .month-cell.today {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-2);
 }
 
 .month-cell-date {
@@ -738,8 +738,8 @@
 }
 
 @keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 245, 212, 0.5); }
-  50% { box-shadow: 0 0 0 7px rgba(0, 245, 212, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent); }
+  50% { box-shadow: 0 0 0 7px transparent; }
 }
 
 .timeline-body {
@@ -792,14 +792,14 @@
 }
 
 .leave-now {
-  color: #000;
+  color: var(--accent-ink);
   background: var(--accent);
   border-color: var(--accent);
 }
 
 .rain-flag {
   color: var(--accent-2);
-  border-color: rgba(255, 92, 114, 0.4);
+  border-color: var(--urgent);
 }
 
 /* ---------- conflict / free-window banners ---------- */
@@ -942,7 +942,7 @@
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(0, 0, 0, 0.86);
+  background: var(--scrim);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -956,7 +956,7 @@
   max-height: 100%;
   overflow-y: auto;
   scrollbar-width: none;
-  background: var(--bg-elevated, #0b0b0b);
+  background: var(--bg-elevated);
   border: 1px solid var(--hairline);
   border-radius: 6px;
   padding: clamp(24px, 3vw, 44px);
@@ -1013,7 +1013,7 @@
 }
 
 .chore-person:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface-2);
   transform: translateY(-2px);
 }
 
@@ -1089,7 +1089,7 @@
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #000;
+  color: var(--accent-ink);
   background: var(--accent);
   padding: 3px 7px;
   border-radius: 3px;
@@ -1120,7 +1120,7 @@
 }
 
 .chore-item:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface-2);
 }
 
 .chore-check {
@@ -1267,7 +1267,7 @@
   height: clamp(104px, 14vh, 180px);
   overflow: hidden;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface-2);
   transition: height 0.6s ease;
 }
 
@@ -1510,8 +1510,8 @@
   display: grid;
   place-items: center;
   background: var(--bg);
-  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.14));
-  color: var(--text-muted, #7a7a7a);
+  border: 1px solid var(--hairline);
+  color: var(--text-muted);
   opacity: 0.75;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -1549,7 +1549,7 @@
   z-index: 70;
   max-width: min(460px, calc(100vw - 32px));
   padding: 14px 18px;
-  background: var(--bg-elevated, #151515);
+  background: var(--bg-elevated);
   color: var(--text);
   border: 1px solid var(--accent);
   border-radius: 14px;
@@ -1687,16 +1687,16 @@
 }
 
 .idle-bg.gradient-warm {
-  background: radial-gradient(circle at 30% 30%, rgba(0, 245, 212, 0.14), #000 65%);
+  background: radial-gradient(circle at 30% 30%, rgba(216, 195, 160, 0.16), #000 65%);
 }
 .idle-bg.gradient-cool {
-  background: radial-gradient(circle at 70% 30%, rgba(255, 92, 114, 0.12), #000 65%);
+  background: radial-gradient(circle at 70% 30%, rgba(190, 160, 120, 0.12), #000 65%);
 }
 .idle-bg.gradient-night {
   background: radial-gradient(circle at 50% 60%, rgba(255, 255, 255, 0.06), #000 70%);
 }
 .idle-bg.gradient-celebration {
-  background: radial-gradient(circle at 40% 40%, rgba(255, 92, 114, 0.18), #000 65%);
+  background: radial-gradient(circle at 40% 40%, rgba(230, 205, 160, 0.18), #000 65%);
 }
 
 /* `contain`, not `cover`: the whole photo, never a crop. A phone photo is
@@ -1825,7 +1825,7 @@
 .settings-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: var(--scrim);
   backdrop-filter: blur(14px);
   z-index: 100;
   display: flex;
@@ -1866,7 +1866,7 @@
 
 .settings-nav-item.active {
   color: var(--accent);
-  background: rgba(0, 245, 212, 0.06);
+  background: var(--surface-2);
 }
 
 .settings-content {
@@ -1933,12 +1933,12 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #000;
+  background: var(--bg-elevated);
   transition: transform 0.2s ease;
 }
 
 .toggle.on .toggle-knob {
-  background: #000;
+  background: var(--accent-ink);
   transform: translateX(18px);
 }
 
@@ -1965,7 +1965,7 @@
 
 .btn-accent {
   background: var(--accent);
-  color: #000;
+  color: var(--accent-ink);
   border: none;
   border-radius: 4px;
   padding: 11px 20px;
@@ -2176,7 +2176,7 @@
 }
 
 .event-row-button:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface-2);
 }
 
 .person-picker,
@@ -2205,7 +2205,7 @@
 }
 
 .person-chip.on {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-2);
 }
 
 .person-chip-dot {
@@ -2253,7 +2253,7 @@
 .scope.on {
   background: var(--accent);
   border-color: var(--accent);
-  color: #000;
+  color: var(--accent-ink);
 }
 
 .scope-picker {
@@ -2277,7 +2277,7 @@
 
 .btn-primary {
   background: var(--accent);
-  color: #000;
+  color: var(--accent-ink);
   border: 1px solid var(--accent);
   border-radius: 4px;
   padding: 9px 18px;
@@ -2443,8 +2443,8 @@
   display: grid;
   place-items: center;
   background: var(--bg);
-  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.14));
-  color: var(--text-muted, #7a7a7a);
+  border: 1px solid var(--hairline);
+  color: var(--text-muted);
   opacity: 0.75;
   transition: opacity 0.18s ease, color 0.18s ease, transform 0.12s ease;
   cursor: pointer;
@@ -2454,13 +2454,13 @@
 .touch-menu:hover,
 .touch-menu:focus-visible {
   opacity: 1;
-  color: var(--accent, #00f5d4);
+  color: var(--accent);
 }
 
 .touch-menu.open {
   opacity: 1;
-  color: var(--accent, #00f5d4);
-  border-color: var(--accent, #00f5d4);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .touch-menu:active {
@@ -2521,7 +2521,7 @@
   z-index: 70;
   /* Solid, not translucent: at 94% the clock behind it still ghosted through
      the word "Recipes", which reads as a rendering fault rather than depth. */
-  background: var(--bg, #000);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
   padding: clamp(16px, 2.5vw, 40px);
@@ -2716,7 +2716,7 @@
   position: fixed;
   inset: 0;
   z-index: 75;
-  background: rgba(0, 0, 0, 0.97);
+  background: var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2728,7 +2728,7 @@
   max-height: 100%;
   overflow-y: auto;
   scrollbar-width: none;
-  background: var(--bg-elevated, #0b0b0b);
+  background: var(--bg-elevated);
   border: 1px solid var(--hairline);
   border-radius: 6px;
   padding: clamp(20px, 2.5vw, 36px);
@@ -2860,7 +2860,7 @@
   transform: translateX(-50%);
   z-index: 90;
   background: var(--accent);
-  color: #000;
+  color: var(--accent-ink);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -2876,7 +2876,7 @@
   position: fixed;
   inset: 0;
   z-index: 80;
-  background: #000;
+  background: var(--bg);
   display: flex;
   flex-direction: column;
 }
@@ -2887,7 +2887,7 @@
   gap: 8px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--hairline);
-  background: var(--bg-elevated, #0b0b0b);
+  background: var(--bg-elevated);
   flex: none;
 }
 
@@ -2957,7 +2957,7 @@
   flex: 1;
   min-height: 0;
   position: relative;
-  background: #fff;
+  background: var(--bg-elevated);
 }
 
 .web-frame {
@@ -2970,7 +2970,7 @@
 .web-blocked {
   position: absolute;
   inset: 0;
-  background: var(--bg, #000);
+  background: var(--bg);
   color: var(--text);
   display: flex;
   flex-direction: column;
@@ -3046,7 +3046,7 @@
 
 .skb-key:active {
   background: var(--accent);
-  color: #000;
+  color: var(--accent-ink);
 }
 
 .skb-wide {
@@ -3060,7 +3060,7 @@
 
 .skb-wide.on {
   background: #fff;
-  color: #000;
+  color: var(--accent-ink);
 }
 
 .skb-space {
@@ -3075,7 +3075,7 @@
 .skb-go {
   background: var(--accent);
   border-color: var(--accent);
-  color: #000;
+  color: var(--accent-ink);
 }
 
 /* A paragraph of plain explanation under a group of settings rows — used where
@@ -3106,7 +3106,7 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #000;
+  color: var(--accent-ink);
   background: var(--accent);
   border-radius: 3px;
   padding: 2px 7px;
@@ -3145,7 +3145,7 @@
   align-items: center;
   padding: 8px 12px;
   border-bottom: 1px solid var(--hairline);
-  background: var(--bg-elevated, #0b0b0b);
+  background: var(--bg-elevated);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -3199,7 +3199,7 @@
 }
 
 .web-mark-x:hover {
-  color: var(--accent-2, #ff5c72);
+  color: var(--urgent);
 }
 
 /* ================================================================== *
@@ -3238,7 +3238,7 @@
 
 .reminder.now {
   border-color: var(--accent-2);
-  background: rgba(255, 92, 114, 0.12);
+  background: color-mix(in srgb, var(--urgent) 12%, transparent);
 }
 
 .reminder.now .reminder-dot {
@@ -3521,7 +3521,7 @@ body.reduced-motion .reminder-dot { animation: none !important; }
   color: var(--text);
   padding: 6px 8px;
   border-radius: 3px;
-  background: rgba(0, 245, 212, 0.08);
+  background: transparent;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3658,7 +3658,7 @@ body.reduced-motion .reminder-dot { animation: none !important; }
 }
 
 .timer-row.ringing .timer-row-actions button {
-  color: #000;
+  color: var(--accent-ink);
   background: var(--accent-2);
   border-color: var(--accent-2);
   padding: 0 12px;
@@ -3759,7 +3759,7 @@ body.reduced-motion .reminder-dot { animation: none !important; }
 .timer-alarm-actions button.primary {
   background: var(--accent-2);
   border-color: var(--accent-2);
-  color: #000;
+  color: var(--accent-ink);
   min-width: 120px;
 }
 
@@ -3826,7 +3826,7 @@ body.reduced-motion .timer-alarm { animation: none; }
   position: fixed;
   inset: 0;
   z-index: 95;
-  background: rgba(0, 0, 0, 0.82);
+  background: var(--scrim);
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
@@ -3934,7 +3934,7 @@ body.reduced-motion .timer-alarm { animation: none; }
 .timer-custom button,
 .timer-panel-row button {
   background: var(--accent);
-  color: #000;
+  color: var(--accent-ink);
   border: none;
   border-radius: 4px;
   padding: 0 20px;
@@ -4051,7 +4051,7 @@ body.reduced-motion .timer-alarm { animation: none; }
 
 .morning-go {
   background: var(--accent);
-  color: #000;
+  color: var(--accent-ink);
   border: none;
   border-radius: 999px;
   padding: 18px 30px;
@@ -4527,188 +4527,3 @@ button.lights-mood:hover {
   color: var(--accent);
 }
 
-/* ==================================================================== *
- * A quieter wall
- *
- * The calendar had grown a label for everything — ten-pixel capitals with
- * wide letter-spacing, half of them in coral, a box around every day of the
- * week whether anything was in it or not. From across a kitchen that reads
- * as texture, not information. This layer, last in the file so it wins:
- *
- *   • nothing smaller than 14px, and labels in plain sentence case;
- *   • one muted colour for labels; the accent only for "now";
- *   • space instead of boxes, and nothing drawn where there's nothing to say.
- * ==================================================================== */
-
-.uppercase-label,
-.label,
-.extras-label,
-.wa-dow,
-.upcoming-when,
-.view-range,
-.view-mode,
-.kural-label,
-.ticker-source,
-.header-weather-stamp {
-  font-size: 14px;
-  letter-spacing: 0.01em;
-  text-transform: none;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-/* "Next · quiet", "Bake night · this Saturday": a second voice in the
-   label, not a second colour. */
-.rail-count {
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-.rail-count::before {
-  content: '· ';
-}
-
-/* The headline source in the ticker stays the one accented word there. */
-.ticker-source {
-  color: var(--accent);
-}
-
-/* Small print that has to be read from a step back. */
-.wa-time,
-.chore-pill-count,
-.ticker-price,
-.ticker-symbol,
-.ticker-change,
-.chore-pill,
-.header-weather-meta,
-.kural-translit,
-.kural-meaning,
-.bake-rail-empty,
-.grocery-empty {
-  font-size: 14px;
-}
-
-.wa-title,
-.wa-meal,
-.kural-tamil {
-  font-size: 15px;
-}
-
-.status-indicator {
-  font-size: 12px;
-  opacity: 0.6;
-}
-
-/* The week ahead: columns and air, not a table of boxes. */
-.week-ahead-grid {
-  background: none;
-  border: none;
-  border-radius: 0;
-  gap: 20px;
-}
-
-.wa-day,
-.wa-day.weekend {
-  background: none;
-  padding-left: 0;
-  padding-right: 0;
-  border-top: 1px solid var(--hairline);
-}
-
-.wa-head {
-  padding-top: 12px;
-}
-
-/* An unplanned dinner or a free day is the absence of something; showing
-   "Dinner?" and "Free" six times over was the loudest thing on the screen. */
-.wa-meal.empty,
-.wa-free {
-  display: none;
-}
-
-.wa-meal {
-  background: none;
-  padding-left: 0;
-  color: var(--accent);
-}
-
-.wa-event {
-  border-left-width: 2px;
-}
-
-/* Cards in the rail and under today: separated by space, not outlined. */
-.tonight-card,
-.notes-board,
-.rail-section {
-  border: none;
-  box-shadow: none;
-}
-
-/* The corner menu: drawn icons, aligned, a little larger. */
-.kiosk-menu-icon {
-  display: inline-flex;
-  width: 28px;
-  justify-content: center;
-  color: var(--text-muted);
-}
-
-.kiosk-menu-item:hover .kiosk-menu-icon,
-.kiosk-menu-item:active .kiosk-menu-icon {
-  color: var(--text);
-}
-
-.icon {
-  flex: none;
-  vertical-align: middle;
-}
-
-.mw-icon {
-  display: inline-flex;
-  color: var(--text);
-}
-
-.mb-icon {
-  margin-right: 6px;
-  color: var(--accent);
-}
-
-/* Some labels are styled more specifically elsewhere (the rail's, the
-   ticker's, the quiet-day one); these win over all of them. */
-.kiosk .uppercase-label,
-.kiosk .label,
-.kiosk .rail-label,
-.kiosk .rail-count,
-.kiosk .ticker-key {
-  font-size: 14px;
-  letter-spacing: 0.01em;
-  text-transform: none;
-}
-
-.kiosk .label {
-  color: var(--text-muted);
-}
-
-/* "Thu 22", together, at the top of each day — not the name of one day
-   sitting beside the number of the next. */
-.wa-head {
-  justify-content: flex-start;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.wa-date {
-  order: 1;
-  font-size: 26px;
-}
-
-.wa-dow {
-  order: 2;
-}
-
-/* Something not being planned yet is a quiet line, not the largest text on
-   the screen. */
-.tonight-empty {
-  font-family: var(--font);
-  font-size: 15px;
-  max-width: none;
-}

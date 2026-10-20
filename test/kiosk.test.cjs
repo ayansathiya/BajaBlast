@@ -42,7 +42,7 @@ function fakeBin(dir, name, body) {
 // the machine running the tests can never be the one that answers.
 function basePath(bin) {
   const sys = fs.mkdtempSync(path.join(tmp, 'sys-'));
-  for (const tool of ['sh', 'bash', 'sed', 'rm', 'mkdir', 'seq', 'sleep', 'cat', 'tr', 'tail', 'grep', 'mktemp', 'chmod', 'node', 'echo', 'cut', 'date', 'gzip', 'touch', 'flock', 'stat', 'readlink', 'pgrep', 'pkill', 'head', 'mv']) {
+  for (const tool of ['sh', 'bash', 'sed', 'rm', 'mkdir', 'seq', 'sleep', 'cat', 'tr', 'tail', 'grep', 'mktemp', 'chmod', 'node', 'echo', 'cut', 'date', 'gzip', 'touch', 'flock', 'stat', 'readlink', 'pgrep', 'pkill', 'head', 'mv', 'find', 'wc', 'cksum', 'setsid', 'kill']) {
     const found = spawnSync('/bin/sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim();
     if (found.startsWith('/')) fs.symlinkSync(found, path.join(sys, tool));
   }
@@ -226,6 +226,79 @@ async function kioskTests() {
 
     const b = await session('timer');
     check('a kitchen timer going off closes the browser and shows the calendar', b.opened && b.back);
+
+    // What happened on the wall: the update replaced the helper, but the
+    // launcher drawing the calendar was still the one from before it — and
+    // that one just put the calendar straight back. The new helper has to
+    // notice and replace it.
+    {
+      const dir = fs.mkdtempSync(path.join(tmp, 'o-'));
+      const bin = path.join(dir, 'bin');
+      const log = path.join(dir, 'calls');
+      const data = path.join(dir, 'data');
+      const closed = path.join(dir, 'closed');
+      const release = path.join(dir, 'release');
+      fs.mkdirSync(data);
+      fs.writeFileSync(log, '');
+      fakeBin(
+        bin,
+        'chromium',
+        `printf '%s\\n' "$@" >> "${log}"; echo --- >> "${log}"
+         case "$*" in
+           *--kiosk*) while [ ! -e "${release}" ]; do sleep 0.1; done ;;
+           *--new-window*) while [ ! -e "${closed}" ]; do sleep 0.1; done ;;
+         esac`
+      );
+      const confFile = path.join(dir, 'default');
+      fs.writeFileSync(confFile, `KIOSK_URL=${apiUrl}\n`);
+      // The launcher from before: a loop that only knows how to show the
+      // calendar, at the path the real one lives at.
+      const script = path.join(dir, 'baja-blast-kiosk');
+      fs.writeFileSync(
+        script,
+        `#!/bin/bash\nwhile true; do chromium --kiosk ${apiUrl} --user-data-dir="$HOME/.config/baja-blast-kiosk"; sleep 0.3; done\n`
+      );
+      fs.chmodSync(script, 0o755);
+      const env = {
+        PATH: basePath(bin),
+        HOME: path.join(dir, 'home'),
+        BAJA_BLAST_DEFAULTS: confFile,
+        BAJA_BLAST_DATA: data,
+        BAJA_BLAST_KIOSK_WAIT: '10',
+        BAJA_BLAST_WATCH_SECONDS: '0.2',
+        BAJA_BLAST_BROWSE_POLL: '0.3',
+      };
+      const old = spawn('/bin/bash', [script], { env, stdio: 'ignore' });
+      const calls = () =>
+        fs.readFileSync(log, 'utf8').split('---\n').filter((c) => c.trim()).map((c) => c.trim().split('\n'));
+      const kiosks = () => calls().filter((a) => a.includes('--kiosk')).length;
+      const windows = () => calls().filter((a) => a.includes('--new-window'));
+      await until(() => kiosks() === 1);
+
+      // The update: the new launcher lands at the same path, and its helper
+      // starts in the running session, as the package does.
+      fs.copyFileSync(KIOSK, script);
+      const watcher = spawn('/bin/bash', [script, '--watch'], { env, stdio: 'ignore' });
+      await until(() => fs.existsSync(path.join(data, 'kiosk-alive')));
+
+      fs.writeFileSync(path.join(data, 'browser-open.json'), JSON.stringify({ url: 'https://www.youtube.com/' }));
+      const opened = await until(() => windows().length === 1);
+      const oldGone = await until(() => old.exitCode !== null || old.signalCode !== null);
+      fs.writeFileSync(closed, '');
+      const back = await until(() => kiosks() >= 2);
+      const logText = fs.existsSync(path.join(data, 'kiosk.log')) ? fs.readFileSync(path.join(data, 'kiosk.log'), 'utf8') : '';
+
+      check('an older launcher still on screen is replaced, not obeyed', oldGone, logText);
+      check('…and the browser opens for the address asked for', opened && windows()[0].includes('https://www.youtube.com/'), JSON.stringify(calls()));
+      check('…and closing it brings the calendar back', back);
+      check('what happened is written down', /replacing it/.test(logText) && /browser: opening/.test(logText), logText);
+
+      fs.writeFileSync(release, '');
+      fs.writeFileSync(path.join(data, 'stop'), '');
+      watcher.kill();
+      // The replacement launcher runs on its own; stop it and its Chromium.
+      spawnSync('/usr/bin/pkill', ['-f', dir]);
+    }
 
     api.close();
   }

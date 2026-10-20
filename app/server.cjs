@@ -2009,6 +2009,19 @@ function startServer(options = {}) {
       return send(res, 200, { ok: true });
     }
 
+    // The last few things the Pi's screen launcher did — opening the browser,
+    // replacing itself after an update — for when the wall does something
+    // unexpected. Read-only, and only the launcher's own lines.
+    if (url.pathname === '/api/kiosk/log' && req.method === 'GET') {
+      let text = '';
+      try {
+        text = fs.readFileSync(path.join(DIR, 'kiosk.log'), 'utf8');
+      } catch {
+        text = '';
+      }
+      return send(res, 200, { lines: text.trim() ? text.trim().split('\n').slice(-60) : [] });
+    }
+
     /* ---------------- bookmarks ---------------- */
     //
     // Shared, not per-browser: someone saves a page on the sofa and it's on

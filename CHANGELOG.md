@@ -9,6 +9,31 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-20 — A new look, in black or beige, and a browser that really opens
+
+- **A whole new look.** The calendar has been redrawn: the time and date
+  in a light serif, everything else in one clean sans, the calendar and
+  the side panels on soft rounded cards instead of outlined boxes, and a
+  single warm sand accent in place of the neon teal and coral. Day, week
+  and month are one rounded switch. Coral is kept only for things that
+  need you now — a timer going off, time to leave.
+- **Black or beige.** Settings → Display → Look: **Black** (true black,
+  warm white text — the wall as it's been, dimming a little at night),
+  **Beige** (a warm paper background, white cards, dark text), or
+  **Beige by day** (beige while it's light out, black after sunset). The
+  Good Morning page, the menus, Settings and the on-screen keyboard all
+  follow it.
+- **The browser really opens now.** Last time the calendar disappeared
+  and came straight back: the Pi was still running the old screen
+  launcher from before the update, which didn't know how to step aside.
+  Now the new one notices an old launcher, replaces it on the spot, and
+  then opens the browser — no restart needed. From now on the launcher
+  also updates itself between screens, and keeps a short log of what it
+  did, so if it ever misbehaves again the reason is written down.
+- Wake-up and sleep times for the screen, and the bake-night time, are
+  typed too ("6am", "11pm"), like event times.
+- A person whose colour is white or pale no longer disappears on beige.
+
 ## 2026-10-20 — Type a time, go back a version, and a quieter wall
 
 - **Type the time of an event.** The date and time boxes used the

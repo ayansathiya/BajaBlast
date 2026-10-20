@@ -42,6 +42,26 @@ BROWSER_PROFILE="${HOME}/.config/baja-blast-browser"
 # A web address waiting for the main loop to open, once the kiosk is out of
 # the way. See browser_watch.
 NEXT="$DATA/browse-next"
+# Which main loop is drawing the calendar: "<version> <pid>". Bumped when the
+# loop learns something the browser helper relies on, so the helper can tell
+# a launcher left running from before an update. See replace_old_loop.
+LOOP_FILE="$DATA/kiosk-loop"
+LOOP_VERSION=2
+# What happened, for when something doesn't: /api/kiosk/log shows the end.
+LOG="$DATA/kiosk.log"
+
+log() {
+  printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$LOG" 2>/dev/null
+  # Keep it short; it's for "what just happened", not history.
+  if [ "$(wc -l < "$LOG" 2>/dev/null || echo 0)" -gt 400 ]; then
+    tail -n 200 "$LOG" > "$LOG.tmp" 2>/dev/null && mv -f "$LOG.tmp" "$LOG"
+  fi
+}
+
+# The script's own contents, to notice when an update has replaced it.
+self_sum() {
+  cksum < "$SELF" 2>/dev/null | cut -d' ' -f1
+}
 
 # Is a Chromium using this profile still open? Its window may belong to a
 # process started by an earlier call, so ask by profile, not by PID.
@@ -75,7 +95,7 @@ open_window() {
     --ozone-platform-hint=auto \
     --enable-wayland-ime \
     --start-maximized \
-    --new-window "$1" >/dev/null 2>&1 &
+    --new-window "$1" >> "$LOG" 2>&1 &
 }
 
 # A kitchen timer going off has to be seen. The alarm lives on the calendar,
@@ -106,16 +126,51 @@ browse() {
   local started
   started="$(date +%s)"
   tidy_profile "$BROWSER_PROFILE"
+  log "browser: opening $1"
   open_window "$1"
   # Give it a moment to appear before treating "not running" as "closed".
-  for _ in $(seq 1 50); do running "$BROWSER_PROFILE" && break; sleep 0.2; done
+  for _ in $(seq 1 75); do running "$BROWSER_PROFILE" && break; sleep 0.2; done
+  if ! running "$BROWSER_PROFILE"; then
+    log "browser: Chromium didn't start (see the lines above); back to the calendar"
+    return
+  fi
   while running "$BROWSER_PROFILE"; do
     if [ $(( $(date +%s) - started )) -ge $(( BROWSER_MINUTES * 60 )) ] || timer_ringing; then
+      log "browser: closing it (timer, or $BROWSER_MINUTES minutes up)"
       close_profile "$BROWSER_PROFILE"
       break
     fi
     sleep "${BAJA_BLAST_BROWSE_POLL:-2}"
   done
+  log "browser: closed; calendar back"
+}
+
+# Is the main loop drawing the calendar one that knows how to step aside?
+loop_ok() {
+  local version pid
+  read -r version pid < "$LOOP_FILE" 2>/dev/null || return 1
+  [ "${version:-0}" -ge "$LOOP_VERSION" ] && kill -0 "$pid" 2>/dev/null
+}
+
+# A launcher started before an update is still drawing the calendar, and it
+# can't open the browser: it would just bring the calendar straight back. So
+# replace it — stop it and its Chromium, start this version in its place —
+# rather than wait for the Pi to restart. Runs in the helper, which already
+# has the desktop session's environment.
+replace_old_loop() {
+  log "launcher: an older one is running; replacing it"
+  # By name, not full path: the same file can be reached by more than one
+  # path (/bin and /usr/bin are one directory on a Pi). The helper's own
+  # command line ends in --watch, so it never matches itself.
+  pkill -f -- "bash [^ ]*$(basename "$SELF")\$" 2>/dev/null
+  close_profile "$KIOSK_PROFILE"
+  if command -v setsid >/dev/null 2>&1; then
+    setsid /bin/bash "$SELF" >/dev/null 2>&1 < /dev/null &
+  else
+    /bin/bash "$SELF" >/dev/null 2>&1 < /dev/null &
+  fi
+  for _ in $(seq 1 50); do loop_ok && return 0; sleep 0.2; done
+  return 1
 }
 
 read_conf
@@ -168,9 +223,15 @@ browser_watch() {
       if [ -n "$url" ]; then
         if running "$KIOSK_PROFILE" && ! running "$BROWSER_PROFILE"; then
           # The calendar is on screen: ask the main loop to swap it for the
-          # browser, by leaving the address and closing the kiosk.
+          # browser, by leaving the address and closing the kiosk. The new
+          # loop picks the address up when it starts, too, which is what
+          # makes replacing an old one work.
           printf '%s\n' "$url" > "$NEXT.tmp" && mv -f "$NEXT.tmp" "$NEXT"
-          close_profile "$KIOSK_PROFILE"
+          if loop_ok; then
+            close_profile "$KIOSK_PROFILE"
+          else
+            replace_old_loop || log "launcher: the new one didn't start"
+          fi
         else
           # Already browsing (a new tab in it), or no kiosk at all.
           open_window "$url"
@@ -216,7 +277,14 @@ done
 
 PROFILE_DIR="$KIOSK_PROFILE"
 mkdir -p "$PROFILE_DIR"
-rm -f "$NEXT"
+# An address left from a minute ago is a request in flight (an older launcher
+# was just replaced to serve it). Anything older is from before a power cut.
+if [ -f "$NEXT" ] && [ -z "$(find "$NEXT" -mmin -1 2>/dev/null)" ]; then
+  rm -f "$NEXT"
+fi
+printf '%s %s\n' "$LOOP_VERSION" "$$" > "$LOOP_FILE" 2>/dev/null
+START_SUM="$(self_sum)"
+log "launcher: started (v$LOOP_VERSION)"
 
 # Hide the pointer when it isn't moving. X11 only: Wayland has no equivalent,
 # and on a touch panel labwc and Wayfire hide it after a tap anyway.
@@ -232,6 +300,21 @@ fi
 while true; do
   read_conf
   kiosk_off && exit 0
+
+  # Updated underneath: carry on as the new version. Only ever here, between
+  # calendars, never while one is on screen.
+  if [ -n "$START_SUM" ] && [ "$(self_sum)" != "$START_SUM" ]; then
+    log "launcher: updated; restarting as the new version"
+    exec /bin/bash "$SELF"
+  fi
+
+  # Asked for the browser before the calendar went up (a replaced launcher).
+  if [ -f "$NEXT" ]; then
+    url="$(head -n 1 "$NEXT")"
+    rm -f "$NEXT"
+    browse "$url"
+    continue
+  fi
 
   tidy_profile "$PROFILE_DIR"
 

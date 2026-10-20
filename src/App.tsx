@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
+import './styles/design.css';
 import { useClock } from './hooks/useClock';
 import { useCalendar } from './hooks/useCalendar';
 import { useWeather } from './hooks/useWeather';
@@ -410,7 +411,13 @@ export default function App() {
 
   // Feature 18 — theme evolves with time of day / sunrise-sunset.
   const themeInfo = getThemePeriod(now, weather ? new Date(weather.now.sunrise) : undefined, weather ? new Date(weather.now.sunset) : undefined);
-  const tokens = getThemeTokens(themeInfo.period);
+  const tokens = getThemeTokens(themeInfo.period, settings.display.theme);
+
+  // The page around the app, the keyboard and form controls follow too.
+  useEffect(() => {
+    document.documentElement.dataset.theme = tokens.scheme;
+    document.documentElement.style.background = tokens.bg;
+  }, [tokens.scheme, tokens.bg]);
 
   // Feature 20 — idle scenes only need to be recomputed roughly once a
   // minute. Keying off a minute bucket instead of `now` keeps the array
@@ -463,10 +470,17 @@ export default function App() {
         // @ts-ignore custom properties
         '--bg': tokens.bg,
         '--bg-elevated': tokens.bgElevated,
+        '--surface-2': tokens.surface2,
         '--text': tokens.text,
         '--text-muted': tokens.textMuted,
+        '--text-faint': tokens.textFaint,
         '--accent': tokens.accent,
+        '--accent-ink': tokens.accentInk,
+        '--accent-2': tokens.urgent,
+        '--urgent': tokens.urgent,
         '--hairline': tokens.hairline,
+        '--scrim': tokens.scrim,
+        colorScheme: tokens.scheme,
       }}
     >
       {/*

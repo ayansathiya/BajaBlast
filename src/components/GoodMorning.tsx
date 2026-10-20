@@ -134,7 +134,8 @@ export function GoodMorning({ now, weather, todayEvents, upcoming, tonight, chor
               <ul>
                 {chorePeople.map(({ person, left, total }) => (
                   <li key={person.id}>
-                    <span className="mc-name" style={{ color: person.color }}>
+                    <span className="mc-name">
+                      <span className="person-dot" style={{ background: person.color }} aria-hidden />
                       {person.name}
                     </span>
                     <span className="mc-list">
