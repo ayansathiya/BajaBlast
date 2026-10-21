@@ -9,6 +9,27 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-20 — Baja only answers when you say its name
+
+- **Baja listens for "Baja", "Hey Baja" and "Hi Baja" — and nothing else.**
+  It used to wake on ordinary kitchen talk and answer conversations nobody
+  was having with it. Two things caused that: its name-spotter only knew a
+  few words, so it heard "Baja" in almost any sound; and when the rest of
+  its hearing couldn't confirm the name, it woke up anyway. Now both have
+  to agree that someone *started* talking with Baja's name, after a pause,
+  and if they don't agree, nothing happens.
+- "Hey Baja, what's next?" and "Baja… what's for dinner?" both work, and
+  Baja no longer hears "hey" or "Baja" as part of the question.
+- Checked with the same speech recognition the Pi uses, on spoken audio in
+  five voices and four accents: all ten "Baja" requests were answered,
+  including a long grocery list; none of ten ordinary conversations — a TV
+  weather forecast, "Roger that", "Hey, bring the bag in", "the Bahamas
+  trip", "Papa, can I have a snack?", "Better hurry up" — woke it. The old
+  listener, on the same audio, answered four of those conversations and
+  missed every real "Baja".
+- Australian and Irish "Baja" (heard as "the her" and "better") now count;
+  long questions no longer get dropped while Baja waits to be sure.
+
 ## 2026-10-20 — Reminders, reading photos, and the lights on the home screen
 
 - **Reminders.** A new Reminders panel (corner menu, or the strip along the

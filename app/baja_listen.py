@@ -36,10 +36,35 @@ from vosk import KaldiRecognizer, Model, SetLogLevel
 
 RATE = 16000
 CHUNK = 3200  # 0.1 s of 16-bit mono
-WAKE = ["baja", "badger", "bajar", "baba", "bahama"]
-# How the ordinary recogniser spells the wake word, so it can be trimmed off
-# the front of a question.
-WAKE_SPELLINGS = set(WAKE) | {"roger", "larger", "ledger", "bodger", "bah", "ba"}
+# Only "Baja", "Hey Baja" and "Hi Baja" wake it.
+#
+# The wake recogniser knows just these words. It used to know a handful of
+# Baja's soundalikes too ("baba", "bahama", "badger"), and a recogniser told
+# that the only words in the world are those will hear one of them in almost
+# anything — so ordinary kitchen talk kept waking Baja, and it answered
+# conversations nobody had with it. Now a wake needs:
+#
+#   1. the wake recogniser hearing "baja" with confidence, after a pause or
+#      straight after "hey"/"hi";
+#   2. the ordinary recogniser agreeing that what was said starts with Baja
+#      (or "hey/hi" and then Baja) — however it spells it;
+#
+# and if the ordinary recogniser never agrees, nothing happens.
+WAKE = ["baja", "bajar"]
+GREETINGS = ["hey", "hi"]
+# How the ordinary (English) recogniser spells "Baja": it isn't an English
+# word, so it comes out as one of these.
+# Some accents make it two words ("the her" in Australian English).
+WAKE_SPELLINGS = {"baja", "bajar", "badger", "roger", "larger", "ledger", "bodger", "bah", "ba", "baha", "bahar", "baca", "bajo", "better", "bother"}
+WAKE_PAIRS = {("the", "her"), ("the", "ha"), ("the", "job"), ("by", "her"), ("but", "ha")}
+GREETING_SPELLINGS = {"hey", "hi", "hay", "high", "a", "ah", "okay", "ok"}
+# The wake recogniser's confidence below which "baja" is taken to be noise.
+MIN_CONF = 0.6
+# How long to wait for the ordinary recogniser to confirm. It only finishes
+# an utterance when the speaker stops, so this has to cover a whole
+# question ("Baja, add milk and eggs to the grocery list") — too short and
+# long questions were dropped. Waiting never wakes anything by itself.
+CONFIRM_SECONDS = 8
 QUESTION_SECONDS = 8
 # Silence needed before "Baja" for it to count as being spoken to.
 PAUSE = 0.5
@@ -50,10 +75,29 @@ def out(**msg):
     sys.stdout.flush()
 
 
+def wake_length(words):
+    """How many words at the front are "Baja" — 0 if it doesn't start with it."""
+    if words and words[0] in WAKE_SPELLINGS:
+        return 1
+    if len(words) > 1 and (words[0], words[1]) in WAKE_PAIRS:
+        return 2
+    return 0
+
+
 def strip_wake(words):
-    while words and words[0] in WAKE_SPELLINGS:
+    """The question without "hey Baja" on the front of it."""
+    if len(words) > 1 and words[0] in GREETING_SPELLINGS and wake_length(words[1:]):
         words = words[1:]
+    while wake_length(words):
+        words = words[wake_length(words):]
     return words
+
+
+def starts_with_wake(words):
+    """Does this utterance open with Baja, or hey/hi and then Baja?"""
+    if wake_length(words):
+        return True
+    return len(words) > 1 and words[0] in GREETING_SPELLINGS and wake_length(words[1:]) > 0
 
 
 def main():
@@ -92,7 +136,7 @@ def main():
     def fresh():
         free = KaldiRecognizer(model, RATE)
         free.SetWords(True)
-        wake = KaldiRecognizer(model, RATE, json.dumps(WAKE + ["[unk]"]))
+        wake = KaldiRecognizer(model, RATE, json.dumps(WAKE + GREETINGS + ["[unk]"]))
         wake.SetWords(True)
         return free, wake
 
@@ -101,6 +145,7 @@ def main():
     pending = None  # a wake word waiting for the rest of its sentence
     last_partial = ""
     last_end = -PAUSE  # when the last word heard (by the wake recogniser) ended
+    greeted = None  # end time of a "hey"/"hi" that itself came after a pause
     announced = False
 
     while True:
@@ -118,7 +163,7 @@ def main():
             if state["reset"]:
                 state["reset"] = False
                 free, wake = fresh()
-                finals, pending, last_partial, last_end = [], None, "", -PAUSE
+                finals, pending, last_partial, last_end, greeted = [], None, "", -PAUSE, None
             question_until = state["question_until"]
         if muted:
             continue
@@ -151,11 +196,21 @@ def main():
         if wake.AcceptWaveform(data):
             words = (json.loads(wake.Result()).get("result")) or []
             for w in words:
-                # After a pause — not the tail of someone's sentence, and not
-                # the rest of a question that's still being asked ("weather"
-                # straight after "Baja" can sound like a second "baba").
-                if pending is None and w["word"] in WAKE and w["start"] - last_end >= PAUSE:
+                after_pause = w["start"] - last_end >= PAUSE
+                if w["word"] in GREETINGS:
+                    greeted = w["end"] if after_pause else None
+                elif (
+                    pending is None
+                    and w["word"] in WAKE
+                    and w.get("conf", 1.0) >= MIN_CONF
+                    # After a pause — not the tail of someone's sentence — or
+                    # straight after a "hey"/"hi" that was itself after one.
+                    and (after_pause or (greeted is not None and w["start"] - greeted < 0.6))
+                ):
                     pending = {"start": w["start"], "end": w["end"], "at": now}
+                    greeted = None
+                else:
+                    greeted = None
                 last_end = w["end"]
 
         # A wake word, matched up with what the ordinary recogniser heard
@@ -163,19 +218,25 @@ def main():
         # so this waits for the ordinary one to catch up (briefly).
         if pending is not None:
             match = next((f for f in finals if f[1] >= pending["end"] - 0.05 and f[0] <= pending["end"] + 0.3), None)
-            if match is not None or now - pending["at"] > 3:
-                rest = []
-                if match is not None:
-                    rest = [w["word"] for w in match[2] if w["start"] >= pending["end"] - 0.05]
-                    finals = [f for f in finals if f[0] > match[1]]
-                rest = strip_wake(rest)
+            if match is not None:
+                finals = [f for f in finals if f[0] > match[1]]
+                # The ordinary recogniser has to agree: what was said starts
+                # with Baja (or hey/hi Baja), at the moment the wake word was
+                # heard. Otherwise it was just someone talking.
+                spoken = [w for w in match[2] if w["end"] >= pending["start"] - 0.8]
+                said = [w["word"] for w in spoken]
+                if starts_with_wake(said):
+                    rest = strip_wake(said)
+                    if rest:
+                        out(type="heard", text=" ".join(rest))
+                    else:
+                        with lock:
+                            state["question_until"] = now + QUESTION_SECONDS
+                        out(type="wake")
                 pending = None
-                if rest:
-                    out(type="heard", text=" ".join(rest))
-                else:
-                    with lock:
-                        state["question_until"] = now + QUESTION_SECONDS
-                    out(type="wake")
+            elif now - pending["at"] > CONFIRM_SECONDS:
+                # Never confirmed: not a wake. (It used to wake anyway.)
+                pending = None
 
         if question_until and 0 < question_until <= now and pending is None:
             with lock:
