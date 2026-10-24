@@ -9,6 +9,20 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-24 — "Who are you?" on the phone, and an iPhone app
+
+- **The phone page knows whose phone it is.** The first time it opens it
+  asks "Who are you?" — pick yourself once and from then on it opens on
+  your own tab: "Good afternoon, Jack", the weather and what to wear, your
+  events today and tomorrow (with leave-by times), your chores to tick off
+  right there with your points, reminders, dinner, timers, groceries and
+  the notes on the wall. Every other tab is still there. "Not you? Switch
+  person" changes it.
+- **A real iPhone app** (the `ios` folder). It finds the kitchen on the home
+  Wi-Fi by itself — no address to type — and opens on that welcome. Away
+  from home it uses the kitchen's Tailscale address once that's set up. It
+  goes onto each phone from the Mac mini with Xcode; see ios/README.md.
+
 ## 2026-10-24 — A connected speaker actually plays
 
 - **Fixed: a speaker said "Connected" but no sound came out of it.**

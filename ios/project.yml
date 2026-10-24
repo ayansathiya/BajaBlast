@@ -1,0 +1,36 @@
+# The iPhone app's Xcode project, described as text so it can be reviewed and
+# regenerated:  brew install xcodegen && cd ios && xcodegen
+name: BajaBlast
+options:
+  bundleIdPrefix: com.bajablast
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  BajaBlast:
+    type: application
+    platform: iOS
+    sources: [BajaBlast]
+    settings:
+      base:
+        PRODUCT_NAME: Baja Blast
+        PRODUCT_BUNDLE_IDENTIFIER: com.bajablast.phone
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+        # Set to your Apple ID's team in Xcode → Signing & Capabilities.
+        DEVELOPMENT_TEAM: ""
+        INFOPLIST_KEY_CFBundleDisplayName: Baja Blast
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UIStatusBarStyle: UIStatusBarStyleLightContent
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "Baja Blast looks for your kitchen calendar on your home Wi-Fi."
+    info:
+      path: BajaBlast/Info.plist
+      properties:
+        # The kitchen speaks plain HTTP on the home network; this allows that,
+        # and only that (local addresses), not arbitrary web traffic.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true

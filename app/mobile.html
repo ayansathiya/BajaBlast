@@ -208,9 +208,44 @@
   .rem-body { flex: 1; min-width: 0; }
   .rem-when { font-size: 13px; opacity: 0.6; }
   .rem.due .rem-when { color: #ff6b5b; opacity: 1; font-weight: 600; }
+
+  /* "Who are you?" and the welcome tab */
+  .who { position:fixed; inset:0; z-index:50; background:var(--bg); display:flex; flex-direction:column; justify-content:center; padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom)); }
+  .who[hidden] { display:none; }
+  .who h2 { font-size:34px; margin:0 0 8px; }
+  .who p { color:var(--muted); margin:0 0 28px; line-height:1.5; }
+  .who-people { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .who-person { display:flex; align-items:center; gap:12px; padding:18px 16px; border-radius:14px; border:1px solid var(--line); background:var(--bg2); color:var(--text); font-family:inherit; font-size:18px; font-weight:700; text-align:left; }
+  .who-dot { width:16px; height:16px; border-radius:50%; flex:none; box-shadow:0 0 0 1px var(--line); }
+  .who-skip { margin-top:22px; background:none; border:none; color:var(--muted); font-family:inherit; font-size:15px; text-decoration:underline; }
+  .me-hello { font-family:'Zodiak',serif; font-size:32px; font-weight:700; letter-spacing:-0.02em; margin:4px 0 4px; }
+  .me-date { color:var(--muted); font-size:15px; margin-bottom:22px; }
+  .me-card { border-top:1px solid var(--line); padding:16px 0 18px; }
+  .me-card h3 { margin:0 0 12px; }
+  .me-weather { display:flex; align-items:baseline; gap:12px; }
+  .me-temp { font-family:'Zodiak',serif; font-size:40px; font-weight:700; line-height:1; }
+  .me-wear { margin-top:8px; font-size:16px; }
+  .me-row { display:flex; gap:12px; align-items:baseline; padding:8px 0; }
+  .me-time { width:76px; flex:none; color:var(--muted); font-size:15px; font-variant-numeric:tabular-nums; }
+  .me-title { font-size:17px; font-weight:600; }
+  .me-sub { font-size:13px; color:var(--muted); margin-top:2px; }
+  .me-leave { color:var(--coral); font-weight:700; }
+  .me-chore { display:flex; align-items:center; gap:12px; padding:10px 0; width:100%; background:none; border:none; color:var(--text); font-family:inherit; font-size:17px; text-align:left; }
+  .me-box { width:26px; height:26px; border-radius:50%; border:1.5px solid var(--muted); flex:none; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .me-chore.done { color:var(--muted); text-decoration:line-through; }
+  .me-chore.done .me-box { background:var(--accent); border-color:var(--accent); color:#000; }
+  .me-points { font-size:13px; color:var(--muted); margin-top:6px; }
+  .me-empty { color:var(--muted); font-size:15px; }
+  .me-switch { margin:24px 0 8px; background:none; border:none; color:var(--muted); font-family:inherit; font-size:14px; text-decoration:underline; }
 </style>
 </head>
 <body>
+  <div id="who" class="who" hidden>
+    <h2>Who are you?</h2>
+    <p>Pick yourself once. This phone will greet you with your day, your chores and everything else.</p>
+    <div class="who-people" id="whoPeople"></div>
+    <button class="who-skip" onclick="choosePerson(null)">Just looking — skip</button>
+  </div>
   <div id="connbar" class="connbar" hidden></div>
   <div class="head">
     <div>
@@ -224,6 +259,7 @@
   </div>
 
   <div class="tabs" id="tabs">
+    <button class="tab" data-panel="me" id="meTab" hidden>Me</button>
     <button class="tab active" data-panel="calendar">Calendar</button>
     <button class="tab" data-panel="scan">Scan</button>
     <button class="tab" data-panel="reminders">Reminders</button>
@@ -261,6 +297,12 @@
         <button onclick="kioskCommand({ wake: true, nav: 'next' })" aria-label="Next">›</button>
         <button class="remote-today" onclick="kioskCommand({ wake: true, nav: 'today' })">Today</button>
       </div>
+    </div>
+
+    <!-- ME: the welcome for whoever this phone belongs to -->
+    <div id="me" class="panel">
+      <div id="meBody"><div class="me-empty">Loading…</div></div>
+      <button class="me-switch" onclick="showWho()">Not you? Switch person</button>
     </div>
 
     <!-- CALENDAR -->
@@ -799,6 +841,7 @@
       if (t.dataset.panel === 'meals') loadMeals();
       if (t.dataset.panel === 'notes') loadNotes();
       if (t.dataset.panel === 'reminders') loadReminders();
+      if (t.dataset.panel === 'me') loadMe();
     });
   });
 
@@ -2639,10 +2682,162 @@
   }
 
   // ---- boot ----------------------------------------------------------------
+  /* ---------------- who you are, and your welcome ---------------- */
+
+  var PERSON_KEY = 'baja-person';
+  function savedPerson() {
+    try { return new URLSearchParams(location.search).get('person') || localStorage.getItem(PERSON_KEY); } catch (e) { return null; }
+  }
+  function me() {
+    var id = savedPerson();
+    return ((settings && settings.people) || []).find(function (p) { return p.id === id; }) || null;
+  }
+
+  function showWho() {
+    var people = ((settings && settings.people) || []).filter(function (p) { return p.enabled !== false; });
+    document.getElementById('whoPeople').innerHTML = people.map(function (p) {
+      return '<button class="who-person" onclick="choosePerson(\'' + esc(p.id) + '\')"><span class="who-dot" style="background:' + esc(p.color) + '"></span>' + esc(p.name) + '</button>';
+    }).join('');
+    document.getElementById('who').hidden = false;
+  }
+
+  function choosePerson(id) {
+    try {
+      if (id) localStorage.setItem(PERSON_KEY, id);
+      else localStorage.removeItem(PERSON_KEY);
+    } catch (e) { /* private mode: it just asks again next time */ }
+    document.getElementById('who').hidden = true;
+    var p = me();
+    var tab = document.getElementById('meTab');
+    tab.hidden = !p;
+    if (p) {
+      tab.textContent = p.name;
+      tab.click();
+    } else {
+      document.querySelector('.tab[data-panel="calendar"]').click();
+    }
+  }
+
+  function greeting(d) {
+    var h = d.getHours();
+    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  }
+
+  // The same rule as the wall's Good Morning page (src/engine/morning.ts).
+  function whatToWear(low, high, rain) {
+    var wear = low < 35 ? 'A winter coat, hat and gloves' : low < 50 ? 'A warm jacket' : low < 62 ? 'A light jacket or a sweater' : high < 85 ? 'T-shirt weather' : 'Shorts and sunscreen — it gets hot';
+    if (low < 62 && high - low >= 15) wear += ', in layers — it warms up to ' + high + '°';
+    if (rain >= 0.5) wear += '. Take an umbrella';
+    else if (rain >= 0.3) wear += '. Maybe an umbrella';
+    return wear + '.';
+  }
+
+  function clockOf(iso) {
+    return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
+  async function getJSON(url) {
+    try { var r = await fetch(url, { cache: 'no-store' }); return r.ok ? await r.json() : null; } catch (e) { return null; }
+  }
+
+  async function loadMe() {
+    var p = me();
+    if (!p) return;
+    var now = new Date();
+    var results = await Promise.all([
+      getJSON('/api/events/expanded'), getJSON('/api/chores'), getJSON('/api/weather'),
+      getJSON('/api/meals?days=1'), getJSON('/api/grocery'), getJSON('/api/reminders'),
+      getJSON('/api/timers'), getJSON('/api/notes'),
+    ]);
+    var events = results[0] || [], chores = results[1], weather = results[2], meals = results[3],
+        grocery = results[4] || [], reminders = results[5] || [], timers = results[6], notes = results[7] || [];
+    var html = '<div class="me-hello">' + esc(greeting(now)) + ', ' + esc(p.name) + '</div>' +
+      '<div class="me-date">' + esc(now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })) + '</div>';
+
+    // Weather, and what to wear.
+    if (weather && weather.now) {
+      var end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 21).getTime();
+      var hours = (weather.hourly || []).filter(function (h) { var t = Date.parse(h.time); return t >= now.getTime() - 3600e3 && t <= end; });
+      var temps = [weather.now.tempF].concat(hours.map(function (h) { return h.tempF; }));
+      var hi = Math.round(Math.max.apply(null, temps)), lo = Math.round(Math.min.apply(null, temps));
+      var rain = Math.max.apply(null, [0].concat(hours.map(function (h) { return h.precipChance; })));
+      html += '<div class="me-card"><h3>Weather</h3><div class="me-weather"><span class="me-temp">' + Math.round(weather.now.tempF) + '°</span><span>' + esc(weather.now.condition) +
+        '</span><span class="me-sub">High ' + hi + '° · Low ' + lo + '°' + (rain >= 0.2 ? ' · ' + Math.round(rain * 100) + '% rain' : '') + '</span></div>' +
+        '<div class="me-wear">' + esc(whatToWear(lo, hi, rain)) + '</div></div>';
+    }
+
+    // Your day: yours and the whole family's, today and tomorrow.
+    var dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2).getTime();
+    var mine = events.filter(function (e) {
+      var ids = e.personIds && e.personIds.length ? e.personIds : (e.personId ? [e.personId] : []);
+      var t = Date.parse(e.end);
+      return t > now.getTime() && Date.parse(e.start) < dayEnd && (!ids.length || ids.indexOf(p.id) >= 0);
+    }).sort(function (a, b) { return Date.parse(a.start) - Date.parse(b.start); });
+    var todayKey = now.toDateString();
+    html += '<div class="me-card"><h3>Your day</h3>' + (mine.length ? mine.slice(0, 8).map(function (e) {
+      var start = new Date(e.start);
+      var when = (start.toDateString() === todayKey ? '' : 'Tmrw ') + (e.allDay ? 'All day' : clockOf(e.start));
+      var travel = e.location && e.location.travelMinutes;
+      var leave = travel && !e.allDay ? new Date(start.getTime() - travel * 60000) : null;
+      var sub = [e.location && e.location.label].filter(Boolean).join('');
+      return '<div class="me-row"><span class="me-time">' + esc(when) + '</span><div><div class="me-title">' + esc(e.title) + '</div>' +
+        (leave && leave > now ? '<div class="me-sub me-leave">Leave by ' + esc(clockOf(leave.toISOString())) + '</div>' : sub ? '<div class="me-sub">' + esc(sub) + '</div>' : '') + '</div></div>';
+    }).join('') : '<div class="me-empty">Nothing on the calendar for you today or tomorrow.</div>') + '</div>';
+
+    // Your chores, tick them off here.
+    if (chores && chores.items && settings.chores && settings.chores.enabled !== false) {
+      var myChores = chores.items.filter(function (c) { return c.active !== false && (!c.personId || c.personId === p.id); });
+      if (myChores.length) {
+        var done = {};
+        (chores.completions || []).forEach(function (c) { if (c.personId === p.id) done[c.choreId] = true; });
+        var totals = (chores.totals || {})[p.id] || {};
+        html += '<div class="me-card"><h3>Your chores</h3>' + myChores.map(function (c) {
+          return '<button class="me-chore' + (done[c.id] ? ' done' : '') + '" onclick="tickMyChore(\'' + esc(c.id) + '\')"><span class="me-box">' + (done[c.id] ? '✓' : '') + '</span>' + esc(c.label) + '</button>';
+        }).join('') + '<div class="me-points">' + (totals.todayPoints || 0) + ' points today · ' + (totals.weekPoints || 0) + ' this week' +
+          (totals.goalLabel ? ' · ' + Math.round(totals.goalPct || 0) + '% to ' + esc(totals.goalLabel) : '') + '</div></div>';
+      }
+    }
+
+    // Reminders: due first.
+    var open = reminders.filter(function (r) { return !r.done; });
+    if (open.length) {
+      html += '<div class="me-card"><h3>Reminders</h3>' + open.slice(0, 6).map(function (r) {
+        var due = r.due && Date.parse(r.due) <= now.getTime();
+        return '<div class="me-row"><span class="me-time"' + (due ? ' style="color:var(--coral);font-weight:700"' : '') + '>' + (due ? 'Now' : r.due ? esc(new Date(r.due).toLocaleDateString(undefined, { weekday: 'short' })) : '—') + '</span><div class="me-title">' + esc(r.text) + '</div></div>';
+      }).join('') + '</div>';
+    }
+
+    // The family's day: dinner, timers, groceries, notes.
+    var tonight = meals && meals.week ? meals.week.find(function (d) { return d.isToday; }) : null;
+    var running = timers && timers.timers ? timers.timers.filter(function (t) { return t.endsAt && Date.parse(t.endsAt) > now.getTime(); }) : [];
+    var toBuy = grocery.filter(function (g) { return !g.done; });
+    html += '<div class="me-card"><h3>The family</h3>' +
+      '<div class="me-row"><span class="me-time">Dinner</span><div class="me-title">' + esc(tonight && tonight.meal ? tonight.meal.title : 'Not planned yet') + '</div></div>' +
+      (running.length ? '<div class="me-row"><span class="me-time">Timer</span><div class="me-title">' + esc(running[0].label) + ' · ' + Math.ceil((Date.parse(running[0].endsAt) - now.getTime()) / 60000) + ' min</div></div>' : '') +
+      '<div class="me-row"><span class="me-time">Groceries</span><div class="me-title">' + (toBuy.length ? esc(toBuy.slice(0, 5).map(function (g) { return g.label; }).join(', ')) + (toBuy.length > 5 ? ' +' + (toBuy.length - 5) : '') : 'Nothing to buy') + '</div></div>' +
+      notes.slice(0, 3).map(function (n) { return '<div class="me-row"><span class="me-time">Note</span><div class="me-title">' + esc(n.text) + '<div class="me-sub">' + esc(n.from || '') + '</div></div></div>'; }).join('') +
+      '</div>';
+
+    document.getElementById('meBody').innerHTML = html;
+  }
+
+  async function tickMyChore(choreId) {
+    var p = me();
+    if (!p) return;
+    await fetch('/api/chores/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ choreId: choreId, personId: p.id }) }).catch(function () {});
+    loadMe();
+  }
+
   async function boot() {
     if (booted) return;
     booted = true;
     await loadSettings();
+    // Whose phone is this? Ask once; after that, open on their welcome.
+    if (me()) choosePerson(me().id);
+    else if (!(location.hash || '').replace('#', '')) showWho();
+    setInterval(function () {
+      if (document.getElementById('me').classList.contains('active')) loadMe();
+    }, 20000);
     loadGrocery();
     loadEvents();
     loadPhotos();
