@@ -245,6 +245,11 @@ let pendingKinds = new Set();
  * Coalesce. Saving one event can touch the store two or three times in a few
  * milliseconds, and three identical "something changed" messages means three
  * rounds of every client re-fetching the same calendar.
+ *
+ * 150ms: still instant to a person, and wide enough that a burst of saves
+ * on a slow machine (a busy Pi, a shared CI runner) still lands in one
+ * message. At 60ms they sometimes didn't, and the release checks failed at
+ * random.
  */
 function queueBroadcast(kind) {
   pendingKinds.add(kind);
@@ -254,7 +259,7 @@ function queueBroadcast(kind) {
     pendingKinds = new Set();
     broadcastTimer = null;
     broadcast({ kinds, at: new Date().toISOString() });
-  }, 60);
+  }, 150);
   if (broadcastTimer.unref) broadcastTimer.unref();
 }
 

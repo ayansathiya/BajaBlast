@@ -195,7 +195,8 @@
 
   /* Scan and reminders */
   .scan-hint { color: var(--muted, #8a8a8a); line-height: 1.5; margin: 0 0 16px; }
-  .scan-pick { display: block; text-align: center; cursor: pointer; }
+  .scan-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .scan-pick { display: block; text-align: center; cursor: pointer; margin-top: 0 !important; }
   .scan-status { margin: 14px 0; font-weight: 600; }
   .scan-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid rgba(128,128,128,0.2); }
   .scan-row input { width: 22px; height: 22px; margin-top: 2px; flex: none; }
@@ -457,10 +458,19 @@
     <div id="scan" class="panel">
       <h2>Scan a photo</h2>
       <p class="scan-hint">Take a photo of anything with dates or a list on it — a school newsletter, an invitation, a practice schedule, the shopping list on the fridge. What's in it comes up here to tick; only what you tick is added.</p>
-      <label class="submit scan-pick">
-        Take or choose a photo
-        <input type="file" id="scanFile" accept="image/*" capture="environment" hidden onchange="scanPhoto(this)" />
-      </label>
+      <!-- Two buttons, because on an iPhone "capture" means camera only: one
+           opens the camera, the other the photo library (screenshots, a
+           newsletter someone texted you). -->
+      <div class="scan-buttons">
+        <label class="submit scan-pick">
+          Take a photo
+          <input type="file" accept="image/*" capture="environment" hidden onchange="scanPhoto(this)" />
+        </label>
+        <label class="ghost scan-pick">
+          Choose a photo
+          <input type="file" accept="image/*" hidden onchange="scanPhoto(this)" />
+        </label>
+      </div>
       <div id="scanStatus" class="scan-status"></div>
       <div id="scanResult"></div>
     </div>

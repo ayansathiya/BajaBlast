@@ -149,8 +149,13 @@ async function withAnthropic(key, image, now) {
 }
 
 async function withGroq(key, models, image, now) {
+  // Groq retires models often, and a name that's gone means every scan
+  // fails. So: the known-good names this key still has, then anything else
+  // on the key that looks able to see (llama-4, "vision", "-vl"), and only
+  // then the defaults as a last try.
   const usable = GROQ_VISION.filter((m) => models.includes(m));
-  const list = usable.length ? usable : GROQ_VISION;
+  const seeing = models.filter((m) => !GROQ_VISION.includes(m) && /llama-4|vision|-vl\b|\bvl-|scout|maverick|llava|gemma-3/i.test(m));
+  const list = [...usable, ...seeing, ...GROQ_VISION.filter((m) => !usable.includes(m))];
   let lastError = null;
   for (const model of list) {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {

@@ -9,6 +9,21 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-24 — Scan a photo you already have
+
+- **Scan a photo: take one *or* choose one.** The phone's Scan tab has two
+  buttons now — **Take a photo** opens the camera, **Choose a photo** opens
+  your photo library, for a screenshot or a newsletter someone sent you.
+  It used to open the camera only.
+- **Reading photos keeps working when Groq changes its models.** Groq
+  retires its image-reading models from time to time, and when the one Baja
+  asked for was gone, every scan failed. Now it uses whichever image-reading
+  model your Groq key has. If a scan still fails, the phone says why.
+- Behind the scenes: a check that could fail by chance on GitHub's busy
+  machines (changes arriving a few milliseconds too far apart) held the
+  last update back; changes are now grouped over 150ms instead of 60 —
+  still instant — and the check passes reliably.
+
 ## 2026-10-24 — "Who are you?" on the phone, and an iPhone app
 
 - **The phone page knows whose phone it is.** The first time it opens it
