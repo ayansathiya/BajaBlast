@@ -2094,7 +2094,7 @@ function startServer(options = {}) {
     if (url.pathname === '/api/bluetooth/scan' && req.method === 'POST') {
       return send(res, 200, await bluetooth.scan());
     }
-    const btAction = url.pathname.match(/^\/api\/bluetooth\/(connect|disconnect|forget)$/);
+    const btAction = url.pathname.match(/^\/api\/bluetooth\/(connect|disconnect|forget|useForSound)$/);
     if (btAction && req.method === 'POST') {
       const body = await readBody(req).catch(() => ({}));
       const result = await bluetooth[btAction[1]](body.mac);

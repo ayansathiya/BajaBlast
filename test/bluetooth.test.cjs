@@ -70,6 +70,33 @@ else if (cmd === 'remove') { delete st.devices[mac]; save(); console.log('Device
 `
 );
 fs.chmodSync(fake, 0o755);
+
+// The Pi's sound system: playing to HDMI, with the calendar's stream on it.
+// The speaker's output appears only once it's in music mode (A2DP) — the
+// trap a speaker connected in phone-call mode falls into.
+const soundFile = path.join(dir, 'sound.json');
+fs.writeFileSync(soundFile, JSON.stringify({ default: 'alsa_output.hdmi', a2dp: false, inputs: { 42: 'alsa_output.hdmi' } }));
+const pactl = path.join(dir, 'pactl');
+fs.writeFileSync(
+  pactl,
+  `#!/usr/bin/env node
+const fs = require('fs');
+const S = ${JSON.stringify(soundFile)};
+const st = JSON.parse(fs.readFileSync(S, 'utf8'));
+const a = process.argv.slice(2);
+fs.appendFileSync(${JSON.stringify(log)}, 'pactl ' + a.join(' ') + '\\n');
+const save = () => fs.writeFileSync(S, JSON.stringify(st));
+const sinks = [['alsa_output.hdmi', 'HDMI (the screen)']];
+if (st.a2dp) sinks.push(['bluez_output.AA_BB_CC_00_11_22.1', 'Sony SRS']);
+if (a[0] === 'get-default-sink') console.log(st.default);
+else if (a[0] === 'list' && a[1] === 'sinks') sinks.forEach(([n, d], i) => console.log('Sink #' + i + '\\n\tState: RUNNING\\n\tName: ' + n + '\\n\tDescription: ' + d));
+else if (a[0] === 'set-card-profile') { if (a[1] === 'bluez_card.AA_BB_CC_00_11_22' && a[2] === 'a2dp-sink') { st.a2dp = true; save(); } else process.exit(1); }
+else if (a[0] === 'set-default-sink') { if (!sinks.some(([n]) => n === a[1])) process.exit(1); st.default = a[1]; save(); }
+else if (a[0] === 'list' && a[1] === 'short' && a[2] === 'sink-inputs') Object.entries(st.inputs).forEach(([id, sink]) => console.log(id + '\t' + sink + '\tprotocol-native.c\tfloat32le 2ch 48000Hz'));
+else if (a[0] === 'move-sink-input') { st.inputs[a[1]] = a[2]; save(); }
+`
+);
+fs.chmodSync(pactl, 0o755);
 process.env.PATH = `${dir}:${process.env.PATH}`;
 
 const bt = require(path.join(ROOT, 'app', 'bluetooth.cjs'));
@@ -91,8 +118,20 @@ async function main() {
   const calls = fs.readFileSync(log, 'utf8');
   check('connecting it works', r.ok, JSON.stringify(r));
   check('…pairs it, trusts it (so it comes back by itself), and connects', /pair AA:BB:CC:00:11:22/.test(calls) && /trust AA:BB:CC:00:11:22/.test(calls) && /connect AA:BB:CC:00:11:22/.test(calls));
+  const sound = JSON.parse(fs.readFileSync(soundFile, 'utf8'));
+  check('…puts the speaker in music mode, not phone-call mode', sound.a2dp);
+  check('…and the sound now goes to the speaker, not the screen', sound.default === 'bluez_output.AA_BB_CC_00_11_22.1');
+  check('…including the calendar\'s own stream that was already playing', sound.inputs['42'] === 'bluez_output.AA_BB_CC_00_11_22.1');
+  check('…and says where sound is going', r.output === 'Sony SRS');
   s = await bt.list();
   check('connected speakers come first', s.devices[0].name === 'JBL Flip 5' && s.devices[0].connected);
+  check('the panel is told where sound is playing', s.output && s.output.description === 'Sony SRS' && s.output.bluetooth);
+
+  // Connected some other way, still playing to the screen: Use for sound.
+  fs.writeFileSync(soundFile, JSON.stringify({ default: 'alsa_output.hdmi', a2dp: false, inputs: { 42: 'alsa_output.hdmi' } }));
+  const use = await bt.useForSound('AA:BB:CC:00:11:22');
+  const after = JSON.parse(fs.readFileSync(soundFile, 'utf8'));
+  check('"Use for sound" moves it to a speaker that\'s already connected', use.ok && after.default.startsWith('bluez_output') && after.inputs['42'].startsWith('bluez_output'));
 
   fs.writeFileSync(log, '');
   await bt.connect('11:22:33:44:55:66');

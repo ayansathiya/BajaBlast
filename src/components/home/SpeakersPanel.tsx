@@ -14,6 +14,31 @@ interface State {
   powered?: boolean;
   devices?: Device[];
   error?: string;
+  /** Where the wall's sound is going now. */
+  output?: { available: boolean; description?: string; bluetooth?: boolean; error?: string };
+}
+
+/**
+ * A short two-note chime, played the way everything on the wall plays — so
+ * if it comes out of the speaker, Baja and the timers will too.
+ */
+function testSound() {
+  const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  if (!Ctx) return;
+  const ctx = new Ctx();
+  [660, 880].forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = freq;
+    const t = ctx.currentTime + i * 0.35;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.4, t + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.65);
+  });
+  window.setTimeout(() => ctx.close(), 1500);
 }
 
 function post(path: string, body: unknown = {}) {
@@ -39,7 +64,7 @@ export function SpeakersPanel({ onClose }: { onClose: () => void }) {
       .catch(() => setState({ available: false, error: "Couldn't reach the calendar." }));
   }, []);
 
-  async function act(kind: 'scan' | 'connect' | 'disconnect' | 'forget', mac?: string) {
+  async function act(kind: 'scan' | 'connect' | 'disconnect' | 'forget' | 'useForSound', mac?: string) {
     setBusy(mac ?? kind);
     setMessage(kind === 'scan' ? 'Looking for nearby speakers… (about 12 seconds)' : null);
     const result = await (kind === 'scan' ? post('/api/bluetooth/scan') : post(`/api/bluetooth/${kind}`, { mac })).catch(() => null);
@@ -49,7 +74,10 @@ export function SpeakersPanel({ onClose }: { onClose: () => void }) {
       return;
     }
     setState(result);
-    if (kind === 'connect') setMessage(result.ok ? 'Connected — sound comes out of it now.' : result.error);
+    if (kind === 'connect' || kind === 'useForSound') {
+      setMessage(result.ok ? 'Sound comes out of it now — tap Play a test sound to check.' : result.error);
+      if (result.ok) window.setTimeout(testSound, 400);
+    }
     else if (kind === 'scan') setMessage(result.devices?.length ? null : 'Nothing found. Is the speaker in pairing mode (usually a flashing light)?');
     else setMessage(null);
   }
@@ -65,9 +93,16 @@ export function SpeakersPanel({ onClose }: { onClose: () => void }) {
         <span className="bt-state">{d.connected ? 'Connected' : d.paired ? 'Paired' : d.audio ? 'Speaker' : 'Device'}</span>
       </span>
       {d.connected ? (
-        <button className="btn-secondary" onClick={() => act('disconnect', d.mac)} disabled={!!busy}>
-          {busy === d.mac ? '…' : 'Disconnect'}
-        </button>
+        <>
+          {!(state?.output?.bluetooth && state.output.description?.includes(d.name)) && (
+            <button className="btn-primary" onClick={() => act('useForSound', d.mac)} disabled={!!busy}>
+              {busy === d.mac ? '…' : 'Use for sound'}
+            </button>
+          )}
+          <button className="btn-secondary" onClick={() => act('disconnect', d.mac)} disabled={!!busy}>
+            Disconnect
+          </button>
+        </>
       ) : (
         <button className="btn-primary" onClick={() => act('connect', d.mac)} disabled={!!busy}>
           {busy === d.mac ? 'Connecting…' : 'Connect'}
@@ -98,6 +133,16 @@ export function SpeakersPanel({ onClose }: { onClose: () => void }) {
             <button className="btn-secondary bt-scan" onClick={() => act('scan')} disabled={!!busy}>
               {busy === 'scan' ? 'Looking…' : 'Find speakers'}
             </button>
+            {state?.output?.available && (
+              <div className="bt-output">
+                <span>
+                  Sound is playing on <strong>{state.output.description}</strong>
+                </span>
+                <button className="btn-secondary" onClick={testSound}>
+                  Play a test sound
+                </button>
+              </div>
+            )}
             {message && <p className="bt-note">{message}</p>}
             {!state && <p className="bt-note">Checking Bluetooth…</p>}
             {mine.length > 0 && (

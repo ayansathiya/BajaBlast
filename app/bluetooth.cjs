@@ -10,6 +10,7 @@
  * bluetoothctl is run with arguments, never through a shell.
  */
 const { execFile } = require('node:child_process');
+const audio = require('./audio.cjs');
 
 const MAC = /^[0-9A-F]{2}(:[0-9A-F]{2}){5}$/i;
 
@@ -61,7 +62,7 @@ async function list() {
   }
   devices.sort((a, b) => Number(b.connected) - Number(a.connected) || Number(b.paired) - Number(a.paired) || Number(b.audio) - Number(a.audio) || a.name.localeCompare(b.name));
   const show = await run(['show'], 5000);
-  return { available: true, powered: /Powered:\s*yes/i.test(show.out), devices };
+  return { available: true, powered: /Powered:\s*yes/i.test(show.out), devices, output: await audio.status() };
 }
 
 /** Look for nearby devices for a few seconds. Put the speaker in pairing mode first. */
@@ -88,7 +89,9 @@ async function connect(mac) {
   if (!info.connected) {
     return { ok: false, error: /not available/i.test(connected.out) ? 'It went out of range.' : "Paired, but it didn't connect. Is it switched on and nearby?" };
   }
-  return { ok: true };
+  // Connected isn't playing: send the sound to it.
+  const routed = await audio.useBluetooth(mac);
+  return routed.ok ? { ok: true, output: routed.description } : { ok: false, connected: true, error: routed.error };
 }
 
 async function disconnect(mac) {
@@ -104,4 +107,11 @@ async function forget(mac) {
   return { ok: r.ok };
 }
 
-module.exports = { list, scan, connect, disconnect, forget, parseDevices, parseInfo };
+/** For a speaker that's already connected: send the sound to it. */
+async function useForSound(mac) {
+  if (!MAC.test(String(mac || ''))) return { ok: false, error: 'not a Bluetooth address' };
+  const routed = await audio.useBluetooth(mac);
+  return routed.ok ? { ok: true, output: routed.description } : { ok: false, error: routed.error };
+}
+
+module.exports = { list, scan, connect, disconnect, forget, useForSound, parseDevices, parseInfo };

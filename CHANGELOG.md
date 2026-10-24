@@ -9,6 +9,19 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-24 — A connected speaker actually plays
+
+- **Fixed: a speaker said "Connected" but no sound came out of it.**
+  Connecting a Bluetooth speaker doesn't by itself move the Pi's sound
+  there — it kept playing through the screen. Now, the moment a speaker
+  connects, the calendar puts it in music mode (some speakers connect in
+  phone-call mode, which can be silent), makes it the Pi's output, and
+  moves whatever's already playing onto it.
+- **Already connected?** Open Speakers and tap **Use for sound** next to
+  it. The panel now says where sound is playing ("Sound is playing on
+  Sony SRS…"), and **Play a test sound** checks it — if the chime comes
+  out of the speaker, Baja and the timers will too.
+
 ## 2026-10-24 — Bluetooth speakers, reminders you can read, and Baja's new voices
 
 - **Connect a Bluetooth speaker from the wall.** Corner menu → Speakers.
