@@ -1242,3 +1242,150 @@ div.dock-tile {
   color: var(--text-faint);
   word-break: break-all;
 }
+
+/* ---------- reminders on the home screen ---------- */
+
+.home-reminders ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.home-reminders-head {
+  all: unset;
+  cursor: pointer;
+  display: block;
+  margin-bottom: var(--s2, 16px);
+}
+
+.home-reminders li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  font-size: clamp(17px, 1.3vw, 21px);
+  color: var(--text);
+}
+
+.home-rem-check {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1.5px solid var(--text-faint);
+  background: none;
+  color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.home-rem-check:active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.home-rem-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.home-rem-when {
+  font-size: 15px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.home-reminders li.due .home-rem-when,
+.home-reminders li.due .home-rem-check {
+  color: var(--urgent);
+  border-color: var(--urgent);
+}
+
+.home-rem-more {
+  all: unset;
+  cursor: pointer;
+  margin-top: 10px;
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.home-reminders li.due .home-rem-check {
+  color: transparent;
+}
+
+/* ---------- speakers ---------- */
+
+.bt-panel {
+  width: min(640px, 100%);
+}
+
+.bt-scan {
+  min-height: 52px;
+  padding: 0 22px;
+  font-size: 17px;
+  margin-bottom: var(--s2, 16px);
+}
+
+.bt-note {
+  font-size: 16px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 var(--s2, 16px);
+}
+
+.bt-list {
+  list-style: none;
+  margin: 0 0 var(--s3, 24px);
+  padding: 0;
+}
+
+.bt-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2, 16px);
+  min-height: 68px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.bt-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.bt-state {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.bt-row.on .bt-state {
+  color: var(--accent);
+}
+
+.bt-row .btn-primary,
+.bt-row .btn-secondary {
+  min-height: 46px;
+  min-width: 120px;
+}
+
+.bt-forget {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

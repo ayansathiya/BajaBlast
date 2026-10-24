@@ -82,11 +82,17 @@ export function Dock({
       <span className="dock-label">
         <Icon name="bell" size={15} /> Reminders
       </span>
-      <span className={`dock-value ${open.length ? '' : 'empty'}`}>
-        {dueNow.length ? dueNow[0].text : nextUp ? nextUp.text : open.length ? `${open.length} to do` : 'None'}
-      </span>
+      <span className={`dock-value ${open.length ? '' : 'empty'}`}>{open.length ? (dueNow[0] ?? open[0]).text : 'None'}</span>
       <span className="dock-sub">
-        {dueNow.length > 1 ? `and ${dueNow.length - 1} more now` : dueNow.length ? 'Now' : nextUp?.due ? showWhen(nextUp.due, now) : 'Tap to add one'}
+        {open.length > 1
+          ? `then ${open.find((r) => r !== (dueNow[0] ?? open[0]))!.text}${open.length > 2 ? ` · +${open.length - 2}` : ''}`
+          : dueNow.length
+            ? 'Now'
+            : nextUp?.due
+              ? showWhen(nextUp.due, now)
+              : open.length
+                ? 'Anytime'
+                : 'Tap to add one'}
       </span>
     </button>
   );

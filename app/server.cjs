@@ -26,6 +26,7 @@ const bookmarks = require('./bookmarks.cjs');
 const kitchen = require('./kitchen.cjs');
 const reminders = require('./reminders.cjs');
 const scan = require('./scan.cjs');
+const bluetooth = require('./bluetooth.cjs');
 const kural = require('./kural.cjs');
 const voice = require('./voice.cjs');
 const lights = require('./lights.cjs');
@@ -1330,7 +1331,17 @@ function startServer(options = {}) {
         "Use the household context you're given (today's schedule, grocery list, weather) when relevant. " +
         "The question was heard through a microphone by speech recognition, so a word may be misheard — " +
         "if it reads oddly, answer what they most likely said. " +
-        "If asked something with no connection to the household, just answer normally and briefly.";
+        "If asked something with no connection to the household, just answer normally and briefly." +
+        // The voice the household picked comes with a way of talking. A style,
+        // not anyone's lines: no quotes, no catchphrases, no names.
+        ({
+          warrior:
+            ' Speak like a stern, battle-hardened old warrior who has seen everything: few words, short heavy sentences, grave and calm, ' +
+            'protective of the family, never chatty, never jokey. Still give the actual answer plainly.',
+          spartan:
+            ' Speak like a calm, disciplined soldier reporting in: clipped and precise, confirm with "Affirmative." or "Understood." where it fits, ' +
+            'no small talk. Still give the actual answer plainly.',
+        }[store.settings?.bajaVoice] || '');
 
       // A key that's set but turned down is a different problem from no key
       // at all, and Baja should say which — "add a key" to someone who just
@@ -2073,6 +2084,21 @@ function startServer(options = {}) {
       saveStore(store);
       scheduleReminderWake();
       return send(res, 200, { ok: true });
+    }
+
+    /* ---------------- Bluetooth speakers ---------------- */
+
+    if (url.pathname === '/api/bluetooth' && req.method === 'GET') {
+      return send(res, 200, await bluetooth.list());
+    }
+    if (url.pathname === '/api/bluetooth/scan' && req.method === 'POST') {
+      return send(res, 200, await bluetooth.scan());
+    }
+    const btAction = url.pathname.match(/^\/api\/bluetooth\/(connect|disconnect|forget)$/);
+    if (btAction && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const result = await bluetooth[btAction[1]](body.mac);
+      return send(res, result.ok ? 200 : 400, { ...result, ...(await bluetooth.list()) });
     }
 
     /* ---------------- reading a photo ---------------- */

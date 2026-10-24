@@ -35,7 +35,8 @@ export type IconName =
   | 'history'
   | 'bell'
   | 'camera'
-  | 'power';
+  | 'power'
+  | 'speaker';
 
 const PATHS: Record<IconName, JSX.Element> = {
   sun: (
@@ -131,6 +132,12 @@ const PATHS: Record<IconName, JSX.Element> = {
     <>
       <path d="M3.5 8.5a2 2 0 0 1 2-2h2.2l1.6-2h5.4l1.6 2h2.2a2 2 0 0 1 2 2v9.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" />
       <circle cx="12" cy="13" r="3.8" />
+    </>
+  ),
+  speaker: (
+    <>
+      <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
+      <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
     </>
   ),
   power: (

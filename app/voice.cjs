@@ -31,15 +31,27 @@ const { dataDir } = require('./paths.cjs');
 
 const MODEL_NAME = 'vosk-model-small-en-us-0.15';
 const MODEL_URL = `https://alphacephei.com/vosk/models/${MODEL_NAME}.zip`;
-const VOICE_NAME = 'en_US-lessac-medium';
-const VOICE_URL = `https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/${VOICE_NAME}.onnx`;
+// Baja's voices. Natural is the one it has always had. Warrior and Spartan
+// are styles built from Piper's own voices — a deep, slowed, gravelly one,
+// and a calm one through a helmet radio — not copies of anyone's real voice.
+// `pitch` below 1 deepens (and slows), `length` above 1 slows the speech
+// itself, `radio` adds the helmet; see baja_speak.py. espeak is the fallback
+// if Piper isn't working, shaped roughly the same way.
+const PIPER = 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en';
+const VOICES = {
+  natural: { name: 'en_US-lessac-medium', path: 'en_US/lessac/medium', espeak: ['-s', '160'] },
+  warrior: { name: 'en_GB-northern_english_male-medium', path: 'en_GB/northern_english_male/medium', pitch: 0.84, length: 1.1, espeak: ['-v', 'en+m3', '-p', '15', '-s', '125'] },
+  spartan: { name: 'en_US-ryan-medium', path: 'en_US/ryan/medium', pitch: 0.86, length: 1.05, radio: true, espeak: ['-v', 'en-us+m1', '-p', '25', '-s', '140'] },
+};
+const voiceOf = (key) => VOICES[key] || VOICES.natural;
+const voiceUrl = (v) => `${PIPER}/${v.path}/${v.name}.onnx`;
 
 const dir = () => path.join(dataDir(), 'voice');
 const venvPython = () => path.join(dir(), 'venv', 'bin', 'python');
 const modelDir = () => path.join(dir(), MODEL_NAME);
-const voiceFile = () => path.join(dir(), `${VOICE_NAME}.onnx`);
+const voiceFile = (key = wanted.voice) => path.join(dir(), `${voiceOf(key).name}.onnx`);
 
-let wanted = { enabled: false, device: 'default' };
+let wanted = { enabled: false, device: 'default', voice: 'natural' };
 let status = { state: 'off', step: null, error: null, lastHeard: null, lastHeardAt: null, tts: null };
 let listener = null;
 let speaker = null;
@@ -130,14 +142,19 @@ async function setup() {
       setStatus({ step: 'Installing a natural voice…' });
       await run(venvPython(), ['-m', 'pip', 'install', '-q', 'piper-tts'], { env: pyEnv() });
     }
-    if (!fs.existsSync(voiceFile())) {
-      setStatus({ step: 'Downloading the voice (60MB)…' });
-      await download(`${VOICE_URL}.json`, `${voiceFile()}.json`);
-      await download(VOICE_URL, voiceFile());
-    }
+    await fetchVoice(wanted.voice);
   } catch (err) {
     console.warn('[baja-blast] Baja: natural voice not installed (not fatal):', err.message);
   }
+}
+
+/** Download a voice once; afterwards it's on disk for good. */
+async function fetchVoice(key) {
+  const v = voiceOf(key);
+  if (fs.existsSync(voiceFile(key))) return;
+  setStatus({ step: `Downloading the ${key === 'natural' ? '' : `${key} `}voice (60MB)…` });
+  await download(`${voiceUrl(v)}.json`, `${voiceFile(key)}.json`);
+  await download(voiceUrl(v), voiceFile(key));
 }
 
 function startListener() {
@@ -235,7 +252,26 @@ async function bringUp() {
 
 /** Called whenever settings change. Cheap when nothing relevant did. */
 function configure(settings) {
-  const next = { enabled: !!(settings && settings.voiceEnabled), device: (settings && settings.bajaMicDevice) || 'default' };
+  const next = {
+    enabled: !!(settings && settings.voiceEnabled),
+    device: (settings && settings.bajaMicDevice) || 'default',
+    voice: VOICES[settings && settings.bajaVoice] ? settings.bajaVoice : 'natural',
+  };
+  // A different voice needs no new listener: just the new voice, fetched in
+  // the background, and the speaker started afresh with it.
+  if (next.voice !== wanted.voice) {
+    wanted = { ...wanted, voice: next.voice };
+    if (speaker) {
+      speaker.child.kill();
+      speaker = null;
+    }
+    fetchVoice(next.voice)
+      .then(async () => {
+        status.tts = (await piperWorks()) ? 'piper' : (await espeak()) ? 'espeak' : null;
+        setStatus({ step: null });
+      })
+      .catch((err) => console.warn('[baja-blast] Baja: that voice could not be fetched:', err.message));
+  }
   const changed = next.enabled !== wanted.enabled || next.device !== wanted.device;
   wanted = next;
   if (!changed) return;
@@ -310,7 +346,8 @@ function piperSay(text, out) {
       clearTimeout(timer);
       msg.ok ? resolve() : reject(new Error(msg.error || 'voice failed'));
     });
-    child.stdin.write(JSON.stringify({ id, text, out }) + '\n');
+    const v = voiceOf(wanted.voice);
+    child.stdin.write(JSON.stringify({ id, text, out, pitch: v.pitch, length: v.length, radio: !!v.radio }) + '\n');
   });
 }
 
@@ -325,12 +362,12 @@ async function say(text) {
       await piperSay(clean, out).catch(async () => {
         const bin = await espeak();
         if (!bin) throw new Error('no voice');
-        await run(bin, ['-w', out, clean]);
+        await run(bin, [...voiceOf(wanted.voice).espeak, '-w', out, clean]);
       });
     } else {
       const bin = await espeak();
       if (!bin) return null;
-      await run(bin, ['-s', '160', '-w', out, clean]);
+      await run(bin, [...voiceOf(wanted.voice).espeak, '-w', out, clean]);
     }
     return fs.readFileSync(out);
   } finally {

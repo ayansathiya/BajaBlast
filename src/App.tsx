@@ -64,7 +64,9 @@ import { DayList } from './components/home/DayList';
 import { Dock } from './components/home/Dock';
 import { GroceryPanel } from './components/home/GroceryPanel';
 import { RemindersPanel } from './components/home/RemindersPanel';
+import { HomeReminders } from './components/home/HomeReminders';
 import { ScanPanel } from './components/home/ScanPanel';
+import { SpeakersPanel } from './components/home/SpeakersPanel';
 import { useReminders } from './hooks/useReminders';
 import { BrowserStart, openOnWall, wallBrowserReady } from './components/home/BrowserStart';
 import { ScreenKeyboard } from './components/ScreenKeyboard';
@@ -155,6 +157,7 @@ export default function App() {
   const { state: lightsState, set: setLights } = useLights(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
+  const [speakersOpen, setSpeakersOpen] = useState(false);
   const remindersState = useReminders();
   const [morningOpen, setMorningOpen] = useState(false);
   const [morningDismissed, setMorningDismissed] = useState<string | null>(readDismissed);
@@ -191,7 +194,7 @@ export default function App() {
   // Rolls the display over at midnight and recovers after the Mac wakes.
   // Paused while a panel is open so a reload can't interrupt someone
   // mid-edit, or wipe the board out from under a kid ticking off chores.
-  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen || morningOpen || lightsOpen || groceryOpen || browserStartOpen || remindersOpen || scanOpen;
+  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen || morningOpen || lightsOpen || groceryOpen || browserStartOpen || remindersOpen || scanOpen || speakersOpen;
   useDailyReload(!panelOpen);
   const isIdle = useIdleTimer(settings.ambient.idleTimeoutSeconds, settings.ambient.enabled && !panelOpen, remote);
 
@@ -277,6 +280,7 @@ export default function App() {
         else if (browserStartOpen) setBrowserStartOpen(false);
         else if (remindersOpen) setRemindersOpen(false);
         else if (scanOpen) setScanOpen(false);
+        else if (speakersOpen) setSpeakersOpen(false);
         else if (groceryOpen) setGroceryOpen(false);
         else if (browserUrl !== null) setBrowserUrl(null);
         else if (recipesOpen) setRecipesOpen(false);
@@ -287,7 +291,7 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [browserUrl, recipesOpen, choresOpen, menuOpen, timerPanelOpen, morningOpen, morningNow, today, lightsOpen, browserStartOpen, groceryOpen, remindersOpen, scanOpen]);
+  }, [browserUrl, recipesOpen, choresOpen, menuOpen, timerPanelOpen, morningOpen, morningNow, today, lightsOpen, browserStartOpen, groceryOpen, remindersOpen, scanOpen, speakersOpen]);
 
   // Accessibility settings reflected as body classes (global.css hooks into these).
   useEffect(() => {
@@ -545,6 +549,13 @@ export default function App() {
             )}
             {showExtras && (
               <div className="stage-extras">
+                <HomeReminders
+                  items={remindersState.items}
+                  now={now}
+                  onToggle={remindersState.toggle}
+                  onOpen={() => setRemindersOpen(true)}
+                  max={upcomingToday <= 2 ? 4 : 3}
+                />
                 <NotesBoard notes={notes} people={settings.people} now={now} onRemove={removeNote} max={3} />
                 {upcomingToday <= 2 && (
                   <WeekAhead events={upcomingWithBake} meals={mealWeek} people={settings.people} now={now} />
@@ -689,6 +700,7 @@ export default function App() {
       )}
 
       {scanOpen && <ScanPanel onClose={() => setScanOpen(false)} />}
+      {speakersOpen && <SpeakersPanel onClose={() => setSpeakersOpen(false)} />}
 
       {groceryOpen && (
         <GroceryPanel
@@ -742,7 +754,7 @@ export default function App() {
         enough to hit reliably with a thumb, which is the part that matters.
       */}
 
-      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !timerPanelOpen && !morningOpen && !lightsOpen && !browserStartOpen && !groceryOpen && !remindersOpen && !scanOpen && !isIdle && (
+      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !timerPanelOpen && !morningOpen && !lightsOpen && !browserStartOpen && !groceryOpen && !remindersOpen && !scanOpen && !speakersOpen && !isIdle && (
         <KioskMenu
           open={menuOpen}
           onToggle={() => setMenuOpen((v) => !v)}
@@ -765,6 +777,7 @@ export default function App() {
             { key: 'timers', label: 'Timers', icon: <Icon name="timer" />, onPick: () => setTimerPanelOpen(true) },
             { key: 'reminders', label: 'Reminders', icon: <Icon name="bell" />, onPick: () => setRemindersOpen(true) },
             { key: 'scan', label: 'Scan a photo', icon: <Icon name="camera" />, onPick: () => setScanOpen(true) },
+            { key: 'speakers', label: 'Speakers', icon: <Icon name="speaker" />, onPick: () => setSpeakersOpen(true) },
             ...(recipeSettings.enabled
               ? [{ key: 'recipes', label: 'Recipes', icon: <Icon name="utensils" />, onPick: () => setRecipesOpen(true) }]
               : []),

@@ -1941,6 +1941,23 @@ export function SettingsPanel({
                 <Toggle on={settings.voiceEnabled} onClick={() => patch('voiceEnabled', !settings.voiceEnabled)} />
               </Row>
               {settings.voiceEnabled && <BajaStatus />}
+              <Row label="Voice" desc="How Baja sounds, and how it talks. Warrior and Spartan are styles — deep and stern, or calm through a helmet radio — not copies of any real voice. A new one downloads once (60MB).">
+                <div className="theme-choice">
+                  {([
+                    ['natural', 'Natural'],
+                    ['warrior', 'Warrior'],
+                    ['spartan', 'Spartan'],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      className={`theme-swatch ${(settings.bajaVoice ?? 'natural') === value ? 'on' : ''}`}
+                      onClick={() => patch('bajaVoice', value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </Row>
               <div style={{ marginTop: 18 }}>
                 <div className="field-label">Microphone</div>
                 <input

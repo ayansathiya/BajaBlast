@@ -9,6 +9,24 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-10-24 — Bluetooth speakers, reminders you can read, and Baja's new voices
+
+- **Connect a Bluetooth speaker from the wall.** Corner menu → Speakers.
+  Put the speaker in pairing mode, tap Find speakers, tap Connect. It's
+  paired and trusted, so it reconnects by itself next time it's switched
+  on, and everything the wall plays — Baja, the timer chime, music — comes
+  out of it. Disconnect and Forget are there too.
+- **Reminders on the home screen are the reminders themselves.** Under
+  today's events there's now a Reminders list — each one with a circle to
+  tick it off, what's due now in coral, and when the others are. The strip
+  along the bottom shows the first two by name instead of a count.
+- **Two new voices for Baja** (Settings → Baja → Voice):
+  - **Warrior** — deep, slow and gravelly, and stern and few-worded.
+  - **Spartan** — deep and calm, as if through a helmet radio, and
+    clipped: "Affirmative."
+  They're styles, built from Piper's own voices — not copies of any real
+  person's voice. Choosing one downloads it once (about 60MB).
+
 ## 2026-10-20 — Baja only answers when you say its name
 
 - **Baja listens for "Baja", "Hey Baja" and "Hi Baja" — and nothing else.**

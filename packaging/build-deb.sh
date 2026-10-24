@@ -181,7 +181,7 @@ Section: utils
 Priority: optional
 Architecture: all
 Depends: nodejs (>= 18), curl, procps, python3, python3-venv, alsa-utils
-Recommends: chromium | chromium-browser, wlopm | x11-xserver-utils, espeak-ng, fonts-noto-core, fonts-noto-color-emoji
+Recommends: chromium | chromium-browser, wlopm | x11-xserver-utils, espeak-ng, fonts-noto-core, fonts-noto-color-emoji, bluez
 Suggests: baja-blast-standalone, v4l-utils
 Maintainer: Baja Blast <noreply@example.com>
 Installed-Size: $INSTALLED_KB

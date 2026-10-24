@@ -455,6 +455,8 @@ export interface HouseholdSettings {
   preparationTemplates: PreparationTemplate[];
   recipes: RecipeSettings;
   voiceEnabled: boolean;
+  /** Baja's voice and manner — app/voice.cjs. */
+  bajaVoice?: 'natural' | 'warrior' | 'spartan';
   bajaApiKey?: string;
   /** Groq (groq.com) key: free, used when there's no Anthropic key. */
   bajaGroqKey?: string;

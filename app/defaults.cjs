@@ -136,6 +136,8 @@ const DEFAULT_SETTINGS = {
     },
   },
   voiceEnabled: false,
+  // natural | warrior | spartan — see app/voice.cjs.
+  bajaVoice: 'natural',
   bajaApiKey: '',
   // Groq (groq.com): a free key, used when there's no Anthropic one.
   bajaGroqKey: '',

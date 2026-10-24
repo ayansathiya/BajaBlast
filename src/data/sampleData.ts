@@ -102,6 +102,7 @@ export const DEFAULT_SETTINGS: HouseholdSettings = {
     },
   },
   voiceEnabled: false,
+  bajaVoice: 'natural',
   bajaApiKey: '',
   bajaGroqKey: '',
   wizSigningKey: '',
