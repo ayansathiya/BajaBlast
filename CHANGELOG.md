@@ -9,6 +9,25 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-11-20 — Party teams, for Thanksgiving
+
+- **Teams drawn at random, revealed at the door.** Menu → Party teams. Say
+  what the occasion is, how many teams (2 to 6) and what they're called,
+  and who's coming — type names one at a time or several with commas, and
+  "Add the family" puts the household in. Then press **Open the doors**.
+- **The welcome screen.** The wall greets everyone with "Welcome in." and
+  the guest list in large type, A to Z. Each guest taps their own name,
+  confirms it's them, and the team names turn over like a departures board
+  before landing on theirs — then the whole wall turns their team's colour,
+  with who's on it with them so far. Baja says it out loud too.
+- **Fair and secret.** Teams are drawn on the Pi with proper randomness and
+  come out even (sizes differ by one at most). Nobody can see a team until
+  its person taps their name — not even on the host's setup screen, so you
+  can play too. People who've already seen their team keep it if you add a
+  latecomer or rename a team; "Draw again" starts over.
+- **Game time.** Setup → "Show every team on the wall" lays the teams out
+  side by side.
+
 ## 2026-10-24 — Scan a photo you already have
 
 - **Scan a photo: take one *or* choose one.** The phone's Scan tab has two

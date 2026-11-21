@@ -72,6 +72,10 @@ import { BrowserStart, openOnWall, wallBrowserReady } from './components/home/Br
 import { ScreenKeyboard } from './components/ScreenKeyboard';
 import { DailyKural, useDailyKural } from './components/DailyKural';
 import { LightsPanel } from './components/LightsPanel';
+import { PartySetup } from './components/party/PartySetup';
+import { PartyWelcome } from './components/party/PartyWelcome';
+import { useParty } from './hooks/useParty';
+import './styles/party.css';
 import { useLights } from './hooks/useLights';
 import { dayKey, isMorning } from './engine/morning';
 import { Icon } from './components/Icon';
@@ -158,6 +162,12 @@ export default function App() {
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [speakersOpen, setSpeakersOpen] = useState(false);
+  // Party teams: the welcome screen is up whenever the host has opened the
+  // doors (it's the server's state, so a reload or an update keeps it up).
+  const partyState = useParty();
+  const [partySetupOpen, setPartySetupOpen] = useState(false);
+  const [showEveryone, setShowEveryone] = useState(0);
+  const partyOpen = !!partyState.party?.open;
   const remindersState = useReminders();
   const [morningOpen, setMorningOpen] = useState(false);
   const [morningDismissed, setMorningDismissed] = useState<string | null>(readDismissed);
@@ -194,7 +204,7 @@ export default function App() {
   // Rolls the display over at midnight and recovers after the Mac wakes.
   // Paused while a panel is open so a reload can't interrupt someone
   // mid-edit, or wipe the board out from under a kid ticking off chores.
-  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen || morningOpen || lightsOpen || groceryOpen || browserStartOpen || remindersOpen || scanOpen || speakersOpen;
+  const panelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || menuOpen || timerPanelOpen || morningOpen || lightsOpen || groceryOpen || browserStartOpen || remindersOpen || scanOpen || speakersOpen || partyOpen || partySetupOpen;
   useDailyReload(!panelOpen);
   const isIdle = useIdleTimer(settings.ambient.idleTimeoutSeconds, settings.ambient.enabled && !panelOpen, remote);
 
@@ -232,7 +242,7 @@ export default function App() {
   // day, and goes away at ten or when someone taps it — whichever is first.
   // Checked once a minute; nothing else on screen is disturbed to show it.
   const morningNow = isMorning(now, settings.display.schedule?.on);
-  const otherPanelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || timerPanelOpen || lightsOpen;
+  const otherPanelOpen = settingsOpen || choresOpen || recipesOpen || browserUrl !== null || timerPanelOpen || lightsOpen || partyOpen || partySetupOpen;
   const today = dayKey(now);
   useEffect(() => {
     if (morningNow && morningDismissed !== today && !otherPanelOpen) setMorningOpen(true);
@@ -754,7 +764,7 @@ export default function App() {
         enough to hit reliably with a thumb, which is the part that matters.
       */}
 
-      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !timerPanelOpen && !morningOpen && !lightsOpen && !browserStartOpen && !groceryOpen && !remindersOpen && !scanOpen && !speakersOpen && !isIdle && (
+      {!settingsOpen && !choresOpen && !recipesOpen && browserUrl === null && !timerPanelOpen && !morningOpen && !lightsOpen && !browserStartOpen && !groceryOpen && !remindersOpen && !scanOpen && !speakersOpen && !isIdle && !partyOpen && !partySetupOpen && (
         <KioskMenu
           open={menuOpen}
           onToggle={() => setMenuOpen((v) => !v)}
@@ -775,6 +785,7 @@ export default function App() {
           entries={[
             { key: 'morning', label: 'Good morning', icon: <Icon name="sun" />, onPick: () => setMorningOpen(true) },
             { key: 'timers', label: 'Timers', icon: <Icon name="timer" />, onPick: () => setTimerPanelOpen(true) },
+            { key: 'party', label: 'Party teams', icon: <Icon name="people" />, onPick: () => setPartySetupOpen(true) },
             { key: 'reminders', label: 'Reminders', icon: <Icon name="bell" />, onPick: () => setRemindersOpen(true) },
             { key: 'scan', label: 'Scan a photo', icon: <Icon name="camera" />, onPick: () => setScanOpen(true) },
             { key: 'speakers', label: 'Speakers', icon: <Icon name="speaker" />, onPick: () => setSpeakersOpen(true) },
@@ -789,6 +800,30 @@ export default function App() {
               : []),
             { key: 'settings', label: 'Settings', icon: <Icon name="gear" />, onPick: () => setSettingsOpen(true) },
           ]}
+        />
+      )}
+
+      {partyOpen && partyState.party && (
+        <PartyWelcome
+          party={partyState.party}
+          now={now}
+          reducedMotion={settings.display.reducedMotion}
+          onReveal={partyState.reveal}
+          onEveryone={partyState.everyone}
+          onHost={() => setPartySetupOpen(true)}
+          showEveryone={showEveryone}
+        />
+      )}
+
+      {partySetupOpen && partyState.party && (
+        <PartySetup
+          party={partyState.party}
+          household={settings.people.filter((p) => p.enabled && p.id !== 'household').map((p) => p.name)}
+          onSetup={partyState.setup}
+          onOpen={partyState.setOpen}
+          onRedraw={partyState.redraw}
+          onShowEveryone={() => setShowEveryone((n) => n + 1)}
+          onClose={() => setPartySetupOpen(false)}
         />
       )}
 

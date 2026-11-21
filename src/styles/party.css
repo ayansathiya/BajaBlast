@@ -1,0 +1,757 @@
+/* ==================================================================== *
+ * Party teams
+ *
+ * Set like the front of a printed programme rather than an app: a welcome
+ * in the display serif, one quiet line of instruction, the guest list in the
+ * same serif, alphabetical, with nothing drawn around it. The wall's own
+ * black or beige, and its own spacing (--s1 … --s6).
+ *
+ * Colour is held back for the one moment it means something. Until then
+ * the only colour on the wall is a hairline per team along the bottom,
+ * filling in as people arrive. When someone finds their team, the team's
+ * colour takes the whole wall.
+ * ==================================================================== */
+
+.party,
+.party-setup,
+.party-confirm,
+.party-reveal,
+.party-everyone {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+/* ---------- arrival ---------- */
+
+.party {
+  z-index: 88;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  padding: var(--s5) var(--s6) var(--s4);
+  row-gap: var(--s4);
+}
+
+.party-top {
+  display: flex;
+  gap: var(--s4);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.party-top span:first-child {
+  color: var(--accent);
+}
+
+.party-top-count {
+  margin-left: auto;
+}
+
+.party-hello h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(84px, 8.6vw, 156px);
+  line-height: 0.86;
+  letter-spacing: -0.045em;
+}
+
+.party-hello h1 span {
+  color: var(--accent);
+}
+
+.party-hello p {
+  margin: var(--s2) 0 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(24px, 2.1vw, 36px);
+  letter-spacing: -0.01em;
+  color: var(--text-muted);
+}
+
+/* The guest list: columns of names, a hairline above each, nothing else. */
+.party-names {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-auto-flow: column;
+  column-gap: var(--s5);
+  align-content: start;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.party-names li {
+  animation: party-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.party-names button {
+  width: 100%;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding: 0;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--hairline);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.party-name {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(28px, 2.4vw, 40px);
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+  padding: 18px 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  transition: color 0.2s ease;
+}
+
+.party-names button:active .party-name,
+.party-names button:hover .party-name {
+  color: var(--accent);
+}
+
+/* Someone who's found their team: their name steps back, their team steps in. */
+.party-names button.told .party-name {
+  color: var(--text-faint);
+}
+
+.party-name-team {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.party-name-team::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--team);
+}
+
+.party-names.dense .party-name {
+  font-size: clamp(22px, 1.8vw, 30px);
+  padding: 12px 0;
+}
+
+.party-names.dense button {
+  min-height: 58px;
+}
+
+@keyframes party-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Along the bottom: one hairline per team, filling with its colour as its
+   people arrive. Widths follow team sizes, so the line reads as the room. */
+.party-foot {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s5);
+}
+
+.party-standings {
+  flex: 1;
+  display: flex;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+.party-standing {
+  flex-basis: 0;
+  min-width: 0;
+}
+
+.party-bar {
+  height: 3px;
+  background: var(--hairline);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.party-bar i {
+  display: block;
+  height: 100%;
+  background: var(--team);
+  transition: width 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.party-standing-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s1);
+  margin-top: var(--s1);
+}
+
+.party-standing-label b {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.party-standing-label span {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.party-host {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.party-host button {
+  background: none;
+  border: none;
+  padding: var(--s1) 0;
+  min-height: 44px;
+  font: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* ---------- buttons ---------- */
+
+.party-btn {
+  min-height: 60px;
+  padding: 0 34px;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.party-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.party-btn.quiet {
+  background: none;
+  color: var(--text-muted);
+  padding: 0 var(--s2);
+}
+
+.party-icon-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  background: none;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+/* ---------- "Is this you?" ---------- */
+
+.party-confirm {
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  animation: party-fade 0.2s ease both;
+}
+
+.party-confirm p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.party-confirm h2 {
+  margin: var(--s2) 0 var(--s5);
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(80px, 9vw, 170px);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.party-confirm-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--s2);
+}
+
+@keyframes party-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---------- the reveal ---------- */
+
+.party-reveal {
+  z-index: 96;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* The team's colour, opening from the middle of the wall. */
+.party-reveal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--team);
+  clip-path: circle(0% at 50% 55%);
+  transition: clip-path 0.9s cubic-bezier(0.65, 0, 0.25, 1);
+}
+
+.party-reveal.settled::before {
+  clip-path: circle(150% at 50% 55%);
+}
+
+.party-spin,
+.party-landed {
+  position: relative;
+  padding: 0 var(--s6);
+}
+
+.party-spin p,
+.party-landed > p:first-child {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.party-spin h2 {
+  margin: var(--s2) 0 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(96px, 10.5vw, 196px);
+  line-height: 1;
+  letter-spacing: -0.035em;
+  animation: party-flip 0.14s ease-out both;
+}
+
+/* Deep harvest colours are rich as a whole wall but too dark as type on
+   black, so while the names turn over the colour sits under the word. */
+.party-spin h2::after {
+  content: '';
+  display: block;
+  width: 1.6em;
+  height: 0.08em;
+  margin: 0.18em auto 0;
+  border-radius: 0.04em;
+  background: var(--spin);
+}
+
+@keyframes party-flip {
+  from {
+    opacity: 0.2;
+    transform: translateY(-0.12em);
+  }
+}
+
+.party-landed {
+  color: var(--team-ink);
+  animation: party-land 0.7s 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.party-landed > p:first-child {
+  color: var(--team-ink);
+  opacity: 0.75;
+}
+
+.party-landed h2 {
+  margin: var(--s2) 0 var(--s3);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 300;
+  font-size: clamp(120px, 14vw, 260px);
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+}
+
+.party-with {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(26px, 2.2vw, 38px);
+  letter-spacing: -0.01em;
+}
+
+.party-done {
+  margin-top: var(--s5);
+  min-height: 60px;
+  padding: 0 44px;
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
+  background: none;
+  color: inherit;
+  font-family: var(--font);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* How long until the wall goes back to the names, as a line running out. */
+.party-timer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: var(--team-ink);
+  opacity: 0.35;
+  transform-origin: left;
+  animation: party-run 14s linear both;
+}
+
+@keyframes party-land {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+}
+
+@keyframes party-run {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* ---------- every team, for game time ---------- */
+
+.party-everyone {
+  z-index: 96;
+  padding: var(--s5) var(--s6);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  row-gap: var(--s5);
+  animation: party-fade 0.25s ease both;
+}
+
+.party-everyone header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.party-everyone h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(56px, 5vw, 92px);
+  letter-spacing: -0.04em;
+}
+
+.party-everyone-cols {
+  display: grid;
+  column-gap: var(--s5);
+  min-height: 0;
+}
+
+.party-everyone section {
+  border-top: 6px solid var(--team);
+  padding-top: var(--s3);
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.party-everyone h3 {
+  margin: 0 0 var(--s3);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(34px, 3vw, 52px);
+  letter-spacing: -0.025em;
+}
+
+.party-everyone ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.party-everyone li {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 1.9vw, 32px);
+  line-height: 1.6;
+}
+
+/* ---------- setting it up ---------- */
+
+.party-setup {
+  z-index: 97;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: var(--s5) var(--s6) var(--s4);
+  row-gap: var(--s4);
+  animation: party-fade 0.2s ease both;
+}
+
+.party-setup-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.party-kicker {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.party-setup-head h2 {
+  margin: var(--s1) 0 0;
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(52px, 4.6vw, 84px);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.party-setup-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  column-gap: var(--s6);
+  min-height: 0;
+}
+
+.party-setup-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.party-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.party-field > span {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.party-field > span em {
+  font-style: normal;
+  color: var(--accent);
+  margin-left: 6px;
+}
+
+/* Underlined, like writing on a list — not the filled boxes the rest of the
+   kiosk uses (design.css styles every .kiosk input with !important). */
+.kiosk .party-setup input {
+  width: 100%;
+  background: none !important;
+  border: none !important;
+  border-bottom: 1px solid var(--hairline) !important;
+  border-radius: 0 !important;
+  padding: 6px 0 10px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: clamp(24px, 2vw, 32px);
+  letter-spacing: -0.01em;
+  outline: none;
+}
+
+.kiosk .party-setup input:focus {
+  border-bottom-color: var(--accent) !important;
+}
+
+.party-setup input::placeholder {
+  color: var(--text-faint);
+}
+
+.party-count {
+  display: flex;
+  gap: var(--s1);
+}
+
+.party-count button {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 30px;
+  cursor: pointer;
+}
+
+.party-count button.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.party-team-names {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.party-team-names li {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.party-team-names i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--team);
+}
+
+.party-add {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s2);
+}
+
+.party-add button,
+.party-link {
+  background: none;
+  border: none;
+  padding: var(--s1) 0;
+  min-height: 44px;
+  color: var(--accent);
+  font-family: var(--font);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.party-add button:disabled {
+  opacity: 0.3;
+}
+
+.party-guest-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1) var(--s4);
+}
+
+.party-guest-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 1.8vw, 28px);
+  letter-spacing: -0.01em;
+}
+
+.party-guest-list button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.party-setup-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--hairline);
+}
+
+.party-setup-foot p {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  max-width: 62ch;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.party-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  flex: none;
+}
+
+/* ---------- calm, when asked for ---------- */
+
+body.reduced-motion .party-names li,
+body.reduced-motion .party-landed,
+body.reduced-motion .party-confirm,
+body.reduced-motion .party-everyone,
+body.reduced-motion .party-setup {
+  animation: none;
+}
+
+body.reduced-motion .party-reveal::before {
+  transition: none;
+}

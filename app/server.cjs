@@ -30,6 +30,7 @@ const bluetooth = require('./bluetooth.cjs');
 const kural = require('./kural.cjs');
 const voice = require('./voice.cjs');
 const lights = require('./lights.cjs');
+const party = require('./party.cjs');
 
 const PORT = 8787;
 
@@ -1214,6 +1215,44 @@ function startServer(options = {}) {
       store.settings = withDefaults(body);
       saveStore(store);
       return send(res, 200, store.settings);
+    }
+
+    /* ---------------- party teams (app/party.cjs) ---------------- */
+
+    if (url.pathname === '/api/party' && req.method === 'GET') {
+      return send(res, 200, party.publicView(store.party, { all: url.searchParams.get('all') === '1' }));
+    }
+
+    // The host's setup: { title, teams: [{ name }], guests: [name] }.
+    if (url.pathname === '/api/party/setup' && req.method === 'PUT') {
+      const body = await readBody(req).catch(() => ({}));
+      store.party = { ...party.setup(store.party, body), open: party.normalise(store.party).open };
+      saveStore(store);
+      return send(res, 200, party.publicView(store.party));
+    }
+
+    // { open: true } shows the welcome screen on the wall; false puts it away.
+    if (url.pathname === '/api/party/open' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      store.party = { ...party.normalise(store.party), open: !!body.open };
+      if (store.party.open && typeof wakeDisplay === 'function') wakeDisplay(240);
+      saveStore(store);
+      return send(res, 200, party.publicView(store.party));
+    }
+
+    if (url.pathname === '/api/party/reveal' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const { party: next, result } = party.reveal(store.party, String(body.guestId || ''));
+      if (!result) return send(res, 404, { error: 'no such guest' });
+      store.party = next;
+      saveStore(store);
+      return send(res, 200, result);
+    }
+
+    if (url.pathname === '/api/party/redraw' && req.method === 'POST') {
+      store.party = party.redraw(store.party);
+      saveStore(store);
+      return send(res, 200, party.publicView(store.party));
     }
 
     /* ---------------- lights ---------------- */
