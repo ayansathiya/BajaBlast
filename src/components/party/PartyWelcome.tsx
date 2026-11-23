@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { PartyGuest, PartyState, Reveal } from '../../hooks/useParty';
+import { PartyGuest, PartyState, PartyTip, Reveal } from '../../hooks/useParty';
+import { qrToSvg } from '../../engine/qr';
 
 interface Props {
   party: PartyState;
@@ -16,7 +17,8 @@ type Stage =
   | { kind: 'names' }
   | { kind: 'confirm'; guest: PartyGuest }
   | { kind: 'reveal'; result: Reveal; settled: boolean }
-  | { kind: 'everyone'; party: PartyState };
+  | { kind: 'everyone'; party: PartyState }
+  | { kind: 'tip' };
 
 /** "Raj and Meena", "Raj, Meena and Arjun". */
 function listOf(names: string[]): string {
@@ -52,6 +54,9 @@ function announce(text: string) {
 export function PartyWelcome({ party, now, reducedMotion, onReveal, onEveryone, onHost, showEveryone }: Props) {
   const [stage, setStage] = useState<Stage>({ kind: 'names' });
   const back = () => setStage({ kind: 'names' });
+  const tipOn = !!(party.tip?.enabled && (party.tip.mode === 'tap' || party.tip.handle));
+  // A finished reveal goes on to the coffee page, if the host set one up.
+  const afterReveal = () => (tipOn ? setStage({ kind: 'tip' }) : back());
 
   // Nothing is left waiting on the wall: an unanswered "Is this you?" or a
   // finished reveal goes back to the names by itself.
@@ -61,9 +66,14 @@ export function PartyWelcome({ party, now, reducedMotion, onReveal, onEveryone, 
       return () => window.clearTimeout(t);
     }
     if (stage.kind === 'reveal' && stage.settled) {
-      const t = window.setTimeout(back, 14000);
+      const t = window.setTimeout(afterReveal, 14000);
       return () => window.clearTimeout(t);
     }
+    if (stage.kind === 'tip') {
+      const t = window.setTimeout(back, 30000);
+      return () => window.clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage]);
 
   useEffect(() => {
@@ -159,9 +169,11 @@ export function PartyWelcome({ party, now, reducedMotion, onReveal, onEveryone, 
             const r = stage.result;
             announce(`${r.guest}, you're on team ${r.team.name}!`);
           }}
-          onDone={back}
+          onDone={afterReveal}
         />
       )}
+
+      {stage.kind === 'tip' && <Coffee tip={party.tip} title={party.title} onDone={back} />}
 
       {stage.kind === 'everyone' && <Everyone party={stage.party} onDone={back} />}
     </div>
@@ -284,6 +296,92 @@ function TeamReveal({
         </div>
       )}
       {settled && <div className="party-timer" aria-hidden />}
+    </div>
+  );
+}
+
+/**
+ * What a phone's camera should open: Messages, to the maker, with a note
+ * filled in. Apple Cash is sent from inside Messages — there's no link that
+ * opens Apple Cash itself — so this gets the guest one tap away from it.
+ * A ten-digit number is taken as American.
+ */
+function messagesLink(handle: string, title: string): string {
+  const to = /^\d{10}$/.test(handle) ? `+1${handle}` : handle;
+  const withNote = `sms:${to}&body=${encodeURIComponent(`A coffee for the ${title} screen!`)}`;
+  // The QR encoder tops out around 108 characters.
+  return withNote.length <= 100 ? withNote : `sms:${to}`;
+}
+
+function safeQr(text: string): string | null {
+  try {
+    return qrToSvg(text, { size: 260, quiet: 2 });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One more page after the reveal, in the maker's own voice: "I made this
+ * whole screen… buy me a coffee!" Set like the rest — big serif,
+ * one line of explanation — with the code on a white card because a phone
+ * camera needs dark-on-light to read it. Easy to walk past: "Maybe later",
+ * or it goes by itself.
+ */
+function Coffee({ tip, title, onDone }: { tip: PartyTip; title: string; onDone: () => void }) {
+  const tap = tip.mode !== 'qr';
+  const qr = useMemo(() => (tap ? null : safeQr(messagesLink(tip.handle, title))), [tap, tip.handle, title]);
+  return (
+    <div className="party-coffee" onClick={onDone}>
+      <div className="party-coffee-inner" onClick={(e) => e.stopPropagation()}>
+        <div className="party-coffee-words">
+          <div className="party-kicker">One more thing</div>
+          <h2>
+            Liked that<span>?</span>
+          </h2>
+          <p className="party-coffee-lede">
+            {tip.name ? `Hi, I’m ${tip.name}. I made` : 'I made'} this whole screen. If it made you smile, buy me a coffee!
+          </p>
+          {tap ? (
+            <ol className="party-coffee-steps">
+              <li>
+                <span>Hold your iPhone near my phone, next to this screen</span>
+              </li>
+              <li>
+                <span>Choose an amount, and send</span>
+              </li>
+            </ol>
+          ) : (
+            <ol className="party-coffee-steps">
+              <li>
+                <span>Point your iPhone camera at the code</span>
+              </li>
+              <li>
+                <span>It opens Messages to me</span>
+              </li>
+              <li>
+                <span>
+                  Tap <b>Apple Cash</b>, choose an amount, send
+                </span>
+              </li>
+            </ol>
+          )}
+          <button className="party-btn quiet party-coffee-later" onClick={onDone}>
+            Maybe later
+          </button>
+        </div>
+        {qr && <div className="party-coffee-qr" aria-label="QR code for Apple Cash in Messages" dangerouslySetInnerHTML={{ __html: qr }} />}
+        {tap && (
+          // Two phones meeting, pointing to the side of the screen the phone sits on.
+          <svg className="party-coffee-tap" viewBox="0 0 220 200" aria-hidden>
+            <rect x="24" y="36" width="72" height="136" rx="14" />
+            <rect x="124" y="28" width="72" height="136" rx="14" transform="rotate(8 160 96)" />
+            <path className="wave" d="M104 84q6 12 0 24" />
+            <path className="wave w2" d="M112 76q11 20 0 40" />
+          </svg>
+        )}
+      </div>
+      <div className="party-timer slow" aria-hidden />
     </div>
   );
 }

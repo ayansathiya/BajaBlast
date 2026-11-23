@@ -32,7 +32,7 @@ const voice = require('./voice.cjs');
 const lights = require('./lights.cjs');
 const party = require('./party.cjs');
 
-const PORT = 8787;
+const PORT = Number(process.env.BAJA_BLAST_PORT) || 8787;
 
 // Bumped on every release. This is the answer to "am I actually running the
 // new version?" — it's printed to the terminal at startup next to the folder

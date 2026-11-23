@@ -1,11 +1,11 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Icon } from '../Icon';
-import { PartyState } from '../../hooks/useParty';
+import { PartyState, PartyTip } from '../../hooks/useParty';
 
 interface Props {
   party: PartyState;
   household: string[];
-  onSetup: (body: { title: string; teams: { name: string }[]; guests: string[] }) => Promise<PartyState>;
+  onSetup: (body: { title: string; teams: { name: string }[]; guests: string[]; tip: PartyTip }) => Promise<PartyState>;
   onOpen: (open: boolean) => void;
   onRedraw: () => void;
   onShowEveryone: () => void;
@@ -35,6 +35,7 @@ export function PartySetup({ party, household, onSetup, onOpen, onRedraw, onShow
   const [title, setTitle] = useState(party.title);
   const [teams, setTeams] = useState(party.teams.map((t) => t.name));
   const [guests, setGuests] = useState(party.guests.map((g) => g.name));
+  const [tip, setTip] = useState<PartyTip>(party.tip ?? { enabled: false, mode: 'tap', name: '', handle: '' });
   const [adding, setAdding] = useState('');
   const [confirmRedraw, setConfirmRedraw] = useState(false);
   const first = useRef(true);
@@ -43,7 +44,7 @@ export function PartySetup({ party, household, onSetup, onOpen, onRedraw, onShow
   // Save a moment after the last change — and straight away on the way out,
   // so a name typed just before "Open the doors" isn't left behind.
   const pending = useRef<number | null>(null);
-  const draft = () => ({ title, teams: teams.map((name) => ({ name })), guests });
+  const draft = () => ({ title, teams: teams.map((name) => ({ name })), guests, tip });
   useEffect(() => {
     if (first.current) {
       first.current = false;
@@ -57,7 +58,7 @@ export function PartySetup({ party, household, onSetup, onOpen, onRedraw, onShow
       if (pending.current) window.clearTimeout(pending.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, teams, guests]);
+  }, [title, teams, guests, tip]);
 
   async function flush() {
     if (pending.current) {
@@ -132,6 +133,44 @@ export function PartySetup({ party, household, onSetup, onOpen, onRedraw, onShow
                 </li>
               ))}
             </ol>
+          </div>
+
+          {/* After each reveal, a "buy the maker a coffee" page with a QR code
+              that opens Messages to their Apple Cash. Off unless set. */}
+          <div className="party-field">
+            <span>After each reveal</span>
+            <div className="party-tip-toggle" role="radiogroup" aria-label="Coffee page">
+              <button role="radio" aria-checked={!tip.enabled} className={!tip.enabled ? 'on' : ''} onClick={() => setTip({ ...tip, enabled: false })}>
+                Back to the names
+              </button>
+              <button role="radio" aria-checked={tip.enabled} className={tip.enabled ? 'on' : ''} onClick={() => setTip({ ...tip, enabled: true })}>
+                “Buy me a coffee” page
+              </button>
+            </div>
+            {tip.enabled && (
+              <div className="party-tip-fields">
+                <input value={tip.name} maxLength={30} onChange={(e) => setTip({ ...tip, name: e.target.value })} placeholder="Who made this — e.g. Ayan" aria-label="Who made this" />
+                <div className="party-tip-toggle" role="radiogroup" aria-label="How guests pay">
+                  <button role="radio" aria-checked={tip.mode === 'tap'} className={tip.mode === 'tap' ? 'on' : ''} onClick={() => setTip({ ...tip, mode: 'tap' })}>
+                    A phone by the screen
+                  </button>
+                  <button role="radio" aria-checked={tip.mode === 'qr'} className={tip.mode === 'qr' ? 'on' : ''} onClick={() => setTip({ ...tip, mode: 'qr' })}>
+                    A QR code
+                  </button>
+                </div>
+                {tip.mode === 'qr' ? (
+                  <input
+                    value={tip.handle}
+                    maxLength={60}
+                    onChange={(e) => setTip({ ...tip, handle: e.target.value })}
+                    placeholder="Their Apple Cash phone number or email"
+                    aria-label="Apple Cash phone number or email"
+                  />
+                ) : (
+                  <p className="party-tip-note">Leave their iPhone, unlocked, next to the screen. Guests hold theirs against it to send — no number shown.</p>
+                )}
+              </div>
+            )}
           </div>
         </section>
 

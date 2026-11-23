@@ -63,6 +63,20 @@ console.log('\nChanging the setup on the night');
   check('a fresh draw forgets every reveal', p.guests.every((g) => !g.revealedAt));
 }
 
+console.log('\nThe tip jar');
+{
+  let p = party.setup(null, { guests: NAMES });
+  check('off unless the host turns it on', party.publicView(p).tip.enabled === false);
+  check('a phone by the screen is the default, so no number is shown', party.publicView(p).tip.mode === 'tap');
+  p = party.setup(p, { tip: { enabled: true, name: '  Ayan ', handle: '(603) 555-0142' } });
+  const tip = party.publicView(p).tip;
+  check('a phone number keeps only digits', tip.handle === '6035550142' && tip.name === 'Ayan' && tip.enabled);
+  p = party.setup(p, { tip: { enabled: true, name: 'Ayan', handle: 'ayan@example.com' } });
+  check('an email is kept as it is', party.publicView(p).tip.handle === 'ayan@example.com');
+  p = party.setup(p, { guests: [...NAMES, 'Late Larry'] });
+  check('editing the guests leaves the tip jar alone', party.publicView(p).tip.handle === 'ayan@example.com');
+}
+
 console.log('\nFair');
 {
   // Over many draws, one guest should land on each of 3 teams about a third

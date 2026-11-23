@@ -19,8 +19,19 @@ export interface PartyGuest {
   revealed: boolean;
 }
 
+export interface PartyTip {
+  enabled: boolean;
+  /** 'tap': a phone beside the screen (Tap to Cash). 'qr': a code that opens Messages. */
+  mode: 'tap' | 'qr';
+  /** Who made the screen — "buy {name} a coffee". */
+  name: string;
+  /** The phone number or email their Apple Cash is on. */
+  handle: string;
+}
+
 export interface PartyState {
   title: string;
+  tip: PartyTip;
   open: boolean;
   drawnAt: string | null;
   palette: { name: string; color: string; ink: string }[];
@@ -63,7 +74,7 @@ export function useParty() {
   return {
     party,
     refresh,
-    setup: (body: { title?: string; teams?: { name: string }[]; guests?: string[] }) =>
+    setup: (body: { title?: string; teams?: { name: string }[]; guests?: string[]; tip?: PartyTip }) =>
       send('/api/party/setup', 'PUT', body).then((p: PartyState) => {
         setParty(p);
         return p;

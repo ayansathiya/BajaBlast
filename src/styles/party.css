@@ -742,13 +742,185 @@
   flex: none;
 }
 
+/* ---------- one more thing: a coffee ---------- */
+
+.party-coffee {
+  position: fixed;
+  inset: 0;
+  z-index: 96;
+  background: var(--bg);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  padding: var(--s5) var(--s6);
+  animation: party-fade 0.35s ease both;
+}
+
+.party-coffee-inner {
+  width: min(1180px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) auto;
+  align-items: center;
+  column-gap: var(--s6);
+}
+
+.party-coffee h2 {
+  margin: var(--s2) 0 var(--s3);
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(84px, 8.4vw, 150px);
+  line-height: 0.9;
+  letter-spacing: -0.045em;
+}
+
+.party-coffee h2 span {
+  color: var(--accent);
+}
+
+.party-coffee-lede {
+  margin: 0 0 var(--s4);
+  max-width: 24ch;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 2.4vw, 40px);
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+
+.party-coffee-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.party-coffee-steps li {
+  counter-increment: step;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  font-size: 21px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.party-coffee-steps li::before {
+  content: counter(step);
+  flex: none;
+  width: 1.4em;
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--accent);
+}
+
+.party-coffee-steps b {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.party-coffee-later {
+  margin-top: var(--s4);
+  margin-left: calc(-1 * var(--s2));
+}
+
+/* A phone camera reads dark on light, so the code sits on white whatever
+   the wall's theme. */
+.party-coffee-qr {
+  background: #fff;
+  border-radius: 24px;
+  padding: 18px;
+  line-height: 0;
+}
+
+.party-coffee-qr svg {
+  width: clamp(220px, 19vw, 320px);
+  height: auto;
+}
+
+.party-coffee-tap {
+  width: clamp(240px, 21vw, 340px);
+  height: auto;
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.party-coffee-tap .wave {
+  stroke: var(--accent);
+  animation: party-wave 1.6s ease-in-out infinite;
+}
+
+.party-coffee-tap .w2 {
+  animation-delay: 0.25s;
+}
+
+@keyframes party-wave {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.party-timer.slow {
+  background: var(--text-faint);
+  animation-duration: 30s;
+}
+
+/* Setup: the coffee page's choices. */
+.party-tip-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+
+.party-tip-toggle button {
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.party-tip-toggle button.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.party-tip-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin-top: var(--s1);
+}
+
+.party-tip-note {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 /* ---------- calm, when asked for ---------- */
 
 body.reduced-motion .party-names li,
 body.reduced-motion .party-landed,
 body.reduced-motion .party-confirm,
 body.reduced-motion .party-everyone,
-body.reduced-motion .party-setup {
+body.reduced-motion .party-setup,
+body.reduced-motion .party-coffee,
+body.reduced-motion .party-coffee-tap .wave {
   animation: none;
 }
 

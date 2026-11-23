@@ -9,6 +9,19 @@ disagree. Each entry is a date, a title, and what actually changed.
 The format matters, because `app/changelog.cjs` parses it: a heading of
 `## YYYY-MM-DD — Title`, then bullets. Anything else is ignored.
 
+## 2026-11-23 — A coffee for whoever made the party screen
+
+- **"Liked that?"** After someone sees their team, the wall can show one
+  more page, in the maker's own voice: "Hi, I'm Ayan. I made this whole
+  screen. If it made you smile, buy me a coffee!" Switch
+  it on in Party teams → setup → "After each reveal".
+- **Tap to pay, no number on the wall.** Leave the maker's iPhone, unlocked,
+  next to the screen: guests hold their iPhone near it and send Apple Cash.
+  Or choose "A QR code" instead, with an Apple Cash phone number or email —
+  scanning it opens Messages to them, one tap from Apple Cash.
+- "Maybe later" skips it, and it goes back to the names by itself after
+  half a minute.
+
 ## 2026-11-20 — Party teams, for Thanksgiving
 
 - **Teams drawn at random, revealed at the door.** Menu → Party teams. Say

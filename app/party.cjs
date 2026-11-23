@@ -39,7 +39,33 @@ const MAX_GUESTS = 80;
 const id = () => crypto.randomBytes(6).toString('hex');
 
 function empty() {
-  return { title: 'Thanksgiving', open: false, drawnAt: null, teams: defaultTeams(3), guests: [] };
+  return { title: 'Thanksgiving', open: false, drawnAt: null, teams: defaultTeams(3), guests: [], tip: emptyTip() };
+}
+
+/*
+ * The tip jar: a "buy the maker a coffee" page after each reveal. Either a
+ * phone left beside the screen that guests tap their iPhone against (Tap to
+ * Cash), or a QR code that opens Messages to `handle` — the phone number or
+ * email their Apple Cash is on — to send from there (no link can open Apple
+ * Cash itself).
+ */
+function emptyTip() {
+  return { enabled: false, mode: 'tap', name: '', handle: '' };
+}
+
+function normaliseTip(t) {
+  const tip = t && typeof t === 'object' ? t : {};
+  const handle = String(tip.handle || '').trim().slice(0, 60);
+  return {
+    enabled: !!tip.enabled,
+    // 'tap': a phone left beside the screen, paid with Tap to Cash (iPhones
+    // held together) — no number on the wall. 'qr': a code that opens
+    // Messages to `handle`.
+    mode: tip.mode === 'qr' ? 'qr' : 'tap',
+    name: String(tip.name || '').replace(/\s+/g, ' ').trim().slice(0, 30),
+    // A phone number keeps only what Messages understands; an email is kept as typed.
+    handle: handle.includes('@') ? handle : handle.replace(/[^\d+]/g, '').slice(0, 16),
+  };
 }
 
 function defaultTeams(n) {
@@ -54,6 +80,7 @@ function normalise(party) {
     drawnAt: p.drawnAt || null,
     teams: Array.isArray(p.teams) && p.teams.length >= 2 ? p.teams.slice(0, MAX_TEAMS) : defaultTeams(3),
     guests: Array.isArray(p.guests) ? p.guests.slice(0, MAX_GUESTS) : [],
+    tip: normaliseTip(p.tip),
   };
 }
 
@@ -100,6 +127,7 @@ function deal(party) {
 function setup(current, body) {
   const party = normalise(current);
   if (typeof body.title === 'string') party.title = body.title.trim().slice(0, 40) || 'Thanksgiving';
+  if (body.tip && typeof body.tip === 'object') party.tip = normaliseTip(body.tip);
 
   if (Array.isArray(body.teams)) {
     const wanted = body.teams.slice(0, MAX_TEAMS);
@@ -167,6 +195,7 @@ function publicView(current, { all = false } = {}) {
     open: party.open,
     drawnAt: party.drawnAt,
     palette: PALETTE.map(({ name, color, ink }) => ({ name, color, ink })),
+    tip: party.tip,
     teams: party.teams.map((t) => ({
       ...t,
       size: party.guests.filter((g) => g.teamId === t.id).length,
